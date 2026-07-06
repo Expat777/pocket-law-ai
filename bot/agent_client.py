@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from bot.contracts import Answer, IngestResult
+from shared.contracts import Answer, IngestResult
 
 
 class AgentClient(Protocol):

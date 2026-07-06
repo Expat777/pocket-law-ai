@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from bot.contracts import Answer, Citation, IngestResult
+from shared.contracts import Answer, Citation, IngestResult
 from bot.formatter import (
     DISCLAIMER,
     escape_md,
@@ -33,10 +33,10 @@ def test_format_answer_has_text_basis_and_disclaimer():
 
 
 def test_format_answer_message_routes_clarify_and_refuse():
-    clarify = Answer(text="", clarifying_question="Уточните статус работника?")
+    clarify = Answer(text="", citations=[], clarifying_question="Уточните статус работника?")
     assert format_answer_message(clarify).startswith("❓")
 
-    refused = Answer(text="Не нашёл норму.", refused=True)
+    refused = Answer(text="Не нашёл норму.", citations=[], refused=True)
     out = format_answer_message(refused)
     assert out.startswith("⚠️")
     assert escape_md(DISCLAIMER) in out

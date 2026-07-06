@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from bot.contracts import Answer, Citation, IngestResult
+from shared.contracts import Answer, Citation, IngestResult
 
 DISCLAIMER = "Не является юридической консультацией."
 

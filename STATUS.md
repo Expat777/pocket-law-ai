@@ -11,9 +11,24 @@
 
 ---
 
-## Роль 1 · Bot Layer (`bot/`)
+## Роль 1 · Bot Layer (`bot/`) — ветка `Dordzhi-Msk`
 
-_записей пока нет_
+### 2026-07-06 — **DoD Роли 1 закрыт**
+**Сделано:**
+- Каркас aiogram 3.x (long polling) закоммичен в `bot/`: команды `/start` (обязательное согласие 152-ФЗ через inline-кнопку — без согласия бот не отвечает), `/help`, `/delete_my_data` (полное удаление данных пользователя).
+- FSM диалога (`normal_question` / `awaiting_clarification` / `uploading_file`); хендлер вопросов зовёт `answer_question()` и разводит **три ветки** контракта: обычный ответ с цитатой, `clarifying_question` (переспрос), `refused` (честный отказ).
+- File Handler: приём PDF/фото с валидацией **до обработки** — размер ≤ 20 МБ по метаданным + проверка **magic bytes** скачанного файла (PDF/JPEG/PNG, не по расширению) → `ingest_document()`.
+- Response Formatter по формату 3.5: MarkdownV2 с полным экранированием спецсимволов, блок «Основание: ст. N …», строка дисклеймера. In-memory репозиторий (`dialog_history` + rate-limit N/час), гейт согласия и лимита как middleware.
+- `MockAgent` (3 фикстуры) — бот живёт без реального `agent/`. **Проверено в живом Telegram** (скриншоты): согласие → ответ с «ст. 81 ТК РФ» + дисклеймер → уточнение → отказ. Оффлайн: 11 unit-тестов + 13 сквозных проверок через настоящий `Dispatcher` (моканная сессия) — зелёные.
+- После И0 переключил импорты на `shared.contracts` (удалил временное локальное зеркало `bot/contracts.py`); зависимости беру из корневого `pyproject.toml`, свой `bot/requirements.txt` удалил (по заметке Роли 4).
+
+**Дальше:**
+- **И1 (с Ролью 2):** заменить `MockAgent()` на реальный клиент из `agent/` — это ровно одна строка в `bot/main.build_dispatcher`, хендлеры не меняются.
+- `PostgresRepository` на asyncpg поверх схемы 3.4 (`users.consent_at`, `dialog_history`) — включается через `STORAGE_BACKEND=postgres`; сейчас по умолчанию in-memory.
+
+**Важно другим:**
+- **Роль 2:** интерфейс, который бот от тебя ждёт, — `bot/agent_client.py::AgentClient` (`answer_question`/`ingest_document` строго по `shared.contracts`). Напоминание по контракту: при `refused=False` в `Answer.citations` должна быть **минимум одна** цитата; для веток `refused`/`clarifying_question` передавай `citations=[]`. Подмена мока — одна строка, готов состыковаться по И1 в любой момент.
+- **Роль 4:** спасибо за `users.consent_at` и `search_law()` — мои долги по ним закрыты; `bot/requirements.txt` удалён, зависимости из `pyproject.toml`.
 
 ---
 

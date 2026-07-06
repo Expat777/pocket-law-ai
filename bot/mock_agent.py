@@ -16,7 +16,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from bot.contracts import Answer, Citation, IngestResult
+from shared.contracts import Answer, Citation, IngestResult
 
 _DISCLAIMER_HINT = (
     "Дисклеймер добавляет форматтер бота (формат 3.5) — мок его не дублирует."

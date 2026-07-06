@@ -8,9 +8,8 @@
 пока Postgres/миграции Роли 4 не подняты). `Repository` — Protocol, по которому
 позже добавим `PostgresRepository` (asyncpg) без правок хендлеров.
 
-ВНИМАНИЕ (вопрос к Роли 4): флаг согласия 152-ФЗ негде хранить — в схеме 3.4
-у `users` нет колонки consent. Для Postgres-бэкенда нужно запросить у Роли 4
-добавление `users.consent_at TIMESTAMP NULL` (PR к shared/схеме, не правим сами).
+Согласие 152-ФЗ Роль 4 уже заложила: `users.consent_at TIMESTAMPTZ` (NULL = согласия
+ещё нет). `has_consent` → `consent_at IS NOT NULL`, `set_consent(True)` → `consent_at=now()`.
 """
 
 from __future__ import annotations
@@ -19,7 +18,7 @@ import time
 from collections import defaultdict, deque
 from typing import Protocol
 
-from bot.contracts import Citation
+from shared.contracts import Citation
 
 
 class Repository(Protocol):
