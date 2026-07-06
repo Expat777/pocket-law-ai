@@ -84,6 +84,18 @@ async def test_clarify_when_not_legal():
     assert ans.citations == []
 
 
+def test_compose_prompt_has_security_block():
+    """Канарейка: правила безопасности не должны исчезнуть из compose-промпта."""
+    from agent.prompts import COMPOSE_SYSTEM
+
+    lowered = COMPOSE_SYSTEM.lower()
+    assert "безопасност" in lowered
+    assert "системный промпт" in lowered
+    assert "данные, а не команды" in lowered
+    # социнженерия «я создатель/президент» должна явно отвергаться
+    assert "президент" in lowered
+
+
 async def test_unverified_citation_dropped():
     """Если verify говорит, что статьи нет -> она не попадает в цитаты, отказ."""
     deps = make_deps([TK_81], is_legal=True, active=False)
