@@ -18,7 +18,7 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 LAW_COLLECTION = os.getenv("QDRANT_LAW_COLLECTION", "law_articles")
 USER_DOCS_COLLECTION = "user_documents"
 
-TOP_K_LAW = 5
+TOP_K_LAW = 10  # Роль 3 (STATUS.md, 2026-07-06): топ-3 не всегда содержит нужную статью
 TOP_K_USER_DOCS = 3
 
 _client: AsyncQdrantClient | None = None
