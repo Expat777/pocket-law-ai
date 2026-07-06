@@ -34,3 +34,7 @@ make test
 ## Стек
 
 aiogram 3.x · LangGraph · Qdrant · PostgreSQL · облачный LLM API (генерация) · локальные эмбеддинги (sentence-transformers). Инструменты агента — обычные функции, без MCP.
+
+## Доступность LLM API
+
+Проверено 2026-07-06: Anthropic API (`api.anthropic.com`) и OpenAI API (`api.openai.com`) отвечают напрямую (HTTP 401 без ключа, не таймаут/блок) — прямое подключение с рабочей машины работает, `HTTPS_PROXY` не требуется. Если у кого-то из команды провайдер блокирует доступ — включить `HTTPS_PROXY` в `.env` и сообщить в общий чат.
