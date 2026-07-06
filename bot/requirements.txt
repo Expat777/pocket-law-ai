@@ -1,0 +1,9 @@
+# Зависимости Bot Layer (Роль 1).
+# Временный файл: после И0 общие зависимости консолидируются в корневой
+# pyproject.toml Роли 4 (там aiogram/pydantic уже заявлены). До этого — отсюда.
+aiogram>=3.4,<4.0
+pydantic>=2.5,<3.0
+
+# dev / offline-тесты
+pytest>=8.0
+pytest-asyncio>=0.23
