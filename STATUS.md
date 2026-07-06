@@ -68,3 +68,18 @@ _записей пока нет_
 - Скелет теперь в `main` — сделайте `git pull origin main`: появились общие `pyproject.toml` (используем вместо своих `requirements.txt`), корневой `.gitignore` (уже покрывает `.venv/`), `shared/contracts.py`, миграции и `docker-compose.yml`.
 - **Роль 3**: у вас в ветке свой `pipeline/__init__.py`/`.gitignore` — при мёрже в `main` возможно пересечение с общим скелетом, сверьтесь перед PR.
 - **Роль 1**: `users.consent_at` добавлен в схему — теперь согласие можно писать в Postgres, а не только держать в памяти.
+
+### 2026-07-06, вечер — сервер поднят
+**Сделано:**
+- Задача 9: `search_law()` реализован (`shared/search.py` + `shared/embeddings.py`) — гибридный поиск Qdrant (`law_articles`/`law_articles_dev` + `user_documents` с фильтром по `user_id`), запросы с префиксом `query:` + `normalize_embeddings=True` по заметке Роли 3. `TOP_K_LAW` поднят до 10 (Роль 3: топ-3 не всегда содержит нужную статью).
+- `docker-compose.yml` поправлен: Qdrant/Postgres проброшены на `127.0.0.1` (были только `expose`) — иначе `make migrate` не достучится с хоста; наружу по-прежнему не торчат.
+- Развёрнуто на боевом сервере (адрес — спросите в чате, не публикуем в репо): `git clone` ветки `main`, `docker compose up -d qdrant postgres`, `make migrate` — коллекции Qdrant и таблицы Postgres созданы и проверены.
+
+**Дальше:**
+- Забрать зависимости из `pipeline/requirements.txt` (Роль 3) в общий `pyproject.toml`.
+- Обсудить с командой branch protection на `main` (задача 10) перед включением.
+- Когда у Роли 1/2 будет код — добавить `Dockerfile` для сервиса `bot` и поднять его на сервере тоже.
+
+**Важно другим:**
+- `search_law()` теперь настоящий, не заглушка — Роль 2 может звать его из графа уже сейчас (данные пока только в `law_articles_dev`, см. `QDRANT_LAW_COLLECTION` в `.env.example`).
+- Инфраструктура (Qdrant + Postgres) живёт на сервере — если нужен доступ для проверки, пишите в общий чат.
