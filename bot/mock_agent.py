@@ -18,10 +18,6 @@ from datetime import date
 
 from shared.contracts import Answer, Citation, IngestResult
 
-_DISCLAIMER_HINT = (
-    "Дисклеймер добавляет форматтер бота (формат 3.5) — мок его не дублирует."
-)
-
 # --- фикстуры трёх веток -----------------------------------------------------
 
 _ANSWER_FIXTURE = Answer(

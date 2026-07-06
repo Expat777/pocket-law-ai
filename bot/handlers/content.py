@@ -12,6 +12,7 @@ import logging
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatAction
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
@@ -22,6 +23,23 @@ from bot.states import Dialog
 
 router = Router(name="content")
 log = logging.getLogger(__name__)
+
+_TG_LIMIT = 4096  # максимум символов в одном сообщении Telegram
+
+
+async def _send_md(message: Message, md_text: str) -> None:
+    """Отправка MarkdownV2 с мягкой деградацией.
+
+    Если реальный агент вернёт текст, ломающий разметку — не теряем ответ,
+    а шлём его как обычный текст (снимая экранирование). Длинный ответ
+    обрезаем до лимита Telegram, чтобы отправка не падала.
+    """
+    text = md_text if len(md_text) <= _TG_LIMIT else md_text[: _TG_LIMIT - 1] + "…"
+    try:
+        await message.answer(text, parse_mode="MarkdownV2")
+    except TelegramBadRequest:
+        log.warning("MarkdownV2 отклонён Telegram — отправляю как обычный текст")
+        await message.answer(text.replace("\\", ""))
 
 # Валидация файлов ДО обработки (задача MVP 5): размер проверяем по метаданным,
 # тип — по magic bytes скачанного заголовка, а не по расширению/заявленному mime.
@@ -69,7 +87,7 @@ async def on_question(
         await state.set_state(Dialog.normal_question)
 
     await repo.save_dialog(user_id, "assistant", answer.text, answer.citations)
-    await message.answer(format_answer_message(answer), parse_mode="MarkdownV2")
+    await _send_md(message, format_answer_message(answer))
 
 
 @router.message(F.document | F.photo)
@@ -134,5 +152,18 @@ async def on_file(
         await state.set_state(Dialog.normal_question)
         return
 
-    await message.answer(format_ingest_result(result), parse_mode="MarkdownV2")
+    await _send_md(message, format_ingest_result(result))
     await state.set_state(Dialog.normal_question)
+
+
+@router.message()
+async def on_unsupported(message: Message) -> None:
+    """Всё, что не текст и не файл (голос, видео, стикер, гео и т.п.).
+
+    Стоит последним в роутере — срабатывает, только если не подошли
+    on_question / on_file. Молчать нельзя: пользователь должен понять, что делать.
+    """
+    await message.answer(
+        "Я понимаю только текстовые вопросы и документы (PDF, JPG, PNG). "
+        "Напишите вопрос текстом или пришлите файл."
+    )

@@ -11,6 +11,7 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
@@ -63,7 +64,12 @@ async def main() -> None:
     config = load_config()
     dp = build_dispatcher(config)
 
-    bot = Bot(token=config.bot_token)
+    # link_preview_is_disabled: не показывать карточку-превью для ссылок в цитатах
+    # (source_url в блоке «Основание»), иначе Telegram цепляет крупный блок под ответ.
+    bot = Bot(
+        token=config.bot_token,
+        default=DefaultBotProperties(link_preview_is_disabled=True),
+    )
     await _set_commands(bot)
     logging.getLogger(__name__).info("Bot started (long polling, mock agent)")
     await dp.start_polling(bot)
