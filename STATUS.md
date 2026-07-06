@@ -39,6 +39,22 @@ _записей пока нет_
 
 ---
 
-## Роль 4 · Инфраструктура (`infra/`, `shared/`, корень)
+## Роль 4 · Инфраструктура (`infra/`, `shared/`, корень) — ветка `Vitaliy_Svs`
 
-_записей пока нет_
+### 2026-07-06
+**Сделано:**
+- Скелет репозитория: папки `bot/agent/pipeline/infra/shared/tests`, `pyproject.toml`, `.gitignore`, корневые `README.md`/`CLAUDE.md`.
+- `shared/contracts.py` — раздел 3 TEAM_PLAN перенесён в код 1-в-1 (`Answer`, `Citation`, `IngestResult`, `RetrievedChunk`, `CitationStatus`, `ParsedDoc`, сигнатуры `answer_question/ingest_document/search_law/verify_citation/parse_pdf`).
+- `docker-compose.yml` (qdrant + postgres:16 + bot), `infra/migrations/001_init.sql` по схеме 3.4, `infra/init_qdrant.py` (создание `law_articles`/`user_documents`/`law_articles_dev`), `.env.example`, `Makefile`.
+- Задача 11: проверена доступность LLM API с рабочей машины — Anthropic и OpenAI отвечают напрямую (HTTP 401 без ключа), прокси не нужен.
+- Схема 3.4 дополнена: `users.consent_at TIMESTAMPTZ` (152-ФЗ, `NULL` = согласия нет) — по запросу Роли 1.
+
+**Дальше:**
+- Реализация `search_law()` (задача 9): с учётом заметки Роли 3 — запросы кодировать с префиксом `query:` + `normalize_embeddings=True` (документы уже с `passage:`).
+- Забрать зависимости из `pipeline/requirements.txt` (Роль 3) в общий `pyproject.toml`.
+- Обсудить с командой branch protection на `main` (задача 10) перед включением.
+
+**Важно другим:**
+- Скелет теперь в `main` — сделайте `git pull origin main`: появились общие `pyproject.toml` (используем вместо своих `requirements.txt`), корневой `.gitignore` (уже покрывает `.venv/`), `shared/contracts.py`, миграции и `docker-compose.yml`.
+- **Роль 3**: у вас в ветке свой `pipeline/__init__.py`/`.gitignore` — при мёрже в `main` возможно пересечение с общим скелетом, сверьтесь перед PR.
+- **Роль 1**: `users.consent_at` добавлен в схему — теперь согласие можно писать в Postgres, а не только держать в памяти.
