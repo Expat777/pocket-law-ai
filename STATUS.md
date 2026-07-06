@@ -73,7 +73,9 @@
 - **Роль 4 — нужно для загрузки документов в проде:** в `pyproject.toml` добавить `pymupdf`, `pytesseract`, `pillow`; в Dockerfile бота — `apt-get install tesseract-ocr tesseract-ocr-rus`. LLM зовётся по env: `LLM_BASE_URL=https://api.polza.ai/api/v1`, `LLM_MODEL=anthropic/claude-sonnet-5`, `LLM_MAX_TOKENS=900` — можно добавить в `.env.example`.
 - **Роль 3:** готов синхронизировать `tests/legal_cases/cases.json` с вашим eval-набором бенчмарка эмбеддингов.
 
-**Дальше:** `confidence_log` в Postgres; PR `Roman_SPT` → `main`.
+**UPD (вечер): `Roman_SPT` влит в `main` (`e9b7199`).** Роль 1 — просто `git pull origin main`, весь `agent/` у вас, делайте И1 (`from agent import Agent; agent = Agent()`). Ветку `Roman_SPT` чекаутить не нужно.
+
+**Дальше:** `confidence_log` в Postgres.
 
 ---
 
