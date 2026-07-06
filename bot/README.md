@@ -36,7 +36,7 @@ python -m pytest bot/tests -q     # asyncio_mode=auto берётся из кор
 | `states.py` | FSM: normal / awaiting_clarification / uploading_file |
 | `repository.py` | users, согласие, `dialog_history`, rate-limit (in-memory; Postgres — TODO) |
 | `middlewares.py` | гейт согласия 152-ФЗ + rate-limit |
-| `handlers/commands.py` | `/start` (согласие), `/help`, `/delete_my_data` |
+| `handlers/commands.py` | `/start` (согласие), `/help`, `/delete` |
 | `handlers/content.py` | текстовые вопросы + файлы (валидация до обработки) |
 
 ## Границы (из TEAM_PLAN раздел 4)
