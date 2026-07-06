@@ -1,6 +1,6 @@
 """Команды и поток согласия ПДн (задача MVP 1).
 
-/start — согласие 152-ФЗ (без него бот не отвечает), /help, /delete_my_data.
+/start — согласие 152-ФЗ (без него бот не отвечает), /help, /delete.
 Этот роутер НЕ закрыт consent-middleware: иначе пользователь не смог бы дать согласие.
 """
 
@@ -25,7 +25,7 @@ _CONSENT_TEXT = (
     "👋 Я помогаю разобраться в законах РФ и отвечаю строго со ссылкой на статью.\n\n"
     "Чтобы продолжить, нужно ваше согласие на обработку персональных данных "
     "в соответствии с 152-ФЗ. Я храню историю диалога, чтобы отвечать по контексту; "
-    "удалить всё можно в любой момент командой /delete_my_data.\n\n"
+    "удалить всё можно в любой момент командой /delete.\n\n"
     "Даёте согласие?"
 )
 
@@ -37,7 +37,7 @@ _HELP_TEXT = (
     "Команды:\n"
     "/start — начать и дать согласие на обработку данных\n"
     "/help — эта справка\n"
-    "/delete_my_data — удалить все мои данные о вас\n\n"
+    "/delete — удалить все мои данные о вас\n\n"
     "⚠️ Ответы бота не являются юридической консультацией."
 )
 
@@ -100,7 +100,7 @@ async def cmd_help(message: Message) -> None:
     await message.answer(_HELP_TEXT)
 
 
-@router.message(Command("delete_my_data"))
+@router.message(Command("delete"))
 async def cmd_delete(message: Message, state: FSMContext, repo: Repository) -> None:
     await repo.delete_user_data(message.from_user.id)
     await state.clear()

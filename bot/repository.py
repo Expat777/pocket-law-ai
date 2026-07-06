@@ -73,7 +73,7 @@ class InMemoryRepository:
             self._consent.discard(user_id)
 
     async def delete_user_data(self, user_id: int) -> None:
-        """/delete_my_data — удалить всё о пользователе (152-ФЗ)."""
+        """/delete — удалить всё о пользователе (152-ФЗ)."""
         self._consent.discard(user_id)
         self._usernames.pop(user_id, None)
         self._dialog.pop(user_id, None)
