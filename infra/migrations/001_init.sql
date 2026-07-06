@@ -3,6 +3,7 @@
 CREATE TABLE IF NOT EXISTS users (
     user_id     BIGINT PRIMARY KEY,
     tg_username TEXT,
+    consent_at  TIMESTAMPTZ,  -- согласие на обработку ПДн (152-ФЗ); NULL = согласия ещё нет, бот не отвечает
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -125,7 +125,7 @@ class ParsedDoc(BaseModel):
 
 | Таблица | Поля (кратко) |
 |---|---|
-| `users` | `user_id PK, tg_username, created_at` |
+| `users` | `user_id PK, tg_username, consent_at (152-ФЗ, NULL = согласия нет), created_at` |
 | `dialog_history` | `id PK, user_id FK, role, text, citations JSONB, created_at` |
 | `law_versions` | `id PK, act, article_no, revision_date, hash, status` |
 | `confidence_log` | `id PK, question, answer_id, confidence FLOAT, created_at` |
