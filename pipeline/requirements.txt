@@ -1,0 +1,5 @@
+# Зависимости Роли 3 (временно здесь; переедут в корневой pyproject.toml Роли 4 — И0)
+qdrant-client>=1.9
+sentence-transformers>=3.0
+# необязательно, только если пишем версии в Postgres (POSTGRES_DSN):
+# psycopg[binary]>=3.1
