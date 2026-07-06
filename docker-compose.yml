@@ -1,0 +1,33 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"  # только localhost сервера — не наружу; нужен хост-скриптам (make migrate)
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pocketlaw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pocketlaw}
+      POSTGRES_DB: ${POSTGRES_DB:-pocketlaw}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"  # только localhost сервера — не наружу
+
+  bot:
+    build: .
+    depends_on:
+      - qdrant
+      - postgres
+    env_file:
+      - .env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      POSTGRES_HOST: postgres
+
+volumes:
+  qdrant_storage:
+  postgres_data:
