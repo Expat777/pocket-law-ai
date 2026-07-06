@@ -4,6 +4,8 @@
 LLMClient, а конкретный клиент внедряется извне (agent/deps.py -> Deps.llm).
 """
 
+import os
+
 from .base import LLMClient
 from .fake import FakeLLMClient
 
@@ -27,11 +29,14 @@ class _UnconfiguredLLM:
 def build_llm() -> LLMClient:
     """Фабрика боевого LLM-клиента.
 
-    Пока провайдер (anthropic/openai) не добавлен в pyproject.toml — возвращаем
-    ленивую заглушку (ошибка только при вызове). Когда Роль 4 добавит
-    зависимость, здесь появится клиент, читающий LLM_API_KEY / LLM_MODEL
-    (и HTTPS_PROXY при необходимости).
+    Если задан LLM_API_KEY — поднимаем OpenAI-совместимый клиент (по умолчанию
+    Polza.ai, см. openai_compat.py). Иначе — ленивая заглушка (ошибка только при
+    генерации), чтобы граф/Agent собирались без ключа.
     """
+    if os.getenv("LLM_API_KEY"):
+        from .openai_compat import OpenAICompatLLM
+
+        return OpenAICompatLLM()
     return _UnconfiguredLLM()
 
 
