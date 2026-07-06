@@ -84,6 +84,30 @@ async def test_clarify_when_not_legal():
     assert ans.citations == []
 
 
+async def test_agent_class_matches_bot_contract():
+    """Agent (И1) — drop-in замена MockAgent: те же методы, тот же результат."""
+    from agent import Agent
+
+    deps = make_deps([TK_81], answer_text="Уволить в отпуске нельзя (ст. 81 ТК РФ).")
+    agent = Agent(deps=deps)
+    ans = await agent.answer_question(1, "могут ли уволить в отпуске?")
+
+    assert ans.refused is False
+    assert ans.citations[0].article == "81"
+
+
+def test_agent_constructs_without_llm_provider():
+    """Agent() собирается без подключённого LLM (ленивая заглушка), не падая.
+
+    Нужен qdrant_client (боевой search_law/verify) — на сервере есть, локально
+    в минимальном venv пропускаем.
+    """
+    pytest.importorskip("qdrant_client")
+    from agent import Agent
+
+    Agent()  # не должно бросать: ошибка LLM возникает только при генерации
+
+
 def test_compose_prompt_has_security_block():
     """Канарейка: правила безопасности не должны исчезнуть из compose-промпта."""
     from agent.prompts import COMPOSE_SYSTEM
