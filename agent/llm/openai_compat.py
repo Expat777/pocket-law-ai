@@ -13,7 +13,8 @@ ENV:
 import os
 
 DEFAULT_BASE_URL = "https://api.polza.ai/api/v1"
-DEFAULT_MODEL = "anthropic/claude-3.7-sonnet"
+# Актуальная модель в каталоге Polza (проверено GET /models). Меняется через LLM_MODEL.
+DEFAULT_MODEL = "anthropic/claude-sonnet-5"
 
 
 class OpenAICompatLLM:
