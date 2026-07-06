@@ -23,6 +23,6 @@ class Agent:
     async def ingest_document(
         self, user_id: int, file_bytes: bytes, mime: str
     ) -> IngestResult:
-        # TODO (слайс 2): parse_pdf -> чанки -> эмбеддинги -> upsert в
-        # user_documents с обязательным фильтром по user_id (изоляция, схема 3.3).
-        raise NotImplementedError("ingest_document будет реализован во втором слайсе Роли 2")
+        from .ingest import ingest_document as _ingest
+
+        return await _ingest(user_id, file_bytes, mime)

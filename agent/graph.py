@@ -60,11 +60,9 @@ async def answer_question(
 
 
 async def ingest_document(
-    user_id: int, file_bytes: bytes, mime: str, deps: Deps | None = None
+    user_id: int, file_bytes: bytes, mime: str
 ) -> IngestResult:
-    """Контракт 3.1: разбор загруженного документа в user_documents.
+    """Контракт 3.1: разбор загруженного документа в user_documents."""
+    from .ingest import ingest_document as _ingest
 
-    TODO (слайс 2): parse_pdf -> чанки -> эмбеддинги -> upsert в user_documents
-    с обязательным фильтром по user_id (изоляция, схема 3.3).
-    """
-    raise NotImplementedError("ingest_document будет реализован во втором слайсе Роли 2")
+    return await _ingest(user_id, file_bytes, mime)

@@ -146,3 +146,44 @@ async def test_unverified_citation_dropped():
 
     assert ans.refused is True
     assert ans.citations == []
+
+
+async def test_ingest_document_isolates_by_user():
+    """Слайс 2: ingest прокидывает user_id в upsert (изоляция) и режет на чанки."""
+    from agent.ingest import ingest_document
+    from shared.contracts import ParsedDoc
+
+    captured = {}
+
+    def fake_parse(fb, mime):
+        return ParsedDoc(text="Первый абзац договора.\n\nВторой абзац договора.", pages=1, used_ocr=False)
+
+    def fake_embed(chunks):
+        return [[0.1, 0.2, 0.3] for _ in chunks]
+
+    async def fake_upsert(user_id, doc_id, chunks, vectors):
+        captured["user_id"] = user_id
+        captured["chunks"] = chunks
+
+    res = await ingest_document(
+        7, b"%PDF-fake", "application/pdf",
+        parse=fake_parse, embed=fake_embed, upsert=fake_upsert,
+    )
+
+    assert res.ok is True
+    assert res.chunks == len(captured["chunks"]) >= 1
+    assert captured["user_id"] == 7  # изоляция: user_id обязателен в payload
+
+
+async def test_ingest_rejects_empty_text():
+    """ingest честно отказывает, если из документа не извлёкся текст."""
+    from agent.ingest import ingest_document
+    from shared.contracts import ParsedDoc
+
+    def empty_parse(fb, mime):
+        return ParsedDoc(text="", pages=0, used_ocr=False)
+
+    res = await ingest_document(1, b"", "application/pdf", parse=empty_parse)
+
+    assert res.ok is False
+    assert res.error
