@@ -49,11 +49,15 @@ async def verify(state: AgentState, deps: Deps) -> dict:
 
 
 def route_after_verify(state: AgentState) -> str:
-    """insufficient_context? Есть проверенные цитаты -> compose. Нет -> честный
-    отказ (юр. вопрос без данных) или уточнение (вопрос вне права/непонятен).
+    """insufficient_context?
+
+    Порядок важен (фикс A): сперва отсекаем неюридические вопросы в clarify —
+    даже если search_law по инерции вернул ближайшие статьи, отвечать на «погоду»
+    юридическим текстом с цитатами нельзя. Затем: есть проверенные цитаты ->
+    compose; нет -> честный отказ.
     """
+    if not state.get("is_legal", True):
+        return "clarify"
     if state.get("citations"):
         return "compose"
-    if state.get("is_legal", True):
-        return "refuse"
-    return "clarify"
+    return "refuse"

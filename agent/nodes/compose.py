@@ -5,6 +5,15 @@ from agent.prompts import COMPOSE_SYSTEM, build_compose_prompt
 from agent.state import AgentState
 from shared.contracts import Answer, RetrievedChunk
 
+# Маркер: модель вернула его, когда переданных статей не хватает для ответа.
+INSUFFICIENT_MARKER = "INSUFFICIENT"
+
+REFUSE_TEXT = (
+    "Не нашёл в доступной базе законов норм, чтобы ответить на это точно. "
+    "Чтобы не вводить в заблуждение, не буду отвечать наугад — уточните "
+    "вопрос или обратитесь к юристу."
+)
+
 
 def _confidence(chunks: list[RetrievedChunk]) -> float:
     """Грубая оценка уверенности: средний score найденных статей закона.
@@ -21,9 +30,20 @@ async def compose_answer(state: AgentState, deps: Deps) -> dict:
     citations = state["citations"]
     prompt = build_compose_prompt(state["question"], chunks)
     text = await deps.llm.complete(COMPOSE_SYSTEM, prompt)
-    answer = Answer(text=text.strip(), citations=citations, refused=False)
+    stripped = text.strip()
+
+    # Фикс B: модель сама признала, что переданных статей не хватает —
+    # честный отказ БЕЗ цитат (иначе бот показал бы «Основание: ст. N…» под
+    # ответом «данных недостаточно» — противоречие).
+    if stripped.upper().startswith(INSUFFICIENT_MARKER):
+        return {
+            "answer": Answer(text=REFUSE_TEXT, citations=[], refused=True),
+            "draft_text": text,
+            "confidence": 0.0,
+        }
+
     return {
-        "answer": answer,
+        "answer": Answer(text=stripped, citations=citations, refused=False),
         "draft_text": text,
         "confidence": _confidence(chunks),
     }
@@ -38,9 +58,4 @@ async def make_clarify(state: AgentState) -> dict:
 
 
 async def make_refuse(state: AgentState) -> dict:
-    text = (
-        "Не нашёл в доступной базе законов норм, чтобы ответить на это точно. "
-        "Чтобы не вводить в заблуждение, не буду отвечать наугад — уточните "
-        "вопрос или обратитесь к юристу."
-    )
-    return {"answer": Answer(text=text, citations=[], refused=True)}
+    return {"answer": Answer(text=REFUSE_TEXT, citations=[], refused=True)}

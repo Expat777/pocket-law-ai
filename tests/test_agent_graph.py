@@ -84,6 +84,25 @@ async def test_clarify_when_not_legal():
     assert ans.citations == []
 
 
+async def test_not_legal_routes_to_clarify_even_with_chunks():
+    """Фикс A: неюр. вопрос -> clarify, даже если search_law вернул статьи."""
+    deps = make_deps([TK_81], is_legal=False)  # retrieve вернул статью, но вопрос вне права
+    ans = await answer_question(1, "какая завтра погода?", deps=deps)
+
+    assert ans.clarifying_question is not None
+    assert ans.refused is False
+    assert ans.citations == []
+
+
+async def test_insufficient_marker_refuses_without_citations():
+    """Фикс B: модель вернула INSUFFICIENT -> отказ и пустые цитаты, хотя статьи были."""
+    deps = make_deps([TK_81], is_legal=True, answer_text="INSUFFICIENT")
+    ans = await answer_question(1, "могут ли уволить в отпуске?", deps=deps)
+
+    assert ans.refused is True
+    assert ans.citations == []
+
+
 async def test_agent_class_matches_bot_contract():
     """Agent (И1) — drop-in замена MockAgent: те же методы, тот же результат."""
     from agent import Agent
