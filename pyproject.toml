@@ -9,7 +9,7 @@ dependencies = [
     "langgraph>=0.1",
     "qdrant-client>=1.9",
     "asyncpg>=0.29",
-    "sentence-transformers>=2.7",
+    "sentence-transformers>=3.0",
     "python-dotenv>=1.0",
 ]
 
