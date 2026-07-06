@@ -19,6 +19,11 @@ def _parse(raw: str) -> dict:
 
 async def intent_classifier(state: AgentState, deps: Deps) -> dict:
     question = state["question"]
+    # guard: пустой/пробельный ввод не шлём в LLM (некоторые API отвечают 400) —
+    # сразу помечаем неюридическим, роутер уведёт в clarify.
+    if not question.strip():
+        return {"normalized_query": "", "branch_of_law": None, "is_legal": False}
+
     raw = await deps.llm.complete(INTENT_SYSTEM, question)
     parsed = _parse(raw)
     return {

@@ -206,3 +206,39 @@ async def test_ingest_rejects_empty_text():
 
     assert res.ok is False
     assert res.error
+
+
+async def test_empty_question_clarifies_without_calling_llm():
+    """Empty/whitespace input -> clarify, LLM ne vyzyvaetsya (guard, bez 400)."""
+
+    def boom(system, user):
+        raise AssertionError("LLM must not be called on empty input")
+
+    async def fake_search(query, user_id):
+        return []
+
+    async def fake_verify(citation):
+        return CitationStatus(exists=True, active=True)
+
+    deps = Deps(llm=FakeLLMClient(boom), search_law=fake_search, verify_citation=fake_verify)
+    ans = await answer_question(1, "   ", deps=deps)
+
+    assert ans.clarifying_question is not None
+    assert ans.refused is False
+
+
+def test_question_is_truncated_for_budget():
+    """Zashchita input-tokenov: sverkhdlinnyy vopros obrezaetsya."""
+    from agent.config import MAX_QUESTION_CHARS
+    from agent.graph import initial_state
+
+    st = initial_state(1, "x" * (MAX_QUESTION_CHARS + 5000))
+    assert len(st["question"]) == MAX_QUESTION_CHARS
+
+
+def test_llm_client_caps_max_tokens():
+    """Zashchita budzheta: u LLM-klienta est polozhitelnyy potolok max_tokens."""
+    from agent.llm.openai_compat import OpenAICompatLLM
+
+    llm = OpenAICompatLLM(api_key="dummy")
+    assert isinstance(llm.max_tokens, int) and llm.max_tokens > 0
