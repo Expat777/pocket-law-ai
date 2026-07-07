@@ -84,6 +84,17 @@
 
 **Дальше:** `confidence_log` в Postgres.
 
+### 2026-07-07 — confidence_log, лимит цитат, смена модели на Gemini Flash
+
+**Сделано:**
+- `confidence_log` в Postgres (схема 3.4): запись confidence после реального ответа; graceful — при недоступной БД тихо пропускаем, ответ не ломается. Проверено на живом Postgres.
+- Лимит цитат `MAX_CITATIONS=5`: `search_law` отдаёт до 10 статей, в блок «Основание» выводим топ-5 по релевантности (контекст для LLM остаётся полным).
+- **Сменили LLM на `google/gemini-3.5-flash`** (дешевле Sonnet, экономия бюджета). Проверено на сервере: grounded-ответ, честный `INSUFFICIENT` и защита от инъекций через документ — работают. Дефолт в коде обновлён; на сервере `.env` переключён.
+- Всё влито в `main`; 20 юнит-тестов зелёные, ruff чист.
+
+**Важно другим:**
+- **Роль 4:** спасибо — `pymupdf/pytesseract/pillow` в pyproject и `tesseract-ocr-rus` в Dockerfile уже есть, загрузка PDF/OCR в контейнере закрыта. Просьба: **добавить `restart: unless-stopped`** для `qdrant`/`postgres` в `docker-compose.yml` — после перезагрузки сервера сегодня стек не поднялся сам (поднял вручную `docker start`).
+
 ---
 
 ## Роль 3 · Data Pipeline (`pipeline/`) — ветка `Roma_MSK`
