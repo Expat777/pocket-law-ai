@@ -34,9 +34,16 @@ async def _rank(client, query: str, article: str):
     return None
 
 
-async def _rewrite(llm, question: str) -> str:
-    raw = await llm.complete(INTENT_SYSTEM, question)
-    return _parse(raw).get("normalized") or question
+async def _rewrite(llm, question: str) -> tuple[str, bool]:
+    """(переформулировка, удалось?). При ошибке LLM — ретраи, затем фолбэк на вопрос."""
+    for attempt in range(3):
+        try:
+            raw = await llm.complete(INTENT_SYSTEM, question)
+            return (_parse(raw).get("normalized") or question), True
+        except Exception:  # noqa: BLE001 — транзиентный 503 и т.п.
+            if attempt < 2:
+                await asyncio.sleep(1.5)
+    return question, False
 
 
 async def main() -> None:
@@ -46,18 +53,20 @@ async def main() -> None:
     client = AsyncQdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
     llm = build_llm()
 
-    b1 = b5 = r1 = r5 = 0
+    b1 = b5 = r1 = r5 = fails = 0
     for c in cases:
         art = c["expected"]["articles"][0]
         rb = await _rank(client, c["question"], art)
-        rq = await _rank(client, await _rewrite(llm, c["question"]), art)
+        nq, ok = await _rewrite(llm, c["question"])
+        fails += not ok
+        rq = await _rank(client, nq, art)
         b1 += rb == 1
         b5 += rb is not None and rb <= 5
         r1 += rq == 1
         r5 += rq is not None and rq <= 5
 
     n = len(cases)
-    print(f"Разговорных вопросов: {n}")
+    print(f"Разговорных вопросов: {n} (переформулировок с ошибкой LLM: {fails})")
     print(f"  СЫРОЙ запрос:        R@1={b1/n:.0%}  R@5={b5/n:.0%}")
     print(f"  + переформулировка:  R@1={r1/n:.0%}  R@5={r5/n:.0%}")
     print(f"  прирост:             R@1 {(r1-b1)/n:+.0%}  R@5 {(r5-b5)/n:+.0%}")
