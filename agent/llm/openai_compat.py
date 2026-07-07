@@ -11,9 +11,15 @@ ENV:
   LLM_MAX_TOKENS — жёсткий потолок длины ответа (защита бюджета), по умолчанию 900
 """
 
+import asyncio
 import os
 
 DEFAULT_BASE_URL = "https://api.polza.ai/api/v1"
+# Транзиентные ошибки апстрима (Polza периодически отдаёт 503) — ретраим.
+# 4xx (400/401/403 — наш payload/ключ) НЕ ретраим: летят наружу сразу.
+_TRANSIENT_STATUS = {429, 500, 502, 503, 504}
+_MAX_ATTEMPTS = 3  # бюджет-безопасно: 503/таймаут = токены не потрачены
+_BACKOFF = (0.6, 1.5)  # сек между попытками (длина = _MAX_ATTEMPTS - 1)
 # Быстрая дешёвая модель (Flash-Lite): ~4.8с/ответ, вход 10₽/1M на Polza: для grounded-ответа по переданным статьям её
 # хватает, держит INSUFFICIENT и защиту от инъекций (проверено на сервере).
 # Меняется LLM_MODEL без правок кода.
@@ -57,14 +63,27 @@ class OpenAICompatLLM:
             "max_tokens": self.max_tokens,  # потолок стоимости ответа
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}
+        url = f"{self.base_url}/chat/completions"
         # отдельный LLM-спан в трейсе: в inputs только messages (без self/ключа)
         with llm_span(self.model, payload["messages"]) as record:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                resp = await client.post(
-                    f"{self.base_url}/chat/completions", json=payload, headers=headers
-                )
-                resp.raise_for_status()
-                data = resp.json()
-            out = data["choices"][0]["message"]["content"]
-            record(out)
-            return out
+            last_exc: Exception | None = None
+            for attempt in range(_MAX_ATTEMPTS):
+                try:
+                    async with httpx.AsyncClient(timeout=self.timeout) as client:
+                        resp = await client.post(url, json=payload, headers=headers)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    out = data["choices"][0]["message"]["content"]
+                    record(out)
+                    return out
+                except httpx.HTTPStatusError as e:
+                    # только транзиентные статусы ретраим; прочие 4xx — сразу наружу
+                    if e.response.status_code not in _TRANSIENT_STATUS:
+                        raise
+                    last_exc = e
+                except httpx.TransportError as e:  # connect/read timeout, обрыв сети
+                    last_exc = e
+                if attempt < _MAX_ATTEMPTS - 1:
+                    await asyncio.sleep(_BACKOFF[attempt])
+            assert last_exc is not None  # цикл вышел только после исключения
+            raise last_exc
