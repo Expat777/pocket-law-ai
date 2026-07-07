@@ -70,6 +70,14 @@ async def cmd_start(message: Message, state: FSMContext, repo: Repository) -> No
 async def consent_yes(
     callback: CallbackQuery, state: FSMContext, repo: Repository
 ) -> None:
+    # Идемпотентность: повторное нажатие на старую кнопку (согласие уже есть) —
+    # просто убираем кнопки и тихо подтверждаем, не переигрывая поток заново.
+    if await repo.has_consent(callback.from_user.id):
+        if callback.message is not None:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        await callback.answer("Согласие уже получено")
+        return
+
     await repo.ensure_user(callback.from_user.id, callback.from_user.username)
     await repo.set_consent(callback.from_user.id, True)
     await state.set_state(Dialog.normal_question)
