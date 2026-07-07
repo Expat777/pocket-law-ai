@@ -94,3 +94,32 @@ async def ingest_document(
         return IngestResult(doc_id=doc_id, chunks=0, ok=False, error=f"index: {e}")
 
     return IngestResult(doc_id=doc_id, chunks=len(chunks), ok=True)
+
+
+async def ingest_url(
+    user_id: int,
+    url: str,
+    *,
+    fetch=None,
+    embed=None,
+    upsert=None,
+) -> IngestResult:
+    """Скачивает документ по URL (SSRF-безопасно) и индексирует в user_documents.
+
+    Контент по ссылке трактуется так же, как загруженный файл: недоверенные
+    данные (см. SECURITY_RULES) с обязательной изоляцией по user_id. Поддержка:
+    PDF/фото (OCR), HTML (текст), text/*.
+    """
+    if fetch is None:
+        from .tools.fetch_url import fetch_url as fetch
+
+    try:
+        data, mime = await fetch(url)
+    except Exception as e:  # noqa: BLE001 — вернуть ошибку в контракте, не падать
+        return IngestResult(doc_id="", chunks=0, ok=False, error=f"fetch: {e}")
+
+    from .tools.extract import extract_document
+
+    return await ingest_document(
+        user_id, data, mime, parse=extract_document, embed=embed, upsert=upsert
+    )
