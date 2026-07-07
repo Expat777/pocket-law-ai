@@ -15,8 +15,14 @@ def main() -> None:
     client = QdrantClient(url=QDRANT_URL)
     for name in COLLECTIONS:
         if client.collection_exists(name):
-            print(f"уже существует: {name}")
-            continue
+            existing_dim = client.get_collection(name).config.params.vectors.size
+            if existing_dim == EMBED_DIM:
+                print(f"уже существует: {name}")
+                continue
+            # Смена модели эмбеддингов (иная размерность вектора) — старые точки
+            # несовместимы, пересоздаём. Данные нужно перезалить заново (Роль 3).
+            print(f"пересоздаю {name}: размерность {existing_dim} -> {EMBED_DIM}")
+            client.delete_collection(name)
         client.create_collection(
             collection_name=name,
             vectors_config=VectorParams(size=EMBED_DIM, distance=Distance.COSINE),

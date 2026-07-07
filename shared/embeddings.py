@@ -1,14 +1,19 @@
 """Локальные эмбеддинги для search_law().
 
-Модель и префиксы должны совпадать с pipeline/embed.py (Роль 3): документы
-кодируются как "passage: <текст>", поэтому запросы кодируются как
-"query: <текст>" + normalize_embeddings=True — иначе качество поиска
-заметно падает (см. STATUS.md, запись Роли 3 от 2026-07-06).
+Модель и префикс запроса должны совпадать с тем, как pipeline/embed.py (Роль 3)
+кодирует документы — иначе качество поиска молча падает. Логика префикса
+продублирована из pipeline/config.py::model_prefixes() (бенчмарк 2026-07-07):
+e5-модели требуют "query: "/"passage: ", bge-m3 — без префикса.
 """
 
 import os
 
-EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "deepvk/USER-bge-m3")
+
+
+def _query_prefix(model: str) -> str:
+    return "query: " if "e5" in model.lower() else ""
+
 
 _model = None
 
@@ -23,5 +28,5 @@ def _get_model():
 
 
 def embed_query(text: str) -> list[float]:
-    vector = _get_model().encode(f"query: {text}", normalize_embeddings=True)
+    vector = _get_model().encode(_query_prefix(EMBED_MODEL) + text, normalize_embeddings=True)
     return vector.tolist()

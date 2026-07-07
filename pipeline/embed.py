@@ -1,13 +1,13 @@
 """embed: локальные эмбеддинги sentence-transformers (без внешних API).
 
-ВАЖНО (модели семейства e5): документы кодируются с префиксом "passage: ",
-запросы — с префиксом "query: ". Кто пишет search_law (Роль 4/2) — не забудьте
-префикс query, иначе качество поиска заметно просядет.
+Префиксы зависят от модели (см. config.model_prefixes): у e5 — "passage:"/"query:",
+у текущей bge-m3 — без префикса. Кто пишет search_law (Роль 4/shared) должен
+кодировать запрос ТЕМ ЖЕ префиксом (config.QUERY_PREFIX), иначе качество молча падает.
 """
 
 import logging
 
-from .config import EMBED_BATCH_SIZE, EMBED_MODEL
+from .config import EMBED_BATCH_SIZE, EMBED_MODEL, PASSAGE_PREFIX
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def embedding_dim() -> int:
 
 def embed_passages(texts: list[str]) -> list[list[float]]:
     model = _get_model()
-    prefixed = [f"passage: {t}" for t in texts]
+    prefixed = [f"{PASSAGE_PREFIX}{t}" for t in texts]
     vectors = model.encode(
         prefixed,
         batch_size=EMBED_BATCH_SIZE,

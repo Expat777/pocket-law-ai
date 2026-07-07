@@ -48,6 +48,7 @@ class RetrievedChunk(BaseModel):
     article: str | None = None
     status: Literal["active", "amended", "repealed"] | None = None
     effective_date: date | None = None
+    source_url: str | None = None
     score: float
 
 
