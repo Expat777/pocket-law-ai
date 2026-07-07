@@ -75,3 +75,10 @@ async def ingest_document(
     from .ingest import ingest_document as _ingest
 
     return await _ingest(user_id, file_bytes, mime)
+
+
+async def ingest_url(user_id: int, url: str) -> IngestResult:
+    """Скачать документ по ссылке (SSRF-безопасно) и проиндексировать."""
+    from .ingest import ingest_url as _ingest_url
+
+    return await _ingest_url(user_id, url)
