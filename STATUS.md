@@ -168,10 +168,10 @@
 - `Dockerfile` (корень) для сервиса `bot` из `docker-compose.yml` — `python:3.11-slim` + `tesseract-ocr`/`tesseract-ocr-rus` (системная зависимость OCR), `pip install .`, `CMD python -m bot.main`.
 - `.env.example`: добавил `LLM_BASE_URL`, `LLM_MAX_TOKENS`, поправил `LLM_MODEL` на реальный дефолт `anthropic/claude-sonnet-5` (был `claude-sonnet-5`, не соответствовал каталогу Polza).
 - `.gitignore`: добавил `build/` (артефакт локальной сборки при проверке пакета).
+- При сборке образа на сервере поймал ещё один баг в своём же Dockerfile: `pip install .` шёл раньше `COPY bot/ agent/ shared/` — поправил порядок (иначе setuptools не находил package dir). Заодно `Roma_MSK` (Роль 3, весь пайплайн) за это время смёржен в `main` — забрал его `pipeline/requirements.txt`: `qdrant-client`/`sentence-transformers` уже были в общих deps, добавил `psycopg[binary]` отдельным extra `[project.optional-dependencies] pipeline` (используется лениво, best-effort, только при `POSTGRES_DSN`).
 
 **Дальше:**
-- Собрать `bot` на сервере (`docker compose build bot && docker compose up -d bot`) и проверить живьём в Telegram.
-- `pipeline/` (Роль 3, ветка `Roma_MSK`) всё ещё не смёржен в `main` — там только пустой `__init__.py`. Пока не смёржено, не могу забрать `pipeline/requirements.txt` в общий `pyproject.toml`. Роль 3 — как будет готово, открывай PR.
+- Собрать `bot` на сервере (`docker compose build bot && docker compose up -d bot`) и проверить живьём в Telegram — билд ещё не подтверждён после фикса порядка COPY.
 - Branch protection на `main` (задача 10) — по-прежнему не обсуждали с командой.
 
 **Важно другим:**
