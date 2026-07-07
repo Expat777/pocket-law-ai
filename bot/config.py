@@ -25,6 +25,10 @@ class Config:
     storage_backend: str = "memory"
     postgres_dsn: str | None = None
 
+    # Прокси для доступа к api.telegram.org (если хостинг режет Telegram — напр. РФ-VPS).
+    # http(s):// работает из коробки; socks5:// требует пакета aiohttp-socks.
+    telegram_proxy: str | None = None
+
 
 def load_config() -> Config:
     token = os.getenv("BOT_TOKEN", "").strip()
@@ -41,4 +45,8 @@ def load_config() -> Config:
         rate_limit_per_hour=int(os.getenv("RATE_LIMIT_PER_HOUR", 20)),
         storage_backend=os.getenv("STORAGE_BACKEND", "memory").strip().lower(),
         postgres_dsn=os.getenv("POSTGRES_DSN") or None,
+        # выделенная TELEGRAM_PROXY имеет приоритет; иначе — общий HTTPS_PROXY
+        telegram_proxy=(
+            os.getenv("TELEGRAM_PROXY") or os.getenv("HTTPS_PROXY") or None
+        ),
     )
