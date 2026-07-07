@@ -21,6 +21,11 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
 ]
+# pipeline/state.py::record_versions_pg — best-effort запись law_versions,
+# нужен только если задан POSTGRES_DSN (import ленивый, без пакета пайплайн работает).
+pipeline = [
+    "psycopg[binary]>=3.1",
+]
 
 [tool.setuptools]
 # Явный список: без него setuptools видит bot/agent/shared/pipeline/infra как
