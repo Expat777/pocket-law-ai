@@ -242,3 +242,35 @@ def test_llm_client_caps_max_tokens():
 
     llm = OpenAICompatLLM(api_key="dummy")
     assert isinstance(llm.max_tokens, int) and llm.max_tokens > 0
+
+
+async def test_confidence_logged_on_answer():
+    """compose pishet confidence cherez deps.log_confidence na realnom otvete."""
+    logged = []
+
+    async def fake_log(question, confidence):
+        logged.append((question, confidence))
+
+    deps = make_deps([TK_81], answer_text="Otvet po state.")
+    deps.log_confidence = fake_log
+    ans = await answer_question(1, "vopros pro uvolnenie", deps=deps)
+
+    assert ans.refused is False
+    assert len(logged) == 1
+    assert logged[0][0] == "vopros pro uvolnenie"
+    assert isinstance(logged[0][1], float)
+
+
+async def test_confidence_not_logged_on_insufficient():
+    """Na INSUFFICIENT (otkaz) confidence ne pishetsya."""
+    logged = []
+
+    async def fake_log(question, confidence):
+        logged.append((question, confidence))
+
+    deps = make_deps([TK_81], answer_text="INSUFFICIENT")
+    deps.log_confidence = fake_log
+    ans = await answer_question(1, "vopros", deps=deps)
+
+    assert ans.refused is True
+    assert logged == []

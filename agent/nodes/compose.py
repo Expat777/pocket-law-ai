@@ -42,10 +42,15 @@ async def compose_answer(state: AgentState, deps: Deps) -> dict:
             "confidence": 0.0,
         }
 
+    confidence = _confidence(chunks)
+    # телеметрия качества (схема 3.4); не должна ломать ответ — impl глушит ошибки
+    if deps.log_confidence is not None:
+        await deps.log_confidence(state["question"], confidence)
+
     return {
         "answer": Answer(text=stripped, citations=citations, refused=False),
         "draft_text": text,
-        "confidence": _confidence(chunks),
+        "confidence": confidence,
     }
 
 
