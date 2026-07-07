@@ -22,7 +22,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, ErrorEvent
 
 from agent import Agent
 from bot.config import Config, load_config
@@ -61,6 +61,20 @@ def build_dispatcher(config: Config, repo: Repository) -> Dispatcher:
     content_router.message.middleware(
         RateLimitMiddleware(repo, config.rate_limit_per_hour)
     )
+
+    @dp.errors()
+    async def _on_error(event: ErrorEvent) -> bool:
+        """Сеть-безопасности: логируем любую необработанную ошибку и не роняем бота."""
+        logging.getLogger(__name__).exception(
+            "Необработанная ошибка обновления", exc_info=event.exception
+        )
+        msg = getattr(event.update, "message", None)
+        if msg is not None:
+            try:
+                await msg.answer("Упс, произошла ошибка. Попробуйте ещё раз чуть позже.")
+            except Exception:  # noqa: BLE001 — ответ пользователю best-effort
+                pass
+        return True  # ошибка обработана, продолжаем polling
 
     dp.include_router(commands_router)
     dp.include_router(content_router)

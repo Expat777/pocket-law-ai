@@ -28,19 +28,46 @@ log = logging.getLogger(__name__)
 _TG_LIMIT = 4096  # максимум символов в одном сообщении Telegram
 
 
-async def _send_md(message: Message, md_text: str) -> None:
-    """Отправка MarkdownV2 с мягкой деградацией.
+def _split_md(text: str, limit: int = _TG_LIMIT) -> list[str]:
+    """Режет длинный MarkdownV2 на части ≤limit по границам абзацев (`\\n\\n`).
 
-    Если реальный агент вернёт текст, ломающий разметку — не теряем ответ,
-    а шлём его как обычный текст (снимая экранирование). Длинный ответ
-    обрезаем до лимита Telegram, чтобы отправка не падала.
+    Так ничего не теряется — в т.ч. обязательный дисклеймер (152-ФЗ), который
+    иначе мог бы отвалиться при простом усечении на 4096.
     """
-    text = md_text if len(md_text) <= _TG_LIMIT else md_text[: _TG_LIMIT - 1] + "…"
-    try:
-        await message.answer(text, parse_mode="MarkdownV2")
-    except TelegramBadRequest:
-        log.warning("MarkdownV2 отклонён Telegram — отправляю как обычный текст")
-        await message.answer(text.replace("\\", ""))
+    if len(text) <= limit:
+        return [text]
+    parts: list[str] = []
+    cur = ""
+    for block in text.split("\n\n"):
+        candidate = block if not cur else f"{cur}\n\n{block}"
+        if len(candidate) <= limit:
+            cur = candidate
+            continue
+        if cur:
+            parts.append(cur)
+            cur = ""
+        if len(block) <= limit:
+            cur = block
+        else:  # один блок длиннее лимита — режем жёстко (редкий случай)
+            for i in range(0, len(block), limit):
+                parts.append(block[i : i + limit])
+    if cur:
+        parts.append(cur)
+    return parts
+
+
+async def _send_md(message: Message, md_text: str) -> None:
+    """Отправка MarkdownV2 с мягкой деградацией и разбивкой длинных сообщений.
+
+    Длинный ответ дробится на части ≤4096 (дисклеймер не теряется). Если часть
+    ломает разметку — шлём её обычным текстом (снимая экранирование), не теряя ответ.
+    """
+    for part in _split_md(md_text):
+        try:
+            await message.answer(part, parse_mode="MarkdownV2")
+        except TelegramBadRequest:
+            log.warning("MarkdownV2 отклонён Telegram — отправляю как обычный текст")
+            await message.answer(part.replace("\\", ""))
 
 # Валидация файлов ДО обработки (задача MVP 5): размер проверяем по метаданным,
 # тип — по magic bytes скачанного заголовка, а не по расширению/заявленному mime.
@@ -79,6 +106,9 @@ async def on_url(
         await state.set_state(Dialog.normal_question)
         return
     url = match.group(0)
+
+    # фиксируем в истории — заодно учитывается в rate-limit (счётчик по dialog_history)
+    await repo.save_dialog(user_id, "user", f"[ссылка] {url}", [])
 
     await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
     try:
@@ -149,6 +179,10 @@ async def on_file(
         photo = message.photo[-1]
         file_id = photo.file_id
         size = photo.file_size or 0
+
+    # фиксируем в истории — заодно учитывается в rate-limit (счётчик по dialog_history)
+    doc_name = message.document.file_name if message.document is not None else "фото"
+    await repo.save_dialog(user_id, "user", f"[документ] {doc_name}", [])
 
     # 2) размер — ДО скачивания
     if size > max_file_bytes:
