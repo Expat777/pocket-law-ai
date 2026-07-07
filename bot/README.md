@@ -2,17 +2,24 @@
 
 Telegram-бот на **aiogram 3.x**: принимает вопросы и файлы, зовёт агента через
 контракт 3.1 (`shared.contracts`), форматирует ответ (MarkdownV2, цитата,
-дисклеймер), ведёт FSM, согласие 152-ФЗ и rate-limit. Оркестратор пока — мок
-(`mock_agent.py`); реальный `agent/` подключается в точке И1 без правок хендлеров.
+дисклеймер), ведёт FSM, согласие 152-ФЗ и rate-limit. С точки И1 подключён
+реальный оркестратор Роли 2 — `agent.Agent()` в `main.py` (без правок хендлеров).
 
 ## Запуск (long polling)
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"          # общие зависимости из корневого pyproject.toml
-export BOT_TOKEN=123456:ABC...   # токен от @BotFather (в проде — из .env Роли 4)
+pip install -e ".[dev]"                          # общие зависимости из pyproject
+export BOT_TOKEN=123456:ABC...                   # токен от @BotFather (в проде — из .env)
+export LLM_BASE_URL=https://api.polza.ai/api/v1
+export LLM_MODEL=anthropic/claude-sonnet-5
+export LLM_API_KEY=...                            # ключ Polza.ai
 python -m bot.main
 ```
+
+Реальный агент требует доступного **Qdrant** (наполненного `law_articles_dev`) и
+**LLM-ключа** — на сервере они есть. Для загрузки документов нужны также
+`pymupdf`/`pytesseract`/`pillow` + системный `tesseract-ocr` (в процессе у Роли 4).
 
 Опциональные переменные: `RATE_LIMIT_PER_HOUR` (20), `MAX_FILE_BYTES` (20 МБ),
 `STORAGE_BACKEND` (`memory` по умолчанию; `postgres` — после подключения
@@ -46,8 +53,9 @@ python -m pytest bot/tests -q     # asyncio_mode=auto берётся из кор
 
 ## Открытые долги
 
-- **И1 (Роль 2):** в `main.build_dispatcher` заменить `MockAgent()` на реальный
-  клиент из `agent/` (интерфейс `agent_client.AgentClient`).
+- **И1 — выполнено:** `bot/main.build_dispatcher` использует `agent.Agent()`
+  (интерфейс `agent_client.AgentClient`). Осталась live-проверка сквозняка через
+  Telegram на сервере (полный стек + LLM-ключ).
 - **PostgresRepository:** реализовать бэкенд на asyncpg поверх схемы 3.4
   (`users.consent_at`, `dialog_history`) и включить его через `STORAGE_BACKEND=postgres`.
   Сейчас по умолчанию — in-memory, данные не переживают рестарт.

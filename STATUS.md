@@ -36,6 +36,13 @@
 **Важно другим:**
 - **Роль 4:** `make test` (голый `pytest`) не подхватывает мои тесты — в `pyproject.toml` `testpaths=["tests"]`, а тесты бота лежат в `bot/tests`. Прошу добавить `"bot/tests"` в `testpaths` (или переносим — как удобнее общей структуре). Пока запускаю явно: `pytest bot/tests`.
 
+### 2026-07-06, вечер — **И1 подключён: бот на реальном агенте**
+**Сделано:** в `bot/main.build_dispatcher` `MockAgent()` заменён на `agent.Agent()` (Роль 2) — чисто, без переключателей; хендлеры не тронуты. Обновил доки/запуск (нужны LLM-env Polza + Qdrant + полный стек pyproject). `MockAgent` оставлен только для юнит-тестов бота (не требует LLM/Qdrant). `bot/tests` — 11 зелёных; проводка проверена статически (единственный локальный блокер — отсутствие `langgraph`/ключа в моём venv, что ожидаемо).
+
+**Важно другим:**
+- **Роль 2:** бот теперь зовёт `Agent()` из `main`. Готов вместе прогнать сквозняк **в Telegram на сервере** (там есть LLM-ключ + Qdrant `law_articles_dev`): вопрос → grounded-ответ с цитатой; загрузка PDF → `ingest_document`. Форматтер уже переживает «плохую» разметку от LLM (фолбэк) и режет ответы >4096.
+- **Роль 4:** для live-запуска бота на сервере нужны в образе зависимости агента (`pymupdf`/`pytesseract`/`pillow` + `tesseract-ocr`, как ты уже отметил у себя) и LLM-переменные в `.env`.
+
 ---
 
 ## Роль 2 · Agent Orchestrator (`agent/`) — ветка `Roman_SPT`
@@ -103,6 +110,19 @@
 - **Роли 2 и 4**: эмбеддинги — модель e5, документы уже с префиксом `passage:`; в `search_law` запросы кодировать с префиксом **`query:`** и `normalize_embeddings=True`, иначе качество поиска просядет (детали в `pipeline/README.md`).
 - **Роль 4**: пайплайну нужны только Qdrant и (опционально) Postgres из compose; зависимости в `pipeline/requirements.txt` — забери их в общий `pyproject.toml`.
 
+### 2026-07-07 — бенчмарк эмбеддингов (в работе)
+**Сделано:**
+- Собран портируемый ноутбук `pipeline/benchmark_embeddings.ipynb`: Recall@1/3/5/10 и MRR считаются **в памяти** (numpy-косинус, Qdrant не нужен), корпус ТК РФ кэшируется в `.state/`, устройство авто (`mps`/`cuda`/`cpu`) — одинаково пойдёт на Mac и на ПК с GPU. Eval-набор — 18 позитивных вопросов Роли 2 из `tests/legal_cases/cases.json` + 1 негативный (про погоду, для проверки низкой похожести).
+- **Опорные цифры baseline `multilingual-e5-base`** (реальный прогон, mps): R@1=0.56, R@3=0.83, **R@5=0.94, R@10=0.94, MRR=0.69**. Единственный провал — **ст. 81**: 22-е место на уровне статей (у Роли 2 на сервере — 41-я позиция по чанкам; обе цифры подтверждают, что статья трудная). Остальные 17/18 — в топ-5.
+- Кандидаты на замену: `intfloat/multilingual-e5-large` и `deepvk/USER-bge-m3` (RoSBERTa отложена — корпус чисто русский, у bge-m3 выше на ruMTEB). Гоняются в ноутбуке (идёт скачивание весов, ~4.5 ГБ).
+
+**Дальше:**
+- Выбрать модель по цифрам с поправкой на **CPU-стоимость на сервере** (Selectel без GPU); зафиксировать `EMBED_MODEL` в `.env` и `pipeline/config.py`; перезалить корпус `python -m pipeline.run --act tk_rf --force`.
+
+**Важно другим:**
+- **Роль 2:** если у кандидатов ст. 81 тоже провалится — **реранкер поверх топ-10** может оказаться дешевле смены модели (в HF-кэше уже лежит `bge-reranker-base` — видимо, кто-то щупал). Eval-набор общий, готов синхронизировать `cases.json`.
+- **Роль 4:** при смене модели изменится **размерность вектора** (e5-large / bge-m3 = 1024 vs 768 у base) — коллекции Qdrant и `init_qdrant.py` пересоздать под новую dim; `EMBED_MODEL` берётся из env, `search_law` должен кодировать запрос той же моделью и префиксом.
+
 ---
 
 ## Роль 4 · Инфраструктура (`infra/`, `shared/`, корень) — ветка `Vitaliy_Svs`
@@ -139,3 +159,21 @@
 **Важно другим:**
 - `search_law()` теперь настоящий, не заглушка — Роль 2 может звать его из графа уже сейчас (данные пока только в `law_articles_dev`, см. `QDRANT_LAW_COLLECTION` в `.env.example`).
 - Инфраструктура (Qdrant + Postgres) живёт на сервере — если нужен доступ для проверки, пишите в общий чат.
+
+### 2026-07-07
+**Сделано:**
+- Сервер: контейнеры qdrant/postgres были остановлены (`Exited`) — поднял заново (`docker compose up -d qdrant postgres`), данные целы (623 точки в `law_articles_dev`, все таблицы Postgres на месте).
+- `pyproject.toml`: добавил `pymupdf`, `pytesseract`, `pillow` (нужны Роли 2 для `parse_pdf`/OCR слайса 2) и `"bot/tests"` в `testpaths` (запрос Роли 1) — теперь `pytest` без аргументов подхватывает и тесты бота.
+- **Найден и исправлен баг, ломавший `pip install .`/`pip install -e ".[dev]"` целиком** (в т.ч. инструкцию из `bot/README.md`): setuptools при flat-layout видел `bot/agent/infra/shared/pipeline` как конкурирующие top-level пакеты и отказывался собирать сборку («Multiple top-level packages discovered»). Добавил `[tool.setuptools] packages = [...]` явным списком. Проверено: editable- и обычный `pip install` теперь оба проходят (в отдельных чистых venv).
+- `Dockerfile` (корень) для сервиса `bot` из `docker-compose.yml` — `python:3.11-slim` + `tesseract-ocr`/`tesseract-ocr-rus` (системная зависимость OCR), `pip install .`, `CMD python -m bot.main`.
+- `.env.example`: добавил `LLM_BASE_URL`, `LLM_MAX_TOKENS`, поправил `LLM_MODEL` на реальный дефолт `anthropic/claude-sonnet-5` (был `claude-sonnet-5`, не соответствовал каталогу Polza).
+- `.gitignore`: добавил `build/` (артефакт локальной сборки при проверке пакета).
+- При сборке образа на сервере поймал ещё один баг в своём же Dockerfile: `pip install .` шёл раньше `COPY bot/ agent/ shared/` — поправил порядок (иначе setuptools не находил package dir). Заодно `Roma_MSK` (Роль 3, весь пайплайн) за это время смёржен в `main` — забрал его `pipeline/requirements.txt`: `qdrant-client`/`sentence-transformers` уже были в общих deps, добавил `psycopg[binary]` отдельным extra `[project.optional-dependencies] pipeline` (используется лениво, best-effort, только при `POSTGRES_DSN`).
+
+**Дальше:**
+- Собрать `bot` на сервере (`docker compose build bot && docker compose up -d bot`) и проверить живьём в Telegram — билд ещё не подтверждён после фикса порядка COPY.
+- Branch protection на `main` (задача 10) — по-прежнему не обсуждали с командой.
+
+**Важно другим:**
+- **Роль 2:** `LLM_API_KEY` в `.env` на сервере сейчас **пустой** — без него `agent.Agent()` не сможет реально звать Polza.ai. Нужно вписать ключ (600, не в git) или подтвердить, что он будет добавлен отдельно.
+- **Все роли:** если у вас локально `pip install -e ".[dev]"` не работал и вы обходили это как-то иначе — тот баг был реальный (не у вас в окружении), сейчас должно заработать после `git pull`.

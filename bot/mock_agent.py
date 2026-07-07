@@ -8,7 +8,8 @@
   3) уточняющий вопрос (clarifying_question).
 
 Ветка выбирается по ключевым словам вопроса — этого достаточно для DoD Роли 1.
-Заменяется на реальный `agent/` в точке И1 (см. bot/agent_client.py).
+И1 выполнен: в проде бот использует `agent.Agent` (bot/main.py). MockAgent
+остаётся только для юнит-тестов бота (bot/tests) — не требует LLM/Qdrant.
 """
 
 from __future__ import annotations
