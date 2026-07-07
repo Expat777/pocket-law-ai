@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
-
 COPY shared/ shared/
 COPY agent/ agent/
 COPY bot/ bot/
+COPY pipeline/ pipeline/
+RUN pip install --no-cache-dir .
 
 CMD ["python", "-m", "bot.main"]

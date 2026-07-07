@@ -15,6 +15,7 @@ from .llm import LLMClient
 
 SearchLaw = Callable[[str, int | None], Awaitable[list[RetrievedChunk]]]
 VerifyCitation = Callable[[Citation], Awaitable[CitationStatus]]
+LogConfidence = Callable[[str, float], Awaitable[None]]
 
 
 @dataclass
@@ -22,6 +23,8 @@ class Deps:
     llm: LLMClient
     search_law: SearchLaw
     verify_citation: VerifyCitation
+    # необязательная телеметрия: запись confidence в Postgres (None = не пишем)
+    log_confidence: LogConfidence | None = None
 
 
 def build_default_deps() -> Deps:
@@ -30,7 +33,13 @@ def build_default_deps() -> Deps:
     """
     from shared.search import search_law
 
+    from .confidence_log import log_confidence
     from .llm import build_llm
     from .tools.verify_citation import verify_citation
 
-    return Deps(llm=build_llm(), search_law=search_law, verify_citation=verify_citation)
+    return Deps(
+        llm=build_llm(),
+        search_law=search_law,
+        verify_citation=verify_citation,
+        log_confidence=log_confidence,
+    )

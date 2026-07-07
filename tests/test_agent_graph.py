@@ -242,3 +242,53 @@ def test_llm_client_caps_max_tokens():
 
     llm = OpenAICompatLLM(api_key="dummy")
     assert isinstance(llm.max_tokens, int) and llm.max_tokens > 0
+
+
+async def test_confidence_logged_on_answer():
+    """compose pishet confidence cherez deps.log_confidence na realnom otvete."""
+    logged = []
+
+    async def fake_log(question, confidence):
+        logged.append((question, confidence))
+
+    deps = make_deps([TK_81], answer_text="Otvet po state.")
+    deps.log_confidence = fake_log
+    ans = await answer_question(1, "vopros pro uvolnenie", deps=deps)
+
+    assert ans.refused is False
+    assert len(logged) == 1
+    assert logged[0][0] == "vopros pro uvolnenie"
+    assert isinstance(logged[0][1], float)
+
+
+async def test_confidence_not_logged_on_insufficient():
+    """Na INSUFFICIENT (otkaz) confidence ne pishetsya."""
+    logged = []
+
+    async def fake_log(question, confidence):
+        logged.append((question, confidence))
+
+    deps = make_deps([TK_81], answer_text="INSUFFICIENT")
+    deps.log_confidence = fake_log
+    ans = await answer_question(1, "vopros", deps=deps)
+
+    assert ans.refused is True
+    assert logged == []
+
+
+async def test_citations_capped_to_max():
+    """Mnogo naidennyh statei -> citations obrezany do MAX_CITATIONS."""
+    from agent.config import MAX_CITATIONS
+
+    many = [
+        RetrievedChunk(
+            text=f"article {i}", source="law", act="ТК РФ", article=str(100 + i),
+            status="active", effective_date=date(2026, 5, 15), score=0.9 - i * 0.01,
+        )
+        for i in range(MAX_CITATIONS + 4)
+    ]
+    deps = make_deps(many, answer_text="Otvet po state.")
+    ans = await answer_question(1, "vopros po state", deps=deps)
+
+    assert ans.refused is False
+    assert len(ans.citations) == MAX_CITATIONS

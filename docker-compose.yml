@@ -1,6 +1,7 @@
 services:
   qdrant:
     image: qdrant/qdrant:latest
+    restart: unless-stopped
     volumes:
       - qdrant_storage:/qdrant/storage
     ports:
@@ -8,6 +9,7 @@ services:
 
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-pocketlaw}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pocketlaw}
@@ -19,6 +21,7 @@ services:
 
   bot:
     build: .
+    restart: unless-stopped
     depends_on:
       - qdrant
       - postgres
