@@ -140,6 +140,16 @@ LLM_MAX_TOKENS=900
 
 После сравнения Gemini 3.5 Flash vs DeepSeek v3.2 (оба прошли контрольные кейсы: grounded-ответ, INSUFFICIENT, защита от инъекций) выбрали **`deepseek/deepseek-v3.2`** — дешевле. Дефолт в коде (`agent/llm/openai_compat.py`) и `dev2`-`.env` обновлены. Для развёртывания: `LLM_MODEL=deepseek/deepseek-v3.2` (остальные LLM-переменные — как в блоке уточнения выше).
 
+### 2026-07-07 — загрузка по URL (ingest_url), source_url, блокер эмбеддингов
+
+**Сделано:**
+- **Загрузка документа по ссылке:** `agent.Agent.ingest_url(user_id, url)` (+ `graph.ingest_url`). Качает PDF/фото (OCR), HTML→текст, text/* → `user_documents` с изоляцией по user_id. **SSRF-защита** (`agent/tools/fetch_url.py`): только http/https, блок приватных/loopback/link-local IP — проверено на сервере (localhost:6333/5432, 169.254.169.254, 10.x заблокированы), лимит 20МБ, таймаут, контроль редиректов. Контент по ссылке помечен в SECURITY_RULES как недоверенные данные (инъекция через страницу игнорируется).
+- **`source_url` в цитаты:** проброс `RetrievedChunk.source_url → Citation.source_url` (`verify.py`). Роль 1 — кликабельные ссылки заработают, как только Роль 3 положит URL в payload. 31 тест зелёный, ruff чист. Всё в `main`.
+
+**⚠️ БЛОКЕР (Роли 3/4): рассинхрон размерности эмбеддингов.** После смены EMBED_MODEL на `deepvk/USER-bge-m3` (1024) `search_law` кодирует запрос в 1024-мерный вектор, а коллекция `law_articles_dev` на сервере построена старой e5-base (768) → Qdrant: `expected dim 768, got 1024`, **retrieve на сервере падает** (и docker-бот упадёт при поднятии). Нужна **переиндексация** `law_articles_dev` пайплайном на bge-m3. Готов прогнать пайплайн на сервере по вашей отмашке.
+
+**Важно другим (Роль 1):** `ingest_url` доступен в `agent.Agent` — чтобы принимать ссылки в боте, детектите URL в сообщении и зовите `agent.ingest_url(user_id, url)` (SSRF/парсинг — на нашей стороне).
+
 ---
 
 ## Роль 3 · Data Pipeline (`pipeline/`) — ветка `Roma_MSK`
