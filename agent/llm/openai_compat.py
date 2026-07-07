@@ -14,9 +14,10 @@ ENV:
 import os
 
 DEFAULT_BASE_URL = "https://api.polza.ai/api/v1"
-# Дешёвая модель Flash-класса: для grounded-ответа по переданным статьям её
-# хватает, держит INSUFFICIENT и защиту от инъекций (проверено). Меняется LLM_MODEL.
-DEFAULT_MODEL = "google/gemini-3.5-flash"
+# Дешёвая не-reasoning модель: для grounded-ответа по переданным статьям её
+# хватает, держит INSUFFICIENT и защиту от инъекций (проверено на сервере).
+# Меняется LLM_MODEL без правок кода.
+DEFAULT_MODEL = "deepseek/deepseek-v3.2"
 # Потолок токенов на ответ. Юр. ответ 2–5 предложений укладывается с запасом;
 # защищает от «раздутого» ответа, который бил бы по бюджету. Меняется LLM_MAX_TOKENS.
 DEFAULT_MAX_TOKENS = 900
