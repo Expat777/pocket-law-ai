@@ -7,6 +7,7 @@
 
 from datetime import date
 
+from agent.config import MAX_CITATIONS
 from agent.deps import Deps
 from agent.state import AgentState
 from shared.contracts import Citation, RetrievedChunk
@@ -45,7 +46,7 @@ async def verify(state: AgentState, deps: Deps) -> dict:
                 )
             )
 
-    return {"verified_chunks": verified, "citations": citations}
+    return {"verified_chunks": verified, "citations": citations[:MAX_CITATIONS]}
 
 
 def route_after_verify(state: AgentState) -> str:
