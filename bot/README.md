@@ -44,7 +44,7 @@ python -m pytest bot/tests -q     # asyncio_mode=auto берётся из кор
 | `repository.py` | users, согласие, `dialog_history`, rate-limit (in-memory; Postgres — TODO) |
 | `middlewares.py` | гейт согласия 152-ФЗ + rate-limit |
 | `handlers/commands.py` | `/start` (согласие), `/help`, `/delete` |
-| `handlers/content.py` | текстовые вопросы + файлы (валидация до обработки) |
+| `handlers/content.py` | текстовые вопросы + файлы (валидация до обработки) + ссылки (`ingest_url`) |
 
 ## Границы (из TEAM_PLAN раздел 4)
 
