@@ -14,6 +14,8 @@ from shared.contracts import Citation, RetrievedChunk
 
 
 async def verify(state: AgentState, deps: Deps) -> dict:
+    from agent.tracing import tool_span
+
     chunks: list[RetrievedChunk] = state.get("chunks", [])
     verified: list[RetrievedChunk] = []
     citations: list[Citation] = []
@@ -30,7 +32,9 @@ async def verify(state: AgentState, deps: Deps) -> dict:
             article=c.article,
             revision_date=c.effective_date or date.today(),
         )
-        status = await deps.verify_citation(candidate)
+        with tool_span("verify_citation", {"act": c.act, "article": c.article}) as record:
+            status = await deps.verify_citation(candidate)
+            record({"exists": status.exists, "active": status.active})
         if not (status.exists and status.active):
             continue  # несуществующую/недействующую статью выбрасываем
 

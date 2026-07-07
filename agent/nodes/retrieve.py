@@ -6,8 +6,12 @@ from agent.state import AgentState
 
 
 async def retrieve(state: AgentState, deps: Deps) -> dict:
+    from agent.tracing import tool_span
+
     query = state.get("normalized_query") or state["question"]
-    chunks = await deps.search_law(query, state.get("user_id"))
+    with tool_span("search_law", {"query": query, "user_id": state.get("user_id")}) as record:
+        chunks = await deps.search_law(query, state.get("user_id"))
+        record([f"{c.act or c.source} {c.article or ''}".strip() for c in chunks])
 
     # отсев совсем слабых совпадений закона; документы пользователя не режем
     filtered = [

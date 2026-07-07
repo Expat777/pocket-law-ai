@@ -45,6 +45,8 @@ class OpenAICompatLLM:
     async def complete(self, system: str, user: str) -> str:
         import httpx  # ленивый импорт: нужен только при реальной генерации
 
+        from agent.tracing import llm_span
+
         payload = {
             "model": self.model,
             "messages": [
@@ -55,10 +57,14 @@ class OpenAICompatLLM:
             "max_tokens": self.max_tokens,  # потолок стоимости ответа
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(
-                f"{self.base_url}/chat/completions", json=payload, headers=headers
-            )
-            resp.raise_for_status()
-            data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        # отдельный LLM-спан в трейсе: в inputs только messages (без self/ключа)
+        with llm_span(self.model, payload["messages"]) as record:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                resp = await client.post(
+                    f"{self.base_url}/chat/completions", json=payload, headers=headers
+                )
+                resp.raise_for_status()
+                data = resp.json()
+            out = data["choices"][0]["message"]["content"]
+            record(out)
+            return out
