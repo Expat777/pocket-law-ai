@@ -1,7 +1,15 @@
 """Точка входа бота (задача MVP 1): long polling для разработки (webhook — фаза 2).
 
+Собирает реального агента Роли 2 (`Agent()`), поэтому для запуска нужен полный
+стек: зависимости из корневого pyproject (langgraph, qdrant-client, httpx …),
+доступный Qdrant и LLM-ключ Polza.ai.
+
 Запуск:
-    export BOT_TOKEN=...          # токен от @BotFather
+    pip install -e ".[dev]"
+    export BOT_TOKEN=...                              # токен от @BotFather
+    export LLM_BASE_URL=https://api.polza.ai/api/v1
+    export LLM_MODEL=anthropic/claude-sonnet-5
+    export LLM_API_KEY=...                            # в проде — из .env
     python -m bot.main
 """
 
@@ -15,10 +23,10 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
+from agent import Agent
 from bot.config import Config, load_config
 from bot.handlers import commands_router, content_router
 from bot.middlewares import ConsentMiddleware, RateLimitMiddleware
-from bot.mock_agent import MockAgent
 from bot.repository import build_repository
 
 
@@ -35,7 +43,7 @@ async def _set_commands(bot: Bot) -> None:
 def build_dispatcher(config: Config) -> Dispatcher:
     """Собирает Dispatcher: DI, middlewares, роутеры. Вынесено для тестируемости."""
     repo = build_repository(config.storage_backend, config.postgres_dsn)
-    agent = MockAgent()  # ← в точке И1 заменяется реальным клиентом из agent/
+    agent = Agent()  # реальный оркестратор Роли 2 (И1); граф компилируется здесь
 
     dp = Dispatcher(storage=MemoryStorage())
 
@@ -71,7 +79,7 @@ async def main() -> None:
         default=DefaultBotProperties(link_preview_is_disabled=True),
     )
     await _set_commands(bot)
-    logging.getLogger(__name__).info("Bot started (long polling, mock agent)")
+    logging.getLogger(__name__).info("Bot started (long polling, real agent)")
     await dp.start_polling(bot)
 
 
