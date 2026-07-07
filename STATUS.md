@@ -108,6 +108,10 @@ LLM_MAX_TOKENS=900
 ```
 Код агента читает эти переменные из окружения (agent/llm/openai_compat.py). Ключ добавляет тот, у кого доступ к Polza.
 
+### 2026-07-07 (модель — финально DeepSeek)
+
+После сравнения Gemini 3.5 Flash vs DeepSeek v3.2 (оба прошли контрольные кейсы: grounded-ответ, INSUFFICIENT, защита от инъекций) выбрали **`deepseek/deepseek-v3.2`** — дешевле. Дефолт в коде (`agent/llm/openai_compat.py`) и `dev2`-`.env` обновлены. Для развёртывания: `LLM_MODEL=deepseek/deepseek-v3.2` (остальные LLM-переменные — как в блоке уточнения выше).
+
 ---
 
 ## Роль 3 · Data Pipeline (`pipeline/`) — ветка `Roma_MSK`
