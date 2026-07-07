@@ -14,8 +14,9 @@ ENV:
 import os
 
 DEFAULT_BASE_URL = "https://api.polza.ai/api/v1"
-# Актуальная модель в каталоге Polza (проверено GET /models). Меняется через LLM_MODEL.
-DEFAULT_MODEL = "anthropic/claude-sonnet-5"
+# Дешёвая модель Flash-класса: для grounded-ответа по переданным статьям её
+# хватает, держит INSUFFICIENT и защиту от инъекций (проверено). Меняется LLM_MODEL.
+DEFAULT_MODEL = "google/gemini-3.5-flash"
 # Потолок токенов на ответ. Юр. ответ 2–5 предложений укладывается с запасом;
 # защищает от «раздутого» ответа, который бил бы по бюджету. Меняется LLM_MAX_TOKENS.
 DEFAULT_MAX_TOKENS = 900
