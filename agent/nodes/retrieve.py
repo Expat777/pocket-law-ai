@@ -13,9 +13,10 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
         chunks = await deps.search_law(query, state.get("user_id"))
         record([f"{c.act or c.source} {c.article or ''}".strip() for c in chunks])
 
-    # отсев совсем слабых совпадений закона; документы пользователя не режем
-    filtered = [
-        c for c in chunks if c.source != "law" or c.score >= MIN_LAW_SCORE
-    ]
-    # search_law уже отсортировал по score; берём запас (см. config.TOP_K)
-    return {"chunks": filtered[:TOP_K]}
+    # top-K статей закона (search_law уже отсортировал по score) + ВСЕ фрагменты
+    # пользовательских документов. Их мало (TOP_K_USER_DOCS=3), и срезать их
+    # общим [:TOP_K] нельзя: иначе при вопросе «что сказано в документе» чанки
+    # файла вытесняются статьями закона и не доходят до compose как контекст.
+    law = [c for c in chunks if c.source == "law" and c.score >= MIN_LAW_SCORE]
+    user_docs = [c for c in chunks if c.source != "law"]
+    return {"chunks": law[:TOP_K] + user_docs}
