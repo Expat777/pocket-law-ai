@@ -97,3 +97,8 @@ class MockAgent:
         return IngestResult(
             doc_id=uuid.uuid4().hex, chunks=chunks, ok=True, error=None
         )
+
+    async def ingest_url(self, user_id: int, url: str) -> IngestResult:
+        if not url.startswith(("http://", "https://")):
+            return IngestResult(doc_id="", chunks=0, ok=False, error="некорректная ссылка")
+        return IngestResult(doc_id=uuid.uuid4().hex, chunks=3, ok=True, error=None)

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatAction
@@ -55,6 +56,43 @@ def _sniff_mime(head: bytes) -> str | None:
         if head.startswith(magic):
             return mime
     return None
+
+
+# Детект ссылки на документ: сообщение, начинающееся с http(s):// (задача Роли 2 —
+# ingest_url). SSRF-защита — на стороне агента; бот только извлекает URL и передаёт.
+_URL_RE = re.compile(r"https?://\S+")
+
+
+@router.message(F.text.regexp(r"^\s*https?://"))
+async def on_url(
+    message: Message,
+    state: FSMContext,
+    repo: Repository,
+    agent: AgentClient,
+) -> None:
+    user_id = message.from_user.id
+    await repo.ensure_user(user_id, message.from_user.username)
+    await state.set_state(Dialog.uploading_file)
+
+    match = _URL_RE.search(message.text)
+    if match is None:  # подстраховка, фильтр уже гарантирует наличие URL
+        await state.set_state(Dialog.normal_question)
+        return
+    url = match.group(0)
+
+    await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
+    try:
+        result = await agent.ingest_url(user_id, url)
+    except Exception:  # noqa: BLE001
+        log.exception("ingest_url failed for user %s", user_id)
+        await message.answer(
+            "Не получилось загрузить документ по ссылке. Проверьте ссылку и попробуйте позже."
+        )
+        await state.set_state(Dialog.normal_question)
+        return
+
+    await _send_md(message, format_ingest_result(result))
+    await state.set_state(Dialog.normal_question)
 
 
 @router.message(F.text & ~F.text.startswith("/"))
