@@ -292,3 +292,15 @@ async def test_citations_capped_to_max():
 
     assert ans.refused is False
     assert len(ans.citations) == MAX_CITATIONS
+
+
+async def test_source_url_passed_to_citation():
+    """RetrievedChunk.source_url пробрасывается в Citation.source_url (для ссылок Роли 1)."""
+    chunk = RetrievedChunk(
+        text="ст.115", source="law", act="ТК РФ", article="115",
+        status="active", effective_date=date(2026, 5, 15), score=0.9,
+        source_url="http://pravo.gov.ru/article/115",
+    )
+    deps = make_deps([chunk], answer_text="Otvet po state.")
+    ans = await answer_question(1, "vopros pro otpusk", deps=deps)
+    assert ans.citations[0].source_url == "http://pravo.gov.ru/article/115"

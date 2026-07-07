@@ -43,6 +43,7 @@ async def verify(state: AgentState, deps: Deps) -> dict:
                     act=c.act,
                     article=c.article,
                     revision_date=status.current_revision or candidate.revision_date,
+                    source_url=c.source_url,
                 )
             )
 
