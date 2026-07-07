@@ -29,7 +29,7 @@ def make_llm(is_legal: bool = True, answer_text: str = "Ответ по стат
     """FakeLLM: на intent-промпт отдаёт JSON, на compose — текст ответа."""
 
     def handler(system: str, user: str) -> str:
-        if "классификатор" in system:
+        if "is_legal" in system:  # маркер intent-промпта (в compose его нет)
             return json.dumps(
                 {"is_legal": is_legal, "branch": "трудовое", "normalized": user}
             )
