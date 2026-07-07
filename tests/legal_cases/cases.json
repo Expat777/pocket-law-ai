@@ -611,10 +611,11 @@
       "expected": {
         "act": "ТК РФ",
         "articles": [
-          "193"
+          "193",
+          "192"
         ]
       },
-      "note": "Из eval-набора Роли 3 (pipeline/eval_extended.json). Ст. 193 ТК РФ."
+      "note": "Из eval-набора Роли 3 (pipeline/eval_extended.json). Ст. 193 ТК РФ. Метка расширена (Роль 3): валидны соседние статьи."
     },
     {
       "id": "tk-art-238",
@@ -755,10 +756,13 @@
       "expected": {
         "act": "ТК РФ",
         "articles": [
-          "227"
+          "227",
+          "228",
+          "229",
+          "230"
         ]
       },
-      "note": "Из eval-набора Роли 3 (pipeline/eval_extended.json). Ст. 227 ТК РФ."
+      "note": "Из eval-набора Роли 3 (pipeline/eval_extended.json). Ст. 227 ТК РФ. Метка расширена (Роль 3): валидны соседние статьи."
     }
   ]
 }
