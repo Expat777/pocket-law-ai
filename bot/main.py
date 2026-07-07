@@ -28,7 +28,7 @@ from agent import Agent
 from bot.config import Config, load_config
 from bot.handlers import commands_router, content_router
 from bot.middlewares import ConsentMiddleware, RateLimitMiddleware
-from bot.repository import build_repository
+from bot.repository import Repository, create_repository
 
 
 async def _set_commands(bot: Bot) -> None:
@@ -41,9 +41,11 @@ async def _set_commands(bot: Bot) -> None:
     )
 
 
-def build_dispatcher(config: Config) -> Dispatcher:
-    """Собирает Dispatcher: DI, middlewares, роутеры. Вынесено для тестируемости."""
-    repo = build_repository(config.storage_backend, config.postgres_dsn)
+def build_dispatcher(config: Config, repo: Repository) -> Dispatcher:
+    """Собирает Dispatcher: DI, middlewares, роутеры. Вынесено для тестируемости.
+
+    `repo` создаётся снаружи (в `main`), т.к. Postgres-пул поднимается асинхронно.
+    """
     agent = Agent()  # реальный оркестратор Роли 2 (И1); граф компилируется здесь
 
     dp = Dispatcher(storage=MemoryStorage())
@@ -71,7 +73,9 @@ async def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     config = load_config()
-    dp = build_dispatcher(config)
+    repo = await create_repository(config.storage_backend, config.postgres_dsn)
+    logging.getLogger(__name__).info("Хранилище: %s", config.storage_backend)
+    dp = build_dispatcher(config, repo)
 
     # Прокси до api.telegram.org — нужен там, где хостинг режет Telegram (напр. РФ-VPS).
     # Без прокси используется прямое соединение.
@@ -88,7 +92,12 @@ async def main() -> None:
     )
     await _set_commands(bot)
     logging.getLogger(__name__).info("Bot started (long polling, real agent)")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        close = getattr(repo, "close", None)
+        if close is not None:
+            await close()  # закрыть пул asyncpg (для Postgres-бэкенда)
 
 
 if __name__ == "__main__":
