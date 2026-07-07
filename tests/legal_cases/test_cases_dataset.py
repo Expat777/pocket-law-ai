@@ -15,7 +15,7 @@ def test_dataset_wellformed():
     cases = data["cases"]
 
     # TEAM_PLAN требует 15–20 кейсов
-    assert 15 <= len(cases) <= 25
+    assert 15 <= len(cases) <= 100  # расширено eval-набором Роли 3
 
     ids = set()
     for c in cases:
