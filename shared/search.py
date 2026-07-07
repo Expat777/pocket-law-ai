@@ -50,6 +50,7 @@ async def search_law(query: str, user_id: int | None) -> list[RetrievedChunk]:
                 article=payload.get("article_no"),
                 status=payload.get("status"),
                 effective_date=payload.get("effective_date"),
+                source_url=payload.get("source_url"),
                 score=hit.score,
             )
         )

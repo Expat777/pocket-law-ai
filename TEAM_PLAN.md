@@ -117,7 +117,7 @@ class ParsedDoc(BaseModel):
 
 | Коллекция | Payload | Примечание |
 |---|---|---|
-| `law_articles` | `act, article_no, chapter, status, effective_date, text` | общая база законов |
+| `law_articles` | `act, article_no, chapter, status, effective_date, text, source_url` | общая база законов; `source_url` опционален (Роль 3: устойчивая per-article ссылка может отсутствовать) |
 | `user_documents` | `user_id, doc_id, chunk_no, text, uploaded_at` | изоляция: фильтр по `user_id` обязателен в каждом запросе; TTL |
 | `law_articles_dev` | как `law_articles` | песочница Роли 3, никто больше её не читает |
 
