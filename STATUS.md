@@ -36,6 +36,13 @@
 **Важно другим:**
 - **Роль 4:** `make test` (голый `pytest`) не подхватывает мои тесты — в `pyproject.toml` `testpaths=["tests"]`, а тесты бота лежат в `bot/tests`. Прошу добавить `"bot/tests"` в `testpaths` (или переносим — как удобнее общей структуре). Пока запускаю явно: `pytest bot/tests`.
 
+### 2026-07-06, вечер — **И1 подключён: бот на реальном агенте**
+**Сделано:** в `bot/main.build_dispatcher` `MockAgent()` заменён на `agent.Agent()` (Роль 2) — чисто, без переключателей; хендлеры не тронуты. Обновил доки/запуск (нужны LLM-env Polza + Qdrant + полный стек pyproject). `MockAgent` оставлен только для юнит-тестов бота (не требует LLM/Qdrant). `bot/tests` — 11 зелёных; проводка проверена статически (единственный локальный блокер — отсутствие `langgraph`/ключа в моём venv, что ожидаемо).
+
+**Важно другим:**
+- **Роль 2:** бот теперь зовёт `Agent()` из `main`. Готов вместе прогнать сквозняк **в Telegram на сервере** (там есть LLM-ключ + Qdrant `law_articles_dev`): вопрос → grounded-ответ с цитатой; загрузка PDF → `ingest_document`. Форматтер уже переживает «плохую» разметку от LLM (фолбэк) и режет ответы >4096.
+- **Роль 4:** для live-запуска бота на сервере нужны в образе зависимости агента (`pymupdf`/`pytesseract`/`pillow` + `tesseract-ocr`, как ты уже отметил у себя) и LLM-переменные в `.env`.
+
 ---
 
 ## Роль 2 · Agent Orchestrator (`agent/`) — ветка `Roman_SPT`
@@ -152,3 +159,21 @@
 **Важно другим:**
 - `search_law()` теперь настоящий, не заглушка — Роль 2 может звать его из графа уже сейчас (данные пока только в `law_articles_dev`, см. `QDRANT_LAW_COLLECTION` в `.env.example`).
 - Инфраструктура (Qdrant + Postgres) живёт на сервере — если нужен доступ для проверки, пишите в общий чат.
+
+### 2026-07-07
+**Сделано:**
+- Сервер: контейнеры qdrant/postgres были остановлены (`Exited`) — поднял заново (`docker compose up -d qdrant postgres`), данные целы (623 точки в `law_articles_dev`, все таблицы Postgres на месте).
+- `pyproject.toml`: добавил `pymupdf`, `pytesseract`, `pillow` (нужны Роли 2 для `parse_pdf`/OCR слайса 2) и `"bot/tests"` в `testpaths` (запрос Роли 1) — теперь `pytest` без аргументов подхватывает и тесты бота.
+- **Найден и исправлен баг, ломавший `pip install .`/`pip install -e ".[dev]"` целиком** (в т.ч. инструкцию из `bot/README.md`): setuptools при flat-layout видел `bot/agent/infra/shared/pipeline` как конкурирующие top-level пакеты и отказывался собирать сборку («Multiple top-level packages discovered»). Добавил `[tool.setuptools] packages = [...]` явным списком. Проверено: editable- и обычный `pip install` теперь оба проходят (в отдельных чистых venv).
+- `Dockerfile` (корень) для сервиса `bot` из `docker-compose.yml` — `python:3.11-slim` + `tesseract-ocr`/`tesseract-ocr-rus` (системная зависимость OCR), `pip install .`, `CMD python -m bot.main`.
+- `.env.example`: добавил `LLM_BASE_URL`, `LLM_MAX_TOKENS`, поправил `LLM_MODEL` на реальный дефолт `anthropic/claude-sonnet-5` (был `claude-sonnet-5`, не соответствовал каталогу Polza).
+- `.gitignore`: добавил `build/` (артефакт локальной сборки при проверке пакета).
+
+**Дальше:**
+- Собрать `bot` на сервере (`docker compose build bot && docker compose up -d bot`) и проверить живьём в Telegram.
+- `pipeline/` (Роль 3, ветка `Roma_MSK`) всё ещё не смёржен в `main` — там только пустой `__init__.py`. Пока не смёржено, не могу забрать `pipeline/requirements.txt` в общий `pyproject.toml`. Роль 3 — как будет готово, открывай PR.
+- Branch protection на `main` (задача 10) — по-прежнему не обсуждали с командой.
+
+**Важно другим:**
+- **Роль 2:** `LLM_API_KEY` в `.env` на сервере сейчас **пустой** — без него `agent.Agent()` не сможет реально звать Polza.ai. Нужно вписать ключ (600, не в git) или подтвердить, что он будет добавлен отдельно.
+- **Все роли:** если у вас локально `pip install -e ".[dev]"` не работал и вы обходили это как-то иначе — тот баг был реальный (не у вас в окружении), сейчас должно заработать после `git pull`.
