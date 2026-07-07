@@ -14,18 +14,35 @@ def _client():
 
 
 def ensure_collection(dim: int, collection: str = QDRANT_COLLECTION) -> None:
-    """Создаём только свою dev-песочницу; боевые коллекции создаёт infra/init_qdrant.py (Роль 4)."""
+    """Создаём только свою dev-песочницу; боевые коллекции создаёт infra/init_qdrant.py (Роль 4).
+
+    При смене модели эмбеддингов меняется размерность вектора (bge-m3=1024 vs e5-base=768).
+    Песочницу `*_dev` в этом случае пересоздаём; боевую — не трогаем, просим Роль 4.
+    """
     from qdrant_client.models import Distance, VectorParams
 
     client = _client()
-    if not client.collection_exists(collection):
-        if not collection.endswith("_dev"):
+    is_dev = collection.endswith("_dev")
+
+    if client.collection_exists(collection):
+        current = client.get_collection(collection).config.params.vectors.size
+        if current == dim:
+            return
+        if not is_dev:
             raise RuntimeError(
-                f"Коллекции {collection} нет. Боевые коллекции создаёт Роль 4 (infra/init_qdrant.py) — "
-                "пайплайн сам создаёт только *_dev."
+                f"{collection}: размерность {current} != {dim} новой модели. "
+                "Боевую коллекцию пересоздаёт Роль 4 (infra/init_qdrant.py) под новый EMBED_DIM."
             )
-        client.create_collection(collection, vectors_config=VectorParams(size=dim, distance=Distance.COSINE))
-        log.info("Создал коллекцию %s (dim=%d, cosine)", collection, dim)
+        log.warning("Пересоздаю %s: размерность %d -> %d (смена модели)", collection, current, dim)
+        client.delete_collection(collection)
+    elif not is_dev:
+        raise RuntimeError(
+            f"Коллекции {collection} нет. Боевые коллекции создаёт Роль 4 (infra/init_qdrant.py) — "
+            "пайплайн сам создаёт только *_dev."
+        )
+
+    client.create_collection(collection, vectors_config=VectorParams(size=dim, distance=Distance.COSINE))
+    log.info("Создал коллекцию %s (dim=%d, cosine)", collection, dim)
 
 
 def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]], collection: str = QDRANT_COLLECTION) -> None:
