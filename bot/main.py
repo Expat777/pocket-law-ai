@@ -57,10 +57,10 @@ def build_dispatcher(config: Config, repo: Repository) -> Dispatcher:
     dp["max_file_bytes"] = config.max_file_bytes
 
     # Контент-роутер закрываем согласием и лимитом; команды остаются открытыми.
-    content_router.message.middleware(ConsentMiddleware(repo))
-    content_router.message.middleware(
-        RateLimitMiddleware(repo, config.rate_limit_per_hour)
-    )
+    # Те же гейты на edited_message — иначе правка сообщения обошла бы согласие/лимит.
+    for observer in (content_router.message, content_router.edited_message):
+        observer.middleware(ConsentMiddleware(repo))
+        observer.middleware(RateLimitMiddleware(repo, config.rate_limit_per_hour))
 
     @dp.errors()
     async def _on_error(event: ErrorEvent) -> bool:
