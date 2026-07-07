@@ -38,7 +38,9 @@ def _split_paragraphs(paragraphs: list[str], limit: int) -> list[str]:
     return parts
 
 
-def chunk_article(article: Article, effective_date: date | None = None) -> list[Chunk]:
+def chunk_article(
+    article: Article, effective_date: date | None = None, source_url: str | None = None
+) -> list[Chunk]:
     header = f"{article.act}, статья {article.article_no}. {article.title}".strip()
     paragraphs = [p for p in article.text.split("\n") if p.strip()]
     pieces = _split_paragraphs(paragraphs, MAX_CHUNK_CHARS) or [""]
@@ -57,6 +59,8 @@ def chunk_article(article: Article, effective_date: date | None = None) -> list[
                 "status": article.status,
                 # дата последней редакции документа; по-статейно — фаза 2 (SOURCE.md)
                 "effective_date": effective_date.isoformat() if effective_date else None,
+                # ссылка на акт целиком (Роль 2 -> Citation.source_url -> кликабельно у Роли 1)
+                "source_url": source_url,
                 "text": text,
             },
         ))
