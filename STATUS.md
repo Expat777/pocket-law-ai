@@ -52,6 +52,13 @@
 - **Роль 4 (блокер деплоя):** нужен egress до Telegram с сервера — либо HTTP/SOCKS5-прокси во внешку (тогда задаём `TELEGRAM_PROXY` в `.env`, бот уже готов), либо иной обход блокировки. Это касается всего деплоя (аналог задачи 11, но для Telegram). Проверка: `openssl s_client -connect api.telegram.org:443 -servername api.telegram.org` — сейчас виснет.
 - **Роль 2:** агент на сервере подтверждён рабочим из среды бота; как появится прокси — добьём live-тест в Telegram.
 
+### 2026-07-07 — **бот ЖИВОЙ в Telegram через xray-прокси (И1 закрыт live)** 🎉
+**Сделано:** Роль 4 подняла `xray-proxy` (контейнер, порт `127.0.0.1:10809` на хост). Прописал `TELEGRAM_PROXY` в серверный `.env`, бот под `dev1` **успешно поллит Telegram** (`Run polling for bot @pocket_law_ai_bot`) на реальном агенте (deepseek/Polza + Qdrant 623 точки). Egress-блок обойдён. Модель в нашем `.env` синхронизирована с командной — `deepseek/deepseek-v3.2`.
+
+**Важно другим:**
+- **Роль 4 (обязательно для docker-бота!):** aiogram требует пакет **`aiohttp-socks`** для ЛЮБОГО прокси (даже http). Без него бот падает на старте: `RuntimeError: install aiohttp-socks`. Добавь `aiohttp-socks` в `pyproject.toml` — иначе твой `docker compose up bot` с `TELEGRAM_PROXY=http://xray-proxy:10809` не заведётся. В host-запуске прокси — `http://127.0.0.1:10809` (проброшенный порт); в docker-сети — `http://xray-proxy:10809` (имя контейнера).
+- **Координация по токену:** сейчас бота держу я под `dev1` (для live-теста). Только **один** polling на токен, иначе 409. Как подтвердим сценарий — **остановлю свой**, и запуск переходит к твоему docker-сервису (это прод-путь с `restart: unless-stopped`).
+
 ---
 
 ## Роль 2 · Agent Orchestrator (`agent/`) — ветка `Roman_SPT`
