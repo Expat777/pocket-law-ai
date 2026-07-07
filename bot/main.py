@@ -20,6 +20,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
@@ -72,10 +73,17 @@ async def main() -> None:
     config = load_config()
     dp = build_dispatcher(config)
 
+    # Прокси до api.telegram.org — нужен там, где хостинг режет Telegram (напр. РФ-VPS).
+    # Без прокси используется прямое соединение.
+    session = AiohttpSession(proxy=config.telegram_proxy) if config.telegram_proxy else None
+    if config.telegram_proxy:
+        logging.getLogger(__name__).info("Telegram через прокси: %s", config.telegram_proxy)
+
     # link_preview_is_disabled: не показывать карточку-превью для ссылок в цитатах
     # (source_url в блоке «Основание»), иначе Telegram цепляет крупный блок под ответ.
     bot = Bot(
         token=config.bot_token,
+        session=session,
         default=DefaultBotProperties(link_preview_is_disabled=True),
     )
     await _set_commands(bot)
