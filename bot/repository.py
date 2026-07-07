@@ -1,22 +1,25 @@
 """Репозиторий: пользователи, согласие ПДн, история диалога, rate-limit.
 
 Пишется поверх схемы 3.4 (владелец схемы и миграций — Роль 4):
-  users(user_id PK, tg_username, created_at)
+  users(user_id PK, tg_username, consent_at, created_at)
   dialog_history(id PK, user_id FK, role, text, citations JSONB, created_at)
 
-Сейчас реализация — `InMemoryRepository` (бот обязан жить автономно по DoD,
-пока Postgres/миграции Роли 4 не подняты). `Repository` — Protocol, по которому
-позже добавим `PostgresRepository` (asyncpg) без правок хендлеров.
+Две реализации одного `Repository`-протокола:
+  - `InMemoryRepository` — дефолт, автономный запуск/юнит-тесты (без БД);
+  - `PostgresRepository` (asyncpg) — прод: согласие/история/rate-limit переживают
+    рестарт контейнера. Включается `STORAGE_BACKEND=postgres`.
 
-Согласие 152-ФЗ Роль 4 уже заложила: `users.consent_at TIMESTAMPTZ` (NULL = согласия
-ещё нет). `has_consent` → `consent_at IS NOT NULL`, `set_consent(True)` → `consent_at=now()`.
+Согласие 152-ФЗ: `users.consent_at TIMESTAMPTZ` (NULL = согласия нет).
+Rate-limit считаем поверх `dialog_history` (запросы `role='user'` за час) —
+отдельной таблицы в схеме 3.4 нет, новую не заводим.
 """
 
 from __future__ import annotations
 
+import json
 import time
 from collections import defaultdict, deque
-from typing import Protocol
+from typing import Any, Protocol
 
 from shared.contracts import Citation
 
@@ -108,11 +111,105 @@ class InMemoryRepository:
         return RateDecision(True, limit_per_hour - len(hits), 0)
 
 
-def build_repository(backend: str, dsn: str | None) -> Repository:
-    """Фабрика по config.storage_backend. Postgres-бэкенд добавим после И0."""
-    if backend == "postgres":
-        raise NotImplementedError(
-            "PostgresRepository подключим после И0 (миграции Роли 4). "
-            "Пока запускай со STORAGE_BACKEND=memory."
+class PostgresRepository:
+    """Постоянное хранилище на asyncpg поверх схемы 3.4 (таблицы — Роли 4).
+
+    Тот же интерфейс, что у InMemoryRepository, но состояние переживает рестарт.
+    Пул соединений создаётся фабрикой `create_repository` и передаётся сюда.
+    """
+
+    def __init__(self, pool: Any) -> None:
+        self._pool = pool
+
+    async def ensure_user(self, user_id: int, tg_username: str | None) -> None:
+        await self._pool.execute(
+            """
+            INSERT INTO users (user_id, tg_username) VALUES ($1, $2)
+            ON CONFLICT (user_id) DO UPDATE SET tg_username = EXCLUDED.tg_username
+            """,
+            user_id,
+            tg_username,
         )
+
+    async def has_consent(self, user_id: int) -> bool:
+        row = await self._pool.fetchval(
+            "SELECT consent_at IS NOT NULL FROM users WHERE user_id = $1", user_id
+        )
+        return bool(row)
+
+    async def set_consent(self, user_id: int, granted: bool) -> None:
+        # upsert: пользователь может ещё не существовать
+        await self._pool.execute(
+            """
+            INSERT INTO users (user_id, consent_at) VALUES ($1, $2)
+            ON CONFLICT (user_id) DO UPDATE SET consent_at = EXCLUDED.consent_at
+            """,
+            user_id,
+            _now_utc() if granted else None,
+        )
+
+    async def delete_user_data(self, user_id: int) -> None:
+        """/delete — полное удаление данных пользователя (152-ФЗ). FK: сначала диалог."""
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    "DELETE FROM dialog_history WHERE user_id = $1", user_id
+                )
+                await conn.execute("DELETE FROM users WHERE user_id = $1", user_id)
+
+    async def save_dialog(
+        self, user_id: int, role: str, text: str, citations: list[Citation]
+    ) -> None:
+        payload = json.dumps([c.model_dump(mode="json") for c in citations])
+        await self._pool.execute(
+            """
+            INSERT INTO dialog_history (user_id, role, text, citations)
+            VALUES ($1, $2, $3, $4::jsonb)
+            """,
+            user_id,
+            role,
+            text,
+            payload,
+        )
+
+    async def check_rate_limit(
+        self, user_id: int, limit_per_hour: int
+    ) -> RateDecision:
+        # счётчик поверх dialog_history: сколько вопросов (role='user') за последний час
+        row = await self._pool.fetchrow(
+            """
+            SELECT count(*) AS c, min(created_at) AS oldest
+            FROM dialog_history
+            WHERE user_id = $1 AND role = 'user'
+              AND created_at > now() - interval '1 hour'
+            """,
+            user_id,
+        )
+        count = row["c"] or 0
+        if count >= limit_per_hour and row["oldest"] is not None:
+            elapsed = (_now_utc() - row["oldest"]).total_seconds()
+            retry = int(_WINDOW_SEC - elapsed) + 1
+            return RateDecision(False, 0, max(retry, 1))
+        # текущий запрос будет записан хендлером через save_dialog
+        return RateDecision(True, max(limit_per_hour - count - 1, 0), 0)
+
+    async def close(self) -> None:
+        await self._pool.close()
+
+
+def _now_utc():
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc)
+
+
+async def create_repository(backend: str, dsn: str | None) -> Repository:
+    """Фабрика по config.storage_backend. Пул asyncpg создаётся здесь (async)."""
+    if backend == "postgres":
+        if not dsn:
+            raise RuntimeError("STORAGE_BACKEND=postgres, но POSTGRES-DSN пуст")
+        import asyncpg
+
+        pool = await asyncpg.create_pool(dsn=dsn, min_size=1, max_size=5)
+        return PostgresRepository(pool)
     return InMemoryRepository()

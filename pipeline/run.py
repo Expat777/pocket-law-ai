@@ -35,7 +35,7 @@ def main() -> int:
 
     known = {} if args.force else state.load_hashes(args.act)
     changed = state.diff_changed(articles, known)
-    chunks = [c for a in changed for c in chunk_article(a, fetched.revision_date)]
+    chunks = [c for a in changed for c in chunk_article(a, fetched.revision_date, info.url)]
     log.info("chunk: %d чанков из %d статей", len(chunks), len(changed))
 
     if args.dry_run:

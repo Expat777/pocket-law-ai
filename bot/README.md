@@ -56,6 +56,7 @@ python -m pytest bot/tests -q     # asyncio_mode=auto берётся из кор
 - **И1 — выполнено:** `bot/main.build_dispatcher` использует `agent.Agent()`
   (интерфейс `agent_client.AgentClient`). Осталась live-проверка сквозняка через
   Telegram на сервере (полный стек + LLM-ключ).
-- **PostgresRepository:** реализовать бэкенд на asyncpg поверх схемы 3.4
-  (`users.consent_at`, `dialog_history`) и включить его через `STORAGE_BACKEND=postgres`.
-  Сейчас по умолчанию — in-memory, данные не переживают рестарт.
+- **PostgresRepository — готов:** бэкенд на asyncpg поверх схемы 3.4
+  (`users.consent_at`, `dialog_history`; rate-limit — счётчик поверх `dialog_history`).
+  Включается `STORAGE_BACKEND=postgres` (+ `POSTGRES_*` в `.env`); тогда согласие,
+  история и лимиты переживают рестарт контейнера. Дефолт — in-memory (для тестов).
