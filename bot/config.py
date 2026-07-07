@@ -30,6 +30,19 @@ class Config:
     telegram_proxy: str | None = None
 
 
+def _postgres_dsn() -> str | None:
+    """DSN для asyncpg: явный POSTGRES_DSN или сборка из POSTGRES_* (.env Роли 4)."""
+    dsn = os.getenv("POSTGRES_DSN")
+    if dsn:
+        return dsn
+    user = os.getenv("POSTGRES_USER", "pocketlaw")
+    password = os.getenv("POSTGRES_PASSWORD", "pocketlaw")
+    db = os.getenv("POSTGRES_DB", "pocketlaw")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    return f"postgresql://{user}:{password}@{host}:{port}/{db}"
+
+
 def load_config() -> Config:
     token = os.getenv("BOT_TOKEN", "").strip()
     if not token:
@@ -44,7 +57,7 @@ def load_config() -> Config:
         max_file_bytes=int(os.getenv("MAX_FILE_BYTES", 20 * 1024 * 1024)),
         rate_limit_per_hour=int(os.getenv("RATE_LIMIT_PER_HOUR", 20)),
         storage_backend=os.getenv("STORAGE_BACKEND", "memory").strip().lower(),
-        postgres_dsn=os.getenv("POSTGRES_DSN") or None,
+        postgres_dsn=_postgres_dsn(),
         # выделенная TELEGRAM_PROXY имеет приоритет; иначе — общий HTTPS_PROXY
         telegram_proxy=(
             os.getenv("TELEGRAM_PROXY") or os.getenv("HTTPS_PROXY") or None
