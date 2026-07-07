@@ -124,18 +124,29 @@ async def on_url(
     await _send_md(message, format_ingest_result(result))
     await state.set_state(Dialog.normal_question)
 
+    # №4: если рядом со ссылкой есть вопрос — ответить на него (по загруженному документу)
+    remainder = _URL_RE.sub(" ", message.text).strip()
+    if result.ok and _looks_like_question(remainder):
+        await _answer_question(message, state, repo, agent, remainder)
 
-@router.message(F.text & ~F.text.startswith("/"))
-async def on_question(
+
+def _looks_like_question(text: str) -> bool:
+    """Есть ли рядом со ссылкой осмысленный вопрос (буквы + минимальная длина)."""
+    return len(text) >= 3 and any(ch.isalpha() for ch in text)
+
+
+async def _answer_question(
     message: Message,
     state: FSMContext,
     repo: Repository,
     agent: AgentClient,
+    text: str,
 ) -> None:
-    user_id = message.from_user.id
-    text = message.text.strip()
+    """Ядро обработки вопроса: сохранить → спросить агента → ответить (формат 3.5).
 
-    await repo.ensure_user(user_id, message.from_user.username)
+    Общее для обычного сообщения, отредактированного и вопроса рядом со ссылкой.
+    """
+    user_id = message.from_user.id
     await repo.save_dialog(user_id, "user", text, [])
 
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
@@ -156,6 +167,29 @@ async def on_question(
 
     await repo.save_dialog(user_id, "assistant", answer.text, answer.citations)
     await _send_md(message, format_answer_message(answer))
+
+
+@router.message(F.text & ~F.text.startswith("/"))
+async def on_question(
+    message: Message,
+    state: FSMContext,
+    repo: Repository,
+    agent: AgentClient,
+) -> None:
+    await repo.ensure_user(message.from_user.id, message.from_user.username)
+    await _answer_question(message, state, repo, agent, message.text.strip())
+
+
+@router.edited_message(F.text & ~F.text.startswith("/"))
+async def on_edited_question(
+    message: Message,
+    state: FSMContext,
+    repo: Repository,
+    agent: AgentClient,
+) -> None:
+    """Правка текста сообщения (задача №2): обрабатываем как новый вопрос."""
+    await repo.ensure_user(message.from_user.id, message.from_user.username)
+    await _answer_question(message, state, repo, agent, message.text.strip())
 
 
 @router.message(F.document | F.photo)
