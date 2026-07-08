@@ -74,23 +74,27 @@ async def test_refuse_when_no_law_found():
     assert ans.citations == []
 
 
-async def test_clarify_when_not_legal():
-    """Вопрос вне права / бессмысленный -> уточняющий вопрос, не отказ."""
+async def test_offtopic_soft_refusal_when_not_legal():
+    """Явно не-юр вопрос (непустой) -> мягкий отказ по области, а не переспрос."""
+    from agent.nodes.compose import OFFTOPIC_TEXT
+
     deps = make_deps([], is_legal=False)
-    ans = await answer_question(1, "asdf погода завтра", deps=deps)
+    ans = await answer_question(1, "какая завтра погода?", deps=deps)
 
-    assert ans.refused is False
-    assert ans.clarifying_question is not None
+    assert ans.refused is True
+    assert ans.clarifying_question is None
     assert ans.citations == []
+    assert ans.text == OFFTOPIC_TEXT
 
 
-async def test_not_legal_routes_to_clarify_even_with_chunks():
-    """Фикс A: неюр. вопрос -> clarify, даже если search_law вернул статьи."""
+async def test_not_legal_never_composes_even_with_chunks():
+    """Фикс A: неюр. вопрос НЕ отвечает юр-текстом с цитатами, даже если search_law
+    вернул статьи (теперь это мягкий отказ по области, не compose)."""
     deps = make_deps([TK_81], is_legal=False)  # retrieve вернул статью, но вопрос вне права
     ans = await answer_question(1, "какая завтра погода?", deps=deps)
 
-    assert ans.clarifying_question is not None
-    assert ans.refused is False
+    assert ans.refused is True
+    assert ans.clarifying_question is None
     assert ans.citations == []
 
 
