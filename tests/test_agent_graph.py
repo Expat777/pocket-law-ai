@@ -39,7 +39,7 @@ def make_llm(is_legal: bool = True, answer_text: str = "Ответ по стат
 
 
 def make_deps(chunks, is_legal=True, answer_text="Ответ по статье.", active=True) -> Deps:
-    async def fake_search(query, user_id, acts=None):
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
         return list(chunks)
 
     async def fake_verify(citation):
@@ -218,7 +218,7 @@ async def test_empty_question_clarifies_without_calling_llm():
     def boom(system, user):
         raise AssertionError("LLM must not be called on empty input")
 
-    async def fake_search(query, user_id, acts=None):
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
         return []
 
     async def fake_verify(citation):
@@ -364,7 +364,7 @@ async def test_retrieve_passes_acts_to_search_law():
 
     captured = {}
 
-    async def fake_search(query, user_id, acts=None):
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
         captured["acts"] = acts
         return [_law("УК РФ", "145.1", 0.9)]
 
@@ -380,7 +380,7 @@ async def test_retrieve_passes_none_when_acts_empty():
 
     captured = {}
 
-    async def fake_search(query, user_id, acts=None):
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
         captured["acts"] = acts
         return [_law("ТК РФ", "81", 0.9)]
 
@@ -388,6 +388,40 @@ async def test_retrieve_passes_none_when_acts_empty():
     deps.search_law = fake_search
     await retrieve({"question": "q", "candidate_acts": []}, deps)
     assert captured["acts"] is None
+
+
+async def test_retrieve_passes_doc_ids_to_search_law():
+    """Скоуп по документу: state['doc_ids'] проброшен в search_law (серверный фильтр)."""
+    from agent.nodes.retrieve import retrieve
+
+    captured = {}
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        captured["doc_ids"] = doc_ids
+        return [RetrievedChunk(text="из документа", source="user_doc", doc_id="d1", score=0.8)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve(
+        {"question": "q", "candidate_acts": [], "doc_ids": ["d1", "d2"]}, deps
+    )
+    assert captured["doc_ids"] == ["d1", "d2"]
+
+
+async def test_retrieve_passes_none_doc_ids_when_scope_absent():
+    """Скоуп не задан -> в search_law уходит None (по всем документам пользователя)."""
+    from agent.nodes.retrieve import retrieve
+
+    captured = {}
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        captured["doc_ids"] = doc_ids
+        return [_law("ТК РФ", "81", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve({"question": "q", "candidate_acts": []}, deps)
+    assert captured["doc_ids"] is None
 
 
 async def test_retrieve_keeps_user_docs():

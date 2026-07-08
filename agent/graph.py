@@ -28,9 +28,18 @@ from .state import AgentState
 INVOKE_CONFIG = {"recursion_limit": GRAPH_RECURSION_LIMIT}
 
 
-def initial_state(user_id: int, text: str) -> dict:
-    """Стартовое состояние с обрезкой длины вопроса (защита input-токенов)."""
-    return {"user_id": user_id, "question": (text or "")[:MAX_QUESTION_CHARS]}
+def initial_state(
+    user_id: int, text: str, doc_ids: list[str] | None = None
+) -> dict:
+    """Стартовое состояние с обрезкой длины вопроса (защита input-токенов).
+
+    doc_ids — скоуп поиска по выбранным документам (кнопка выбора у Роли 1);
+    None/пусто = искать по всем документам пользователя.
+    """
+    state = {"user_id": user_id, "question": (text or "")[:MAX_QUESTION_CHARS]}
+    if doc_ids:
+        state["doc_ids"] = doc_ids
+    return state
 
 
 def build_graph(deps: Deps):
@@ -67,12 +76,17 @@ def build_graph(deps: Deps):
 
 
 async def answer_question(
-    user_id: int, text: str, deps: Deps | None = None
+    user_id: int, text: str, doc_ids: list[str] | None = None, deps: Deps | None = None
 ) -> Answer:
-    """Контракт 3.1: вопрос пользователя -> Answer с цитатами/уточнением/отказом."""
+    """Контракт 3.1: вопрос пользователя -> Answer с цитатами/уточнением/отказом.
+
+    doc_ids — скоуп поиска по выбранным документам (None = по всем).
+    """
     deps = deps or build_default_deps()
     graph = build_graph(deps)
-    final = await graph.ainvoke(initial_state(user_id, text), config=INVOKE_CONFIG)
+    final = await graph.ainvoke(
+        initial_state(user_id, text, doc_ids), config=INVOKE_CONFIG
+    )
     return final["answer"]
 
 

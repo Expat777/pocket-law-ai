@@ -14,10 +14,14 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
     # поэтому нужный кодекс не вытесняется соседними. Не уверен (acts пусто) ->
     # None -> ищем по всем кодексам (recall не теряем).
     acts = state.get("candidate_acts") or None
+    # Скоуп по документу: бот (Роль 1) передал выбранные doc_id -> ищем в user_documents
+    # только по ним (тоже СЕРВЕРНО, search_law(doc_ids), Роль 4). Пусто -> по всем.
+    doc_ids = state.get("doc_ids") or None
     with tool_span(
-        "search_law", {"query": query, "user_id": state.get("user_id"), "acts": acts}
+        "search_law",
+        {"query": query, "user_id": state.get("user_id"), "acts": acts, "doc_ids": doc_ids},
     ) as record:
-        chunks = await deps.search_law(query, state.get("user_id"), acts)
+        chunks = await deps.search_law(query, state.get("user_id"), acts, doc_ids)
         record([f"{c.act or c.source} {c.article or ''}".strip() for c in chunks])
 
     # top-K статей закона (search_law уже отсортировал по score) + ВСЕ фрагменты
