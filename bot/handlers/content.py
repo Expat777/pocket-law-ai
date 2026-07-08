@@ -31,9 +31,29 @@ _TG_LIMIT = 4096  # максимум символов в одном сообще
 # aiogram обрабатывает апдейты конкурентно (задача на апдейт), поэтому вопрос, посланный
 # сразу за файлом, может уйти в агента РАНЬШЕ, чем документ проиндексирован, — и ответ
 # построится без нового контекста. Пока идёт приём, такой вопрос гейтим с подсказкой.
-# Множество живёт в памяти процесса; add/discard — синхронные, без гонки: документ приходит
-# раньше вопроса (меньший update_id), его задача успевает поставить метку до проверки.
-_ingesting: set[int] = set()
+#
+# Это СЧЁТЧИК приёмов на пользователя (ref-count), а не множество: при загрузке нескольких
+# файлов разом (Telegram шлёт альбом отдельными апдейтами → несколько параллельных on_file)
+# метка «занят» должна сниматься только когда завершится ПОСЛЕДНИЙ приём. С множеством первый
+# же finally снял бы её, пока остальные ещё грузятся. Счётчик в памяти процесса; inc/dec
+# синхронные, без гонки: приём приходит раньше вопроса (меньший update_id).
+_ingesting: dict[int, int] = {}
+
+
+def _ingest_begin(user_id: int) -> None:
+    _ingesting[user_id] = _ingesting.get(user_id, 0) + 1
+
+
+def _ingest_end(user_id: int) -> None:
+    remaining = _ingesting.get(user_id, 0) - 1
+    if remaining > 0:
+        _ingesting[user_id] = remaining
+    else:
+        _ingesting.pop(user_id, None)
+
+
+def _is_ingesting(user_id: int) -> bool:
+    return _ingesting.get(user_id, 0) > 0
 
 _WAIT_INGEST = (
     "⏳ Секунду, обрабатываю ваш документ. "
@@ -111,7 +131,7 @@ async def on_url(
     agent: AgentClient,
 ) -> None:
     user_id = message.from_user.id
-    _ingesting.add(user_id)  # пока грузим — вопросы к этому юзеру ждут (см. on_question)
+    _ingest_begin(user_id)  # пока грузим — вопросы к этому юзеру ждут (см. on_question)
     try:
         await repo.ensure_user(user_id, message.from_user.username)
         await state.set_state(Dialog.uploading_file)
@@ -144,7 +164,7 @@ async def on_url(
         if result.ok and _looks_like_question(remainder):
             await _answer_question(message, state, repo, agent, remainder)
     finally:
-        _ingesting.discard(user_id)
+        _ingest_end(user_id)
 
 
 def _looks_like_question(text: str) -> bool:
@@ -193,7 +213,7 @@ async def on_question(
     repo: Repository,
     agent: AgentClient,
 ) -> None:
-    if message.from_user.id in _ingesting:  # документ ещё грузится — ответить рано
+    if _is_ingesting(message.from_user.id):  # документ ещё грузится — ответить рано
         await message.answer(_WAIT_INGEST)
         return
     await repo.ensure_user(message.from_user.id, message.from_user.username)
@@ -208,7 +228,7 @@ async def on_edited_question(
     agent: AgentClient,
 ) -> None:
     """Правка текста сообщения (задача №2): обрабатываем как новый вопрос."""
-    if message.from_user.id in _ingesting:  # документ ещё грузится — ответить рано
+    if _is_ingesting(message.from_user.id):  # документ ещё грузится — ответить рано
         await message.answer(_WAIT_INGEST)
         return
     await repo.ensure_user(message.from_user.id, message.from_user.username)
@@ -225,7 +245,7 @@ async def on_file(
     max_file_bytes: int,
 ) -> None:
     user_id = message.from_user.id
-    _ingesting.add(user_id)  # пока грузим — вопросы к этому юзеру ждут (см. on_question)
+    _ingest_begin(user_id)  # пока грузим — вопросы к этому юзеру ждут (см. on_question)
     try:
         await repo.ensure_user(user_id, message.from_user.username)
         await state.set_state(Dialog.uploading_file)
@@ -286,7 +306,7 @@ async def on_file(
         await _send_md(message, format_ingest_result(result))
         await state.set_state(Dialog.normal_question)
     finally:
-        _ingesting.discard(user_id)
+        _ingest_end(user_id)
 
 
 @router.message()
