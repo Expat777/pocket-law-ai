@@ -41,7 +41,5 @@ ACTS: dict[str, ActInfo] = {
     "nk_rf_1":  ActInfo(code="nk_rf_1",  act="НК РФ",   nd="102054722", min_articles=200),  # ч.1, 275 ст.
     "gpk_rf":   ActInfo(code="gpk_rf",   act="ГПК РФ",  nd="102078828", min_articles=350),  # 499 ст.
     "upk_rf":   ActInfo(code="upk_rf",   act="УПК РФ",  nd="102073942", min_articles=400),  # 560 ст.
-    # НК ч.2 (nd=102067058): экспорт ИПС стабильно валит шлюз (reset/502) — слишком большой
-    #     документ. Отложено: нужен устойчивый фетч (частями/бэкофф). act будет "НК РФ".
-    # "nk_rf_2": ActInfo(code="nk_rf_2", act="НК РФ", nd="102067058", min_articles=...),
+    "nk_rf_2":  ActInfo(code="nk_rf_2",  act="НК РФ",  nd="102067058", min_articles=400),  # ч.2, 540 ст. (fulltext-фолбэк)
 }

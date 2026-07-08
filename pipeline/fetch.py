@@ -72,15 +72,37 @@ def _extract_html_from_mhtml(raw: bytes) -> str:
     raise FetchError("в экспорте ИПС не нашлось HTML-части (формат изменился?)")
 
 
+def _fetch_body(nd: str, rdk: int) -> str:
+    """Тело документа в HTML. Основной путь — экспорт savertf (MHTML).
+
+    Для ОЧЕНЬ больших документов (НК ч.2, ~9 МБ) savertf валит шлюз ИПС
+    (ConnectionReset/502 даже с page=all). Запасной путь — вьюер `doc_itself&fulltext=1`:
+    отдаёт весь текст напрямую HTML-ом (проверено: НК ч.2 → textCompleted=True, 540 статей).
+    Обычные акты как и раньше идут через savertf — их поведение не меняется.
+    """
+    try:
+        raw = _get(f"{_BASE}?savertf=&nd={nd}&page=all&rdk={rdk}", timeout=300)
+        html = _extract_html_from_mhtml(raw)
+        if len(html) >= 100_000:
+            return html
+        log.warning("nd=%s: savertf дал короткий экспорт (%d) — пробую doc_itself&fulltext=1", nd, len(html))
+    except FetchError:
+        raise
+    except Exception as e:
+        log.warning("nd=%s: savertf не удался (%s) — пробую doc_itself&fulltext=1", nd, e)
+
+    html = _get(f"{_BASE}?doc_itself=&nd={nd}&rdk={rdk}&fulltext=1", timeout=300).decode("cp1251", errors="replace")
+    if len(html) < 100_000:
+        raise FetchError(f"nd={nd}: и savertf, и fulltext дали слишком короткий текст ({len(html)} байт)")
+    return html
+
+
 def fetch_act(info: ActInfo, retries: int = 3) -> FetchedAct:
     last_err: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
             rdk, rev_date = _latest_redaction(info.nd)
-            raw = _get(f"{_BASE}?savertf=&nd={info.nd}&page=all&rdk={rdk}", timeout=300)
-            html = _extract_html_from_mhtml(raw)
-            if len(html) < 100_000:
-                raise FetchError(f"{info.code}: подозрительно короткий экспорт ({len(html)} байт)")
+            html = _fetch_body(info.nd, rdk)
             log.info("fetch %s: rdk=%d от %s, %d КБ", info.code, rdk, rev_date, len(html) // 1024)
             return FetchedAct(html=html, rdk=rdk, revision_date=rev_date)
         except FetchError:
