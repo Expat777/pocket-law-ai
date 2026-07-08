@@ -32,13 +32,17 @@ def _get_client() -> AsyncQdrantClient:
 
 
 async def search_law(
-    query: str, user_id: int | None, acts: list[str] | None = None
+    query: str,
+    user_id: int | None,
+    acts: list[str] | None = None,
+    doc_ids: list[str] | None = None,
 ) -> list[RetrievedChunk]:
     """acts: сузить поиск до этих значений `act` (мультикодексная база, Роль 2/3).
+    doc_ids: сузить user_documents до этих doc_id (скоуп «искать по документу N», Роль 2).
 
-    Фильтр серверный (Qdrant), а не пост-фактум в Python: иначе top-K уже вырезан
-    по всей базе и до нужного акта могло не хватить места (см. STATUS.md, Роль 2 —
-    client-side фильтр в agent/nodes/retrieve.py как временная затычка до этого).
+    Оба фильтра серверные (Qdrant), а не пост-фактум в Python: иначе top-K уже вырезан
+    по всей базе и до нужного акта/документа могло не хватить места (см. STATUS.md, Роль 2 —
+    client-side фильтр в agent/nodes/retrieve.py как временная затычка до этого для acts).
     Пусто/None — не фильтруем (текущее поведение, полная обратная совместимость).
     """
     vector = embed_query(query)
@@ -71,18 +75,24 @@ async def search_law(
         )
 
     if user_id is not None:
+        user_must = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+        if doc_ids:
+            user_must.append(FieldCondition(key="doc_id", match=MatchAny(any=doc_ids)))
         user_hits = await client.query_points(
             collection_name=USER_DOCS_COLLECTION,
             query=vector,
-            query_filter=Filter(
-                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-            ),
+            query_filter=Filter(must=user_must),
             limit=TOP_K_USER_DOCS,
         )
         for hit in user_hits.points:
             payload = hit.payload or {}
             results.append(
-                RetrievedChunk(text=payload["text"], source="user_doc", score=hit.score)
+                RetrievedChunk(
+                    text=payload["text"],
+                    source="user_doc",
+                    doc_id=payload.get("doc_id"),
+                    score=hit.score,
+                )
             )
 
     results.sort(key=lambda c: c.score, reverse=True)

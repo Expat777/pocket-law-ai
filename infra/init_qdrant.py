@@ -45,6 +45,18 @@ def main() -> None:
             )
             print(f"payload-индекс act: {name}")
 
+        if name == "user_documents":
+            # search_law(user_id) фильтрует всегда, doc_ids — при скоупе на документ (Роль 2);
+            # без индекса Qdrant делает полный скан payload на каждый запрос.
+            # user_id хранится как int (agent/ingest.py), doc_id — как str(uuid4()).
+            client.create_payload_index(
+                collection_name=name, field_name="user_id", field_schema=PayloadSchemaType.INTEGER
+            )
+            client.create_payload_index(
+                collection_name=name, field_name="doc_id", field_schema=PayloadSchemaType.KEYWORD
+            )
+            print(f"payload-индекс user_id/doc_id: {name}")
+
 
 if __name__ == "__main__":
     main()
