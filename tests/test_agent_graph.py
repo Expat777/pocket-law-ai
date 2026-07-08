@@ -39,7 +39,7 @@ def make_llm(is_legal: bool = True, answer_text: str = "Ответ по стат
 
 
 def make_deps(chunks, is_legal=True, answer_text="Ответ по статье.", active=True) -> Deps:
-    async def fake_search(query, user_id):
+    async def fake_search(query, user_id, acts=None):
         return list(chunks)
 
     async def fake_verify(citation):
@@ -218,7 +218,7 @@ async def test_empty_question_clarifies_without_calling_llm():
     def boom(system, user):
         raise AssertionError("LLM must not be called on empty input")
 
-    async def fake_search(query, user_id):
+    async def fake_search(query, user_id, acts=None):
         return []
 
     async def fake_verify(citation):
@@ -358,39 +358,50 @@ async def test_intent_backward_compat_single_branch():
     assert out["candidate_acts"] == ["ТК РФ"]
 
 
-async def test_retrieve_filters_by_act():
-    """Есть статьи нужного кодекса -> оставляем только их (режем перетекание)."""
+async def test_retrieve_passes_acts_to_search_law():
+    """candidate_acts пробрасываются в search_law (серверный фильтр по кодексу)."""
     from agent.nodes.retrieve import retrieve
 
-    deps = make_deps([_law("ТК РФ", "81", 0.9), _law("УК РФ", "145.1", 0.85), _law("ТК РФ", "136", 0.8)])
-    out = await retrieve({"question": "q", "candidate_acts": ["УК РФ"]}, deps)
-    assert {c.act for c in out["chunks"]} == {"УК РФ"}
+    captured = {}
+
+    async def fake_search(query, user_id, acts=None):
+        captured["acts"] = acts
+        return [_law("УК РФ", "145.1", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve({"question": "q", "candidate_acts": ["УК РФ"]}, deps)
+    assert captured["acts"] == ["УК РФ"]
 
 
-async def test_retrieve_falls_back_when_act_absent():
-    """Нужного кодекса в выдаче нет -> НЕ режем (защита recall от ошибки intent)."""
+async def test_retrieve_passes_none_when_acts_empty():
+    """Отрасль не определена (acts пусто) -> в search_law уходит None (по всем кодексам)."""
     from agent.nodes.retrieve import retrieve
 
-    deps = make_deps([_law("ТК РФ", "81", 0.9), _law("ТК РФ", "136", 0.8)])
-    out = await retrieve({"question": "q", "candidate_acts": ["НК РФ"]}, deps)
-    assert {c.act for c in out["chunks"]} == {"ТК РФ"}
-    assert len(out["chunks"]) == 2
+    captured = {}
+
+    async def fake_search(query, user_id, acts=None):
+        captured["acts"] = acts
+        return [_law("ТК РФ", "81", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve({"question": "q", "candidate_acts": []}, deps)
+    assert captured["acts"] is None
 
 
-async def test_retrieve_no_filter_when_acts_empty():
-    """Отрасль не определена (acts пусто) -> ищем по всем кодексам."""
-    from agent.nodes.retrieve import retrieve
-
-    deps = make_deps([_law("ТК РФ", "81", 0.9), _law("УК РФ", "145.1", 0.85)])
-    out = await retrieve({"question": "q", "candidate_acts": []}, deps)
-    assert len(out["chunks"]) == 2
-
-
-async def test_retrieve_keeps_user_docs_under_act_filter():
-    """Фильтр по кодексу не выкидывает фрагменты пользовательского документа."""
+async def test_retrieve_keeps_user_docs():
+    """Фрагменты пользовательского документа не теряются при отборе top-K."""
     from agent.nodes.retrieve import retrieve
 
     doc = RetrievedChunk(text="договор: отпуск 28 дней", source="user_doc", score=0.7)
-    deps = make_deps([_law("УК РФ", "145.1", 0.9), doc])
+    deps = make_deps([_law("ТК РФ", "115", 0.9), doc])
     out = await retrieve({"question": "q", "candidate_acts": ["ТК РФ"]}, deps)
     assert doc in out["chunks"]
+
+
+def test_zozpp_branch_mapped():
+    """Отрасль «защита прав потребителей» -> акт ЗоЗПП (строка сверена с Ролью 3)."""
+    from agent.config import acts_for_branches
+
+    assert acts_for_branches(["защита прав потребителей"]) == ["ЗоЗПП"]
