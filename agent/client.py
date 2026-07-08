@@ -17,9 +17,13 @@ class Agent:
         self._deps = deps or build_default_deps()
         self._graph = build_graph(self._deps)
 
-    async def answer_question(self, user_id: int, text: str) -> Answer:
+    async def answer_question(
+        self, user_id: int, text: str, doc_ids: list[str] | None = None
+    ) -> Answer:
+        """doc_ids — скоуп по выбранным документам (кнопка выбора у Роли 1);
+        None/пусто = ответ по всем документам пользователя (контракт 3.1)."""
         final = await self._graph.ainvoke(
-            initial_state(user_id, text), config=INVOKE_CONFIG
+            initial_state(user_id, text, doc_ids), config=INVOKE_CONFIG
         )
         return final["answer"]
 
