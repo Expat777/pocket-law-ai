@@ -58,15 +58,17 @@ async def test_ingest_url_happy_with_fake_fetch():
     def fake_embed(chunks):
         return [[0.1, 0.2, 0.3] for _ in chunks]
 
-    async def fake_upsert(user_id, doc_id, chunks, vectors):
+    async def fake_upsert(user_id, doc_id, chunks, vectors, filename=None):
         captured["user_id"] = user_id
         captured["chunks"] = chunks
+        captured["filename"] = filename
 
     res = await ingest_url(
         42, "https://example.com/doc", fetch=fake_fetch, embed=fake_embed, upsert=fake_upsert
     )
 
     assert res.ok is True
+    assert captured["filename"] == "https://example.com/doc"  # по умолчанию — ссылка
     assert captured["user_id"] == 42
     assert any("Договор" in c for c in captured["chunks"])
 

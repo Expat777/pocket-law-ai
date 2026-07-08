@@ -34,7 +34,7 @@ def _chunk(text: str) -> list[str]:
     return chunks
 
 
-async def _upsert_user_docs(user_id, doc_id, chunks, vectors) -> None:
+async def _upsert_user_docs(user_id, doc_id, chunks, vectors, filename=None) -> None:
     from qdrant_client import AsyncQdrantClient
     from qdrant_client.models import PointStruct
 
@@ -47,6 +47,7 @@ async def _upsert_user_docs(user_id, doc_id, chunks, vectors) -> None:
             payload={
                 "user_id": user_id,  # изоляция: без этого поля search_law не отфильтрует
                 "doc_id": doc_id,
+                "filename": filename,  # имя для списка/выбора документа (UI Роли 1)
                 "chunk_no": i,
                 "text": chunk,
                 "uploaded_at": now,
@@ -62,11 +63,13 @@ async def ingest_document(
     file_bytes: bytes,
     mime: str,
     *,
+    filename: str | None = None,
     parse=None,
     embed=None,
     upsert=None,
 ) -> IngestResult:
-    """Контракт 3.1. parse/embed/upsert внедряемы (для тестов); по умолчанию боевые."""
+    """Контракт 3.1. filename — имя для списка документов (UI Роли 1), опционально.
+    parse/embed/upsert внедряемы (для тестов); по умолчанию боевые."""
     if parse is None:
         from .tools.parse_pdf import parse_pdf as parse
     if embed is None:
@@ -89,7 +92,7 @@ async def ingest_document(
     doc_id = str(uuid.uuid4())
     try:
         vectors = embed(chunks)
-        await upsert(user_id, doc_id, chunks, vectors)
+        await upsert(user_id, doc_id, chunks, vectors, filename=filename)
     except Exception as e:  # noqa: BLE001
         return IngestResult(doc_id=doc_id, chunks=0, ok=False, error=f"index: {e}")
 
@@ -100,6 +103,7 @@ async def ingest_url(
     user_id: int,
     url: str,
     *,
+    filename: str | None = None,
     fetch=None,
     embed=None,
     upsert=None,
@@ -121,5 +125,7 @@ async def ingest_url(
     from .tools.extract import extract_document
 
     return await ingest_document(
-        user_id, data, mime, parse=extract_document, embed=embed, upsert=upsert
+        user_id, data, mime,
+        filename=filename or url,  # по умолчанию показываем саму ссылку
+        parse=extract_document, embed=embed, upsert=upsert,
     )
