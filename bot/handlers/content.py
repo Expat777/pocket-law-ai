@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import re
@@ -18,7 +19,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.agent_client import AgentClient
-from bot.formatter import format_answer_message, format_ingest_result
+from bot.formatter import (
+    format_album_result,
+    format_answer_message,
+    format_ingest_result,
+)
 from bot.repository import Repository
 from bot.states import Dialog
 
@@ -261,6 +266,67 @@ async def on_edited_question(
     await _answer_question(message, state, repo, agent, message.text.strip())
 
 
+# --- Агрегация альбома (несколько файлов одним сообщением) -------------------
+# Telegram шлёт альбом ОТДЕЛЬНЫМИ апдейтами с общим media_group_id и без «конца
+# альбома». Копим результаты приёма по media_group_id и после короткой паузы (нет
+# новых файлов) шлём ОДНО сводное подтверждение вместо N штук.
+_ALBUM_DEBOUNCE_SEC = 1.5
+_album_buffers: dict[str, dict] = {}
+
+
+def _album_add(
+    mgid: str,
+    message: Message,
+    *,
+    ok: bool,
+    name: str,
+    chunks: int = 0,
+    reason: str | None = None,
+) -> None:
+    """Добавляет результат одного файла в буфер альбома и (пере)ставит debounce."""
+    buf = _album_buffers.setdefault(mgid, {"ok": [], "failed": [], "task": None})
+    buf["message"] = message  # любое сообщение альбома годится, чтобы ответить
+    if ok:
+        buf["ok"].append((name, chunks))
+    else:
+        buf["failed"].append((name, reason or "ошибка"))
+    old = buf.get("task")
+    if old is not None:
+        old.cancel()  # пришёл ещё файл — отодвигаем отправку сводки
+    buf["task"] = asyncio.create_task(_flush_album(mgid))
+
+
+async def _flush_album(mgid: str) -> None:
+    try:
+        await asyncio.sleep(_ALBUM_DEBOUNCE_SEC)
+    except asyncio.CancelledError:
+        return  # пришёл новый файл — эта отправка отменена, будет новая
+    buf = _album_buffers.pop(mgid, None)
+    if buf is None:
+        return
+    await buf["message"].answer(format_album_result(buf["ok"], buf["failed"]))
+
+
+async def _accept_file(message: Message, mgid: str | None, name: str, result) -> None:
+    """Успешный приём: одиночный файл → сразу ответ; файл альбома → в буфер сводки."""
+    if mgid is None:
+        await _send_md(message, format_ingest_result(result))
+    elif result.ok:
+        _album_add(mgid, message, ok=True, name=name, chunks=result.chunks)
+    else:
+        _album_add(mgid, message, ok=False, name=name, reason=result.error or "ошибка")
+
+
+async def _reject_file(
+    message: Message, mgid: str | None, name: str, solo_text: str, reason: str
+) -> None:
+    """Отказ по файлу: одиночный → сразу текст; файл альбома → в буфер сводки."""
+    if mgid is None:
+        await message.answer(solo_text)
+    else:
+        _album_add(mgid, message, ok=False, name=name, reason=reason)
+
+
 @router.message(F.document | F.photo)
 async def on_file(
     message: Message,
@@ -289,12 +355,17 @@ async def on_file(
         doc_name = message.document.file_name if message.document is not None else "фото"
         await repo.save_dialog(user_id, "user", f"[документ] {doc_name}", [])
 
+        # media_group_id → файл прислан в альбоме (несколько разом): подтверждения
+        # копим в одну сводку, а не шлём по одному (см. _album_add / _flush_album).
+        mgid = message.media_group_id
+
         # 2) размер — ДО скачивания
         if size > max_file_bytes:
             limit_mb = max_file_bytes // (1024 * 1024)
-            await message.answer(
-                f"Файл слишком большой ({size // (1024 * 1024)} МБ). "
-                f"Максимум — {limit_mb} МБ."
+            await _reject_file(
+                message, mgid, doc_name,
+                f"Файл слишком большой ({size // (1024 * 1024)} МБ). Максимум — {limit_mb} МБ.",
+                "слишком большой",
             )
             await state.set_state(Dialog.normal_question)
             return
@@ -305,16 +376,22 @@ async def on_file(
             await bot.download(file_id, destination=buffer)
         except Exception:  # noqa: BLE001
             log.exception("download failed for user %s", user_id)
-            await message.answer("Не удалось скачать файл. Попробуйте прислать ещё раз.")
+            await _reject_file(
+                message, mgid, doc_name,
+                "Не удалось скачать файл. Попробуйте прислать ещё раз.",
+                "не скачался",
+            )
             await state.set_state(Dialog.normal_question)
             return
 
         file_bytes = buffer.getvalue()
         mime = _sniff_mime(file_bytes[:16])
         if mime is None:
-            await message.answer(
+            await _reject_file(
+                message, mgid, doc_name,
                 "Поддерживаются только PDF, JPG и PNG. "
-                "Пришлите документ в одном из этих форматов."
+                "Пришлите документ в одном из этих форматов.",
+                "неподдерживаемый тип",
             )
             await state.set_state(Dialog.normal_question)
             return
@@ -325,11 +402,15 @@ async def on_file(
             result = await agent.ingest_document(user_id, file_bytes, mime, filename=doc_name)
         except Exception:  # noqa: BLE001
             log.exception("ingest_document failed for user %s", user_id)
-            await message.answer("Не получилось обработать документ. Попробуйте позже.")
+            await _reject_file(
+                message, mgid, doc_name,
+                "Не получилось обработать документ. Попробуйте позже.",
+                "ошибка обработки",
+            )
             await state.set_state(Dialog.normal_question)
             return
 
-        await _send_md(message, format_ingest_result(result))
+        await _accept_file(message, mgid, doc_name, result)
         await state.set_state(Dialog.normal_question)
     finally:
         _ingest_end(user_id)

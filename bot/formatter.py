@@ -110,6 +110,27 @@ def format_documents_list(docs: list[UserDocument]) -> str:
     return "\n".join(lines)
 
 
+def format_album_result(
+    ok: list[tuple[str, int]], failed: list[tuple[str, str]]
+) -> str:
+    """Сводка приёма альбома (несколько файлов разом). Обычный текст — имена не в MarkdownV2."""
+    lines: list[str] = []
+    if ok:
+        total = sum(chunks for _, chunks in ok)
+        lines.append(f"✅ Принято документов: {len(ok)} (фрагментов: {total})")
+        lines += [f"  • {name} — {chunks}" for name, chunks in ok]
+    if failed:
+        if ok:
+            lines.append("")
+        lines.append(f"⚠️ Не приняты: {len(failed)}")
+        lines += [f"  • {name} — {reason}" for name, reason in failed]
+    if not lines:
+        return "Не удалось обработать файлы."
+    lines.append("")
+    lines.append("Список загруженного — /documents.")
+    return "\n".join(lines)
+
+
 def format_ingest_result(result: IngestResult) -> str:
     """Ответ на загрузку документа (задача MVP 5)."""
     if not result.ok:
