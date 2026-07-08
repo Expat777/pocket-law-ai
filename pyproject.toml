@@ -28,11 +28,18 @@ pipeline = [
     "psycopg[binary]>=3.1",
 ]
 
-[tool.setuptools]
-# Явный список: без него setuptools видит bot/agent/shared/pipeline/infra как
+[tool.setuptools.packages.find]
+# Без ограничения include setuptools видит bot/agent/shared/pipeline/infra как
 # конкурирующие top-level пакеты во flat-layout и отказывается собирать (ошибка
 # "Multiple top-level packages discovered"). infra/ — только скрипты, не пакет.
-packages = ["bot", "agent", "shared", "pipeline"]
+# find (не статичный список) — чтобы новые подпакеты (agent/llm, bot/handlers и
+# т.п.) подхватывались автоматически: раньше статичный packages=["bot","agent",...]
+# ставил ТОЛЬКО верхний уровень, agent.llm/agent.nodes/agent.tools/bot.handlers в
+# site-packages не попадали — работало лишь случайно, т.к. `python -m bot.main`
+# добавляет /app (исходники) в sys.path, маскируя неполную установку; голый
+# `pytest` вне /app эту маскировку не даёт и падал ModuleNotFoundError.
+include = ["bot*", "agent*", "shared*", "pipeline*"]
+exclude = ["bot.tests", "bot.tests.*", "tests", "tests.*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
