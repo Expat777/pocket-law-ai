@@ -9,7 +9,10 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
     from agent.tracing import tool_span
 
     query = state.get("normalized_query") or state["question"]
-    with tool_span("search_law", {"query": query, "user_id": state.get("user_id")}) as record:
+    acts = state.get("candidate_acts") or []
+    with tool_span(
+        "search_law", {"query": query, "user_id": state.get("user_id"), "acts": acts}
+    ) as record:
         chunks = await deps.search_law(query, state.get("user_id"))
         record([f"{c.act or c.source} {c.article or ''}".strip() for c in chunks])
 
@@ -19,4 +22,15 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
     # файла вытесняются статьями закона и не доходят до compose как контекст.
     law = [c for c in chunks if c.source == "law" and c.score >= MIN_LAW_SCORE]
     user_docs = [c for c in chunks if c.source != "law"]
+
+    # Мягкая маршрутизация по кодексу (мультикодексная база): intent назвал
+    # отрасль(и) -> оставляем только статьи этих актов, срезая «перетекание» между
+    # кодексами. Если по нужным актам в выдаче пусто (intent мог ошибиться с
+    # отраслью, либо search_law ещё без серверного фильтра) — НЕ режем, чтобы не
+    # терять recall (тот же принцип мягкого фолбэка, что и у переформулировки).
+    if acts:
+        in_acts = [c for c in law if c.act in acts]
+        if in_acts:
+            law = in_acts
+
     return {"chunks": law[:TOP_K] + user_docs}

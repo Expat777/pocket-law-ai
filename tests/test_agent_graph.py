@@ -304,3 +304,89 @@ async def test_source_url_passed_to_citation():
     deps = make_deps([chunk], answer_text="Otvet po state.")
     ans = await answer_question(1, "vopros pro otpusk", deps=deps)
     assert ans.citations[0].source_url == "http://pravo.gov.ru/article/115"
+
+
+# --- Маршрутизация по кодексу (многокодексная база) ---
+
+def _law(act: str, article: str, score: float) -> RetrievedChunk:
+    return RetrievedChunk(
+        text=f"{act} ст.{article}", source="law", act=act, article=article,
+        status="active", effective_date=date(2026, 5, 15), score=score,
+    )
+
+
+def test_acts_for_branches_maps_and_ignores_unknown():
+    """Отрасли -> канонические акты; неизвестные/пустые игнорируются (=> без фильтра)."""
+    from agent.config import acts_for_branches
+
+    assert acts_for_branches(["трудовое"]) == ["ТК РФ"]
+    assert acts_for_branches(["уголовное", "семейное"]) == ["УК РФ", "СК РФ"]
+    assert acts_for_branches([" Трудовое ", "трудовое"]) == ["ТК РФ"]  # регистр/дубли
+    assert acts_for_branches(["чтототакое", "", None]) == []
+    assert acts_for_branches([]) == []
+    assert acts_for_branches(None) == []
+
+
+async def test_intent_emits_candidate_acts_from_branches():
+    """intent отдаёт canonical acts по списку branches (стык кодексов -> несколько)."""
+    from agent.nodes.intent import intent_classifier
+
+    def handler(system, user):
+        return json.dumps(
+            {"is_legal": True, "branches": ["уголовное", "семейное"], "normalized": "x"}
+        )
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=None, verify_citation=None)
+    out = await intent_classifier({"question": "q"}, deps)
+    assert set(out["candidate_acts"]) == {"УК РФ", "СК РФ"}
+    assert out["is_legal"] is True
+
+
+async def test_intent_backward_compat_single_branch():
+    """Старый формат {"branch": "..."} всё ещё маппится в candidate_acts."""
+    from agent.nodes.intent import intent_classifier
+
+    def handler(system, user):
+        return json.dumps({"is_legal": True, "branch": "трудовое", "normalized": "x"})
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=None, verify_citation=None)
+    out = await intent_classifier({"question": "q"}, deps)
+    assert out["candidate_acts"] == ["ТК РФ"]
+
+
+async def test_retrieve_filters_by_act():
+    """Есть статьи нужного кодекса -> оставляем только их (режем перетекание)."""
+    from agent.nodes.retrieve import retrieve
+
+    deps = make_deps([_law("ТК РФ", "81", 0.9), _law("УК РФ", "145.1", 0.85), _law("ТК РФ", "136", 0.8)])
+    out = await retrieve({"question": "q", "candidate_acts": ["УК РФ"]}, deps)
+    assert {c.act for c in out["chunks"]} == {"УК РФ"}
+
+
+async def test_retrieve_falls_back_when_act_absent():
+    """Нужного кодекса в выдаче нет -> НЕ режем (защита recall от ошибки intent)."""
+    from agent.nodes.retrieve import retrieve
+
+    deps = make_deps([_law("ТК РФ", "81", 0.9), _law("ТК РФ", "136", 0.8)])
+    out = await retrieve({"question": "q", "candidate_acts": ["НК РФ"]}, deps)
+    assert {c.act for c in out["chunks"]} == {"ТК РФ"}
+    assert len(out["chunks"]) == 2
+
+
+async def test_retrieve_no_filter_when_acts_empty():
+    """Отрасль не определена (acts пусто) -> ищем по всем кодексам."""
+    from agent.nodes.retrieve import retrieve
+
+    deps = make_deps([_law("ТК РФ", "81", 0.9), _law("УК РФ", "145.1", 0.85)])
+    out = await retrieve({"question": "q", "candidate_acts": []}, deps)
+    assert len(out["chunks"]) == 2
+
+
+async def test_retrieve_keeps_user_docs_under_act_filter():
+    """Фильтр по кодексу не выкидывает фрагменты пользовательского документа."""
+    from agent.nodes.retrieve import retrieve
+
+    doc = RetrievedChunk(text="договор: отпуск 28 дней", source="user_doc", score=0.7)
+    deps = make_deps([_law("УК РФ", "145.1", 0.9), doc])
+    out = await retrieve({"question": "q", "candidate_acts": ["ТК РФ"]}, deps)
+    assert doc in out["chunks"]
