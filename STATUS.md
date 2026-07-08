@@ -45,7 +45,7 @@
 - **Бенчмарк эмбеддингов → базовая модель `deepvk/USER-bge-m3`** (1024, без префикса): R@5 «книжный» **0.97**, «живой» **0.84** (лексический разрыв — люди не пишут юр-терминами). e5-base/large отмели по цифрам.
 - **reranker (bge-reranker-v2-m3) и гибрид BM25+dense измерены — оба НЕ помогают** (reranker ронял ст. 81; гибрид MRR 0.89→0.70). Для MVP — чистый dense. Обоснованный негативный результат для защиты.
 - `source_url` в payload (устойчивая ссылка на акт целиком; анкоров на статью у ИПС нет). Принцип юр-eval: метка = **множество** приемлемых статей.
-- Рычаг на оставшийся зазор — **LLM query expansion** (зона Роли 2, реализован). Наборы `eval_extended.json` (156) / `eval_colloquial.json` (32) — в `pipeline/`.
+- Рычаг на оставшийся зазор — **LLM query expansion** (зона Роли 2, реализован). Наборы `eval_colloquial.json` (32 «живых») и `eval_extended.json` (138 «книжных»; +18 Роли 2 = 156 в книжном прогоне) — в `pipeline/`.
 
 ## Роль 4 · Инфраструктура (`infra/`, `shared/`, корень) — ветка `Vitaliy_Svs`
 - Скелет репо, `shared/contracts.py` (раздел 3 TEAM_PLAN 1-в-1), `docker-compose` (qdrant + postgres:16 + bot), миграции 3.4, `init_qdrant.py`, `Dockerfile` (tesseract-ocr-rus), `pyproject.toml` (pymupdf/pytesseract/pillow/aiohttp-socks). Фикс flat-layout сборки.
