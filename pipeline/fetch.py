@@ -42,15 +42,25 @@ def _get(url: str, timeout: int = 120) -> bytes:
         return resp.read()
 
 
+def _rev_date(label: str) -> date | None:
+    m = re.search(r"от\s+(\d{2}\.\d{2}\.\d{4})", label)
+    return datetime.strptime(m.group(1), "%d.%m.%Y").date() if m else None
+
+
 def _latest_redaction(nd: str) -> tuple[int, date | None]:
     html = _get(f"{_BASE}?docbody=&nd={nd}").decode("cp1251", errors="replace")
     options = re.findall(rf"<option value='(\d+),{nd}'[^>]*>([^<]*)", html)
     if not options:
         raise FetchError(f"nd={nd}: не нашёл список редакций на странице документа")
-    rdk, label = max(options, key=lambda o: int(o[0]))
-    m = re.search(r"от\s+(\d{2}\.\d{2}\.\d{4})", label)
-    rev_date = datetime.strptime(m.group(1), "%d.%m.%Y").date() if m else None
-    log.info("nd=%s: редакций %d, беру rdk=%s (%s)", nd, len(options), rdk, label.strip())
+    # ВАЖНО: rdk НЕ монотонен по дате! У ГК ч.3 максимальный rdk (34) = ИСХОДНАЯ редакция
+    # 2001 г., а действующая — rdk=32 (2024). Атрибут `selected` тоже ненадёжен (у ГК ч.3
+    # помечает 2001-ю). Действующая редакция = с МАКСИМАЛЬНОЙ ДАТОЙ; при равных — макс. rdk.
+    rdk, label = max(options, key=lambda o: (_rev_date(o[1]) or date.min, int(o[0])))
+    rev_date = _rev_date(label)
+    if rev_date is None:  # ни у одной опции нет даты — деградируем к прежнему (макс. rdk)
+        rdk, label = max(options, key=lambda o: int(o[0]))
+        rev_date = _rev_date(label)
+    log.info("nd=%s: редакций %d, беру rdk=%s по дате (%s)", nd, len(options), rdk, label.strip())
     return int(rdk), rev_date
 
 
