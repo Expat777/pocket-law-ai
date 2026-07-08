@@ -434,6 +434,81 @@ async def test_retrieve_keeps_user_docs():
     assert doc in out["chunks"]
 
 
+async def test_retrieve_quota_per_code_multi_act():
+    """Мультикодекс: запрос на каждый акт, процессуальный кодекс не вытесняется."""
+    from agent.nodes.retrieve import retrieve
+
+    calls = []
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        calls.append(acts[0])
+        # каждый акт «выдаёт» много статей с одинаковым распределением score
+        return [_law(acts[0], str(i), 0.9 - i * 0.01) for i in range(8)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    out = await retrieve(
+        {"question": "q", "candidate_acts": ["ГПК РФ", "ЗоЗПП", "ГК РФ"]}, deps
+    )
+    # отдельный запрос на каждый кодекс-кандидат
+    assert sorted(calls) == ["ГК РФ", "ГПК РФ", "ЗоЗПП"]
+    # каждый кодекс представлен в итоге (процессуальный ГПК не вытеснен)
+    got = {c.act for c in out["chunks"] if c.source == "law"}
+    assert {"ГПК РФ", "ЗоЗПП", "ГК РФ"} <= got
+
+
+async def test_retrieve_user_docs_not_duplicated_under_quota():
+    """При по-актных запросах user_documents берутся один раз, без дублей."""
+    from agent.nodes.retrieve import retrieve
+
+    doc = RetrievedChunk(text="из документа", source="user_doc", doc_id="d1", score=0.7)
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        law = [_law(acts[0], "1", 0.8)]
+        # user_docs вернулись бы только при user_id (первый запрос)
+        return law + ([doc] if user_id is not None else [])
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    out = await retrieve(
+        {"question": "q", "user_id": 5, "candidate_acts": ["УК РФ", "КоАП РФ"]}, deps
+    )
+    assert [c for c in out["chunks"] if c.source == "user_doc"] == [doc]
+
+
+async def test_retrieve_fast_path_by_article_number():
+    """«ст. 158 УК» -> точный lookup, статья идёт первой (score 1.0)."""
+    from agent.nodes.retrieve import retrieve
+
+    async def fake_lookup(acts, nos):
+        assert "УК РФ" in acts and "158" in nos
+        return [_law("УК РФ", "158", 1.0)]
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        return [_law("УК РФ", "159", 0.5)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    deps.lookup_articles = fake_lookup
+    out = await retrieve(
+        {"question": "что грозит по ст. 158 УК", "candidate_acts": ["УК РФ"]}, deps
+    )
+    law = [c for c in out["chunks"] if c.source == "law"]
+    assert law[0].article == "158" and law[0].score == 1.0
+
+
+def test_parse_article_refs():
+    """Парсер номерного пути: пара номер+акт срабатывает, иначе — нет."""
+    from agent.nodes.retrieve import _parse_article_refs
+
+    assert _parse_article_refs("что грозит по ст. 158 УК") == (["УК РФ"], ["158"])
+    assert _parse_article_refs("штраф по статье 20.20 коап") == (["КоАП РФ"], ["20.20"])
+    # число без «ст» и без акта — не срабатывает
+    assert _parse_article_refs("перевёл 200 тысяч мошенникам") == ([], [])
+    # номер есть, акта нет — неоднозначно, не срабатывает
+    assert _parse_article_refs("что там по статье 20") == ([], [])
+
+
 def test_zozpp_branch_mapped():
     """Отрасль «защита прав потребителей» -> акт ЗоЗПП (строка сверена с Ролью 3)."""
     from agent.config import acts_for_branches
