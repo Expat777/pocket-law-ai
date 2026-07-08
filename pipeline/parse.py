@@ -92,6 +92,10 @@ def parse_ips_html(html: str, act: str, min_articles: int) -> list[Article]:
             # статус определяем ДО вычистки сносок: маркер «(Утратила силу — …)» — и есть сигнал
             if _RE_REPEALED.search(current.title) or _RE_REPEALED.search(text[:200]):
                 current.status = "repealed"
+            elif not text.strip() and not current.title.strip():
+                # голый стаб «Статья N.» без заголовка и тела — в ФЗ так помечают утратившие
+                # силу статьи (в ЗоЗПП: ст. 26/38/42), контент перенесён в N.1/N.2
+                current.status = "repealed"
             current.text = re.sub(r" {2,}", " ", _RE_FOOTNOTE.sub("", text)).strip()
             articles.append(current)
             current = None
