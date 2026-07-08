@@ -5,7 +5,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from bot.handlers.content import _WAIT_INGEST, _ingesting, on_file, on_question
+from bot.handlers.content import (
+    _WAIT_INGEST,
+    _ingest_begin,
+    _ingest_end,
+    _ingesting,
+    _is_ingesting,
+    on_file,
+    on_question,
+)
 from bot.mock_agent import MockAgent
 from bot.repository import InMemoryRepository
 
@@ -47,11 +55,11 @@ async def test_question_gated_while_ingesting():
     agent = MagicMock()
     agent.answer_question = AsyncMock()
 
-    _ingesting.add(555)
+    _ingest_begin(555)
     try:
         await on_question(msg, _fake_state(), InMemoryRepository(), agent)
     finally:
-        _ingesting.discard(555)
+        _ingest_end(555)
 
     msg.answer.assert_awaited_once_with(_WAIT_INGEST)
     agent.answer_question.assert_not_awaited()  # вопрос НЕ ушёл в агента
@@ -61,7 +69,7 @@ async def test_question_gated_while_ingesting():
 async def test_question_not_gated_when_idle():
     """Без активной загрузки вопрос обрабатывается как обычно (агент вызывается)."""
     msg = _fake_text_message("сколько дней отпуска?", uid=777)
-    assert 777 not in _ingesting
+    assert not _is_ingesting(777)
     await on_question(msg, _fake_state(), InMemoryRepository(), MockAgent())
     assert msg.answer.await_count >= 1
     # подсказки про загрузку быть не должно
@@ -72,12 +80,26 @@ async def test_question_not_gated_when_idle():
 async def test_on_file_clears_mark_on_early_return():
     """finally снимает метку даже на раннем возврате (файл больше лимита)."""
     msg = _fake_document_message(uid=556, size=999_999_999)
-    assert 556 not in _ingesting
+    assert not _is_ingesting(556)
 
     await on_file(
         msg, _fake_state(), InMemoryRepository(), MockAgent(),
         msg.bot, max_file_bytes=20 * 1024 * 1024,
     )
 
-    assert 556 not in _ingesting  # метка снята
+    assert not _is_ingesting(556)  # метка снята
     assert any("слишком большой" in c.args[0] for c in msg.answer.await_args_list)
+
+
+def test_ingest_refcount_multi_upload():
+    """Счётчик: при нескольких параллельных приёмах метка снимается только после последнего."""
+    uid = 558
+    assert not _is_ingesting(uid)
+    _ingest_begin(uid)          # первый файл
+    _ingest_begin(uid)          # второй файл (альбом)
+    assert _is_ingesting(uid)
+    _ingest_end(uid)            # первый завершился — но второй ещё грузится
+    assert _is_ingesting(uid)   # с set здесь метка бы уже слетела — это и есть фикс
+    _ingest_end(uid)            # завершился последний
+    assert not _is_ingesting(uid)
+    assert uid not in _ingesting  # ключ вычищен, без утечки памяти
