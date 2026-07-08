@@ -27,6 +27,19 @@ log = logging.getLogger(__name__)
 
 _TG_LIMIT = 4096  # максимум символов в одном сообщении Telegram
 
+# Пользователи, у кого прямо сейчас индексируется загруженный документ (файл/ссылка).
+# aiogram обрабатывает апдейты конкурентно (задача на апдейт), поэтому вопрос, посланный
+# сразу за файлом, может уйти в агента РАНЬШЕ, чем документ проиндексирован, — и ответ
+# построится без нового контекста. Пока идёт приём, такой вопрос гейтим с подсказкой.
+# Множество живёт в памяти процесса; add/discard — синхронные, без гонки: документ приходит
+# раньше вопроса (меньший update_id), его задача успевает поставить метку до проверки.
+_ingesting: set[int] = set()
+
+_WAIT_INGEST = (
+    "⏳ Секунду, обрабатываю ваш документ. "
+    "Задайте вопрос, когда я подтвержу, что он принят."
+)
+
 
 def _split_md(text: str, limit: int = _TG_LIMIT) -> list[str]:
     """Режет длинный MarkdownV2 на части ≤limit по границам абзацев (`\\n\\n`).
@@ -98,36 +111,40 @@ async def on_url(
     agent: AgentClient,
 ) -> None:
     user_id = message.from_user.id
-    await repo.ensure_user(user_id, message.from_user.username)
-    await state.set_state(Dialog.uploading_file)
-
-    match = _URL_RE.search(message.text)
-    if match is None:  # подстраховка, фильтр уже гарантирует наличие URL
-        await state.set_state(Dialog.normal_question)
-        return
-    url = match.group(0)
-
-    # фиксируем в истории — заодно учитывается в rate-limit (счётчик по dialog_history)
-    await repo.save_dialog(user_id, "user", f"[ссылка] {url}", [])
-
-    await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
+    _ingesting.add(user_id)  # пока грузим — вопросы к этому юзеру ждут (см. on_question)
     try:
-        result = await agent.ingest_url(user_id, url)
-    except Exception:  # noqa: BLE001
-        log.exception("ingest_url failed for user %s", user_id)
-        await message.answer(
-            "Не получилось загрузить документ по ссылке. Проверьте ссылку и попробуйте позже."
-        )
+        await repo.ensure_user(user_id, message.from_user.username)
+        await state.set_state(Dialog.uploading_file)
+
+        match = _URL_RE.search(message.text)
+        if match is None:  # подстраховка, фильтр уже гарантирует наличие URL
+            await state.set_state(Dialog.normal_question)
+            return
+        url = match.group(0)
+
+        # фиксируем в истории — заодно учитывается в rate-limit (счётчик по dialog_history)
+        await repo.save_dialog(user_id, "user", f"[ссылка] {url}", [])
+
+        await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
+        try:
+            result = await agent.ingest_url(user_id, url)
+        except Exception:  # noqa: BLE001
+            log.exception("ingest_url failed for user %s", user_id)
+            await message.answer(
+                "Не получилось загрузить документ по ссылке. Проверьте ссылку и попробуйте позже."
+            )
+            await state.set_state(Dialog.normal_question)
+            return
+
+        await _send_md(message, format_ingest_result(result))
         await state.set_state(Dialog.normal_question)
-        return
 
-    await _send_md(message, format_ingest_result(result))
-    await state.set_state(Dialog.normal_question)
-
-    # №4: если рядом со ссылкой есть вопрос — ответить на него (по загруженному документу)
-    remainder = _URL_RE.sub(" ", message.text).strip()
-    if result.ok and _looks_like_question(remainder):
-        await _answer_question(message, state, repo, agent, remainder)
+        # №4: если рядом со ссылкой есть вопрос — ответить на него (по загруженному документу)
+        remainder = _URL_RE.sub(" ", message.text).strip()
+        if result.ok and _looks_like_question(remainder):
+            await _answer_question(message, state, repo, agent, remainder)
+    finally:
+        _ingesting.discard(user_id)
 
 
 def _looks_like_question(text: str) -> bool:
@@ -176,6 +193,9 @@ async def on_question(
     repo: Repository,
     agent: AgentClient,
 ) -> None:
+    if message.from_user.id in _ingesting:  # документ ещё грузится — ответить рано
+        await message.answer(_WAIT_INGEST)
+        return
     await repo.ensure_user(message.from_user.id, message.from_user.username)
     await _answer_question(message, state, repo, agent, message.text.strip())
 
@@ -188,6 +208,9 @@ async def on_edited_question(
     agent: AgentClient,
 ) -> None:
     """Правка текста сообщения (задача №2): обрабатываем как новый вопрос."""
+    if message.from_user.id in _ingesting:  # документ ещё грузится — ответить рано
+        await message.answer(_WAIT_INGEST)
+        return
     await repo.ensure_user(message.from_user.id, message.from_user.username)
     await _answer_question(message, state, repo, agent, message.text.strip())
 
@@ -202,64 +225,68 @@ async def on_file(
     max_file_bytes: int,
 ) -> None:
     user_id = message.from_user.id
-    await repo.ensure_user(user_id, message.from_user.username)
-    await state.set_state(Dialog.uploading_file)
-
-    # 1) выбрать объект файла и его размер
-    if message.document is not None:
-        file_id = message.document.file_id
-        size = message.document.file_size or 0
-    else:  # photo — берём самое большое превью
-        photo = message.photo[-1]
-        file_id = photo.file_id
-        size = photo.file_size or 0
-
-    # фиксируем в истории — заодно учитывается в rate-limit (счётчик по dialog_history)
-    doc_name = message.document.file_name if message.document is not None else "фото"
-    await repo.save_dialog(user_id, "user", f"[документ] {doc_name}", [])
-
-    # 2) размер — ДО скачивания
-    if size > max_file_bytes:
-        limit_mb = max_file_bytes // (1024 * 1024)
-        await message.answer(
-            f"Файл слишком большой ({size // (1024 * 1024)} МБ). "
-            f"Максимум — {limit_mb} МБ."
-        )
-        await state.set_state(Dialog.normal_question)
-        return
-
-    # 3) скачать и проверить magic bytes ДО вызова агента
-    buffer = io.BytesIO()
+    _ingesting.add(user_id)  # пока грузим — вопросы к этому юзеру ждут (см. on_question)
     try:
-        await bot.download(file_id, destination=buffer)
-    except Exception:  # noqa: BLE001
-        log.exception("download failed for user %s", user_id)
-        await message.answer("Не удалось скачать файл. Попробуйте прислать ещё раз.")
-        await state.set_state(Dialog.normal_question)
-        return
+        await repo.ensure_user(user_id, message.from_user.username)
+        await state.set_state(Dialog.uploading_file)
 
-    file_bytes = buffer.getvalue()
-    mime = _sniff_mime(file_bytes[:16])
-    if mime is None:
-        await message.answer(
-            "Поддерживаются только PDF, JPG и PNG. "
-            "Пришлите документ в одном из этих форматов."
-        )
-        await state.set_state(Dialog.normal_question)
-        return
+        # 1) выбрать объект файла и его размер
+        if message.document is not None:
+            file_id = message.document.file_id
+            size = message.document.file_size or 0
+        else:  # photo — берём самое большое превью
+            photo = message.photo[-1]
+            file_id = photo.file_id
+            size = photo.file_size or 0
 
-    # 4) обработка через контракт 3.1
-    await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
-    try:
-        result = await agent.ingest_document(user_id, file_bytes, mime)
-    except Exception:  # noqa: BLE001
-        log.exception("ingest_document failed for user %s", user_id)
-        await message.answer("Не получилось обработать документ. Попробуйте позже.")
-        await state.set_state(Dialog.normal_question)
-        return
+        # фиксируем в истории — заодно учитывается в rate-limit (счётчик по dialog_history)
+        doc_name = message.document.file_name if message.document is not None else "фото"
+        await repo.save_dialog(user_id, "user", f"[документ] {doc_name}", [])
 
-    await _send_md(message, format_ingest_result(result))
-    await state.set_state(Dialog.normal_question)
+        # 2) размер — ДО скачивания
+        if size > max_file_bytes:
+            limit_mb = max_file_bytes // (1024 * 1024)
+            await message.answer(
+                f"Файл слишком большой ({size // (1024 * 1024)} МБ). "
+                f"Максимум — {limit_mb} МБ."
+            )
+            await state.set_state(Dialog.normal_question)
+            return
+
+        # 3) скачать и проверить magic bytes ДО вызова агента
+        buffer = io.BytesIO()
+        try:
+            await bot.download(file_id, destination=buffer)
+        except Exception:  # noqa: BLE001
+            log.exception("download failed for user %s", user_id)
+            await message.answer("Не удалось скачать файл. Попробуйте прислать ещё раз.")
+            await state.set_state(Dialog.normal_question)
+            return
+
+        file_bytes = buffer.getvalue()
+        mime = _sniff_mime(file_bytes[:16])
+        if mime is None:
+            await message.answer(
+                "Поддерживаются только PDF, JPG и PNG. "
+                "Пришлите документ в одном из этих форматов."
+            )
+            await state.set_state(Dialog.normal_question)
+            return
+
+        # 4) обработка через контракт 3.1
+        await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
+        try:
+            result = await agent.ingest_document(user_id, file_bytes, mime)
+        except Exception:  # noqa: BLE001
+            log.exception("ingest_document failed for user %s", user_id)
+            await message.answer("Не получилось обработать документ. Попробуйте позже.")
+            await state.set_state(Dialog.normal_question)
+            return
+
+        await _send_md(message, format_ingest_result(result))
+        await state.set_state(Dialog.normal_question)
+    finally:
+        _ingesting.discard(user_id)
 
 
 @router.message()
