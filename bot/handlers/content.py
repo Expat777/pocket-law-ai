@@ -15,7 +15,7 @@ from aiogram import Bot, F, Router
 from aiogram.enums import ChatAction
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 from bot.agent_client import AgentClient
 from bot.formatter import format_answer_message, format_ingest_result
@@ -24,6 +24,26 @@ from bot.states import Dialog
 
 router = Router(name="content")
 log = logging.getLogger(__name__)
+
+# --- Скоуп поиска по конкретному документу ----------------------------------
+# Пользователь может в /documents выбрать «искать по документу N» (кнопкой). Скоуп
+# ЛИПКИЙ: держится, пока не сменит/сбросит. Храним в памяти процесса (user_id →
+# (doc_id, имя)); при рестарте сбрасывается на «по всем» — это ок для UI-настройки.
+# Префикс callback_data кнопок пикера (общий с commands.cmd_documents).
+SCOPE_PREFIX = "scope:"
+_doc_scope: dict[int, tuple[str, str]] = {}
+
+
+def _set_scope(user_id: int, doc_id: str, name: str) -> None:
+    _doc_scope[user_id] = (doc_id, name)
+
+
+def _clear_scope(user_id: int) -> None:
+    _doc_scope.pop(user_id, None)
+
+
+def _get_scope(user_id: int) -> tuple[str, str] | None:
+    return _doc_scope.get(user_id)
 
 _TG_LIMIT = 4096  # максимум символов в одном сообщении Telegram
 
@@ -186,9 +206,13 @@ async def _answer_question(
     user_id = message.from_user.id
     await repo.save_dialog(user_id, "user", text, [])
 
+    # Активный скоуп → сужаем поиск до выбранного документа (иначе — по всем).
+    scope = _get_scope(user_id)
+    doc_ids = [scope[0]] if scope else None
+
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     try:
-        answer = await agent.answer_question(user_id, text)
+        answer = await agent.answer_question(user_id, text, doc_ids=doc_ids)
     except Exception:  # noqa: BLE001 — деградируем мягко, не роняем апдейт
         log.exception("answer_question failed for user %s", user_id)
         await message.answer(
@@ -204,6 +228,8 @@ async def _answer_question(
 
     await repo.save_dialog(user_id, "assistant", answer.text, answer.citations)
     await _send_md(message, format_answer_message(answer))
+    if scope:  # подпись «липкого» скоупа — обычным текстом, имя не ломает разметку
+        await message.answer(f"🔎 по документу: {scope[1]} · сбросить — /documents")
 
 
 @router.message(F.text & ~F.text.startswith("/"))
@@ -307,6 +333,39 @@ async def on_file(
         await state.set_state(Dialog.normal_question)
     finally:
         _ingest_end(user_id)
+
+
+@router.callback_query(F.data.startswith(SCOPE_PREFIX))
+async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
+    """Кнопка пикера в /documents: выбрать активный документ или «искать по всем».
+
+    callback_data = "scope:all" (сброс) либо "scope:<doc_id>" (скоуп на документ).
+    """
+    user_id = callback.from_user.id
+    payload = callback.data[len(SCOPE_PREFIX):]
+
+    if payload == "all":
+        _clear_scope(user_id)
+        await callback.answer("🔎 Ищу по всем документам")
+        return
+
+    # payload = doc_id → находим имя (и заодно проверяем, что документ ещё существует)
+    try:
+        docs = await agent.list_user_documents(user_id)
+    except Exception:  # noqa: BLE001
+        log.exception("list_user_documents failed for user %s", user_id)
+        await callback.answer("Не получилось выбрать документ, попробуйте позже.")
+        return
+
+    doc = next((d for d in docs if d.doc_id == payload), None)
+    if doc is None:  # удалён/устарел — сбрасываем на «по всем»
+        _clear_scope(user_id)
+        await callback.answer("Документ не найден (возможно, удалён). Ищу по всем.")
+        return
+
+    name = doc.filename or "без названия"
+    _set_scope(user_id, doc.doc_id, name)
+    await callback.answer(f"🔎 Ищу по: {name}")
 
 
 @router.message()

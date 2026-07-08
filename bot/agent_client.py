@@ -13,7 +13,9 @@ from shared.contracts import Answer, IngestResult, UserDocument
 
 
 class AgentClient(Protocol):
-    async def answer_question(self, user_id: int, text: str) -> Answer: ...
+    async def answer_question(
+        self, user_id: int, text: str, doc_ids: list[str] | None = None
+    ) -> Answer: ...
 
     async def ingest_document(
         self, user_id: int, file_bytes: bytes, mime: str, filename: str | None = None

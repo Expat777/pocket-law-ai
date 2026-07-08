@@ -20,6 +20,7 @@ from aiogram.types import (
 
 from bot.agent_client import AgentClient
 from bot.formatter import format_documents_list
+from bot.handlers.content import SCOPE_PREFIX, _clear_scope, _get_scope
 from bot.repository import Repository
 from bot.states import Dialog
 
@@ -115,18 +116,52 @@ async def cmd_help(message: Message) -> None:
     await message.answer(_HELP_TEXT)
 
 
+def _documents_keyboard(docs: list, active_doc_id: str | None) -> InlineKeyboardMarkup:
+    """Пикер скоупа: по кнопке на документ + «искать по всем». Активный помечен ✓."""
+    rows: list[list[InlineKeyboardButton]] = []
+    for i, d in enumerate(docs, 1):
+        name = d.filename or "без названия"
+        if len(name) > 30:  # длинные имена режем для подписи кнопки
+            name = name[:29] + "…"
+        mark = "✓ " if d.doc_id == active_doc_id else ""
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{mark}{i}. {name}",
+                    callback_data=f"{SCOPE_PREFIX}{d.doc_id}",
+                )
+            ]
+        )
+    all_mark = "✓ " if active_doc_id is None else ""
+    rows.append(
+        [InlineKeyboardButton(text=f"{all_mark}🔎 Искать по всем", callback_data=f"{SCOPE_PREFIX}all")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 @router.message(Command("documents"))
 async def cmd_documents(message: Message, agent: AgentClient) -> None:
-    """Список загруженных пользователем документов (обычный текст, без MarkdownV2)."""
+    """Список загруженных документов + пикер: по какому искать (скоуп)."""
+    user_id = message.from_user.id
     try:
-        docs = await agent.list_user_documents(message.from_user.id)
+        docs = await agent.list_user_documents(user_id)
     except Exception:  # noqa: BLE001 — деградируем мягко
-        log.exception("list_user_documents failed for user %s", message.from_user.id)
+        log.exception("list_user_documents failed for user %s", user_id)
         await message.answer(
             "Не получилось получить список документов. Попробуйте позже."
         )
         return
-    await message.answer(format_documents_list(docs))
+
+    if not docs:  # без документов пикер не нужен
+        await message.answer(format_documents_list(docs))
+        return
+
+    scope = _get_scope(user_id)
+    active_doc_id = scope[0] if scope else None
+    await message.answer(
+        format_documents_list(docs),
+        reply_markup=_documents_keyboard(docs, active_doc_id),
+    )
 
 
 @router.message(Command("delete"))
@@ -141,6 +176,7 @@ async def cmd_delete(
         await agent.delete_user_documents(user_id)
     except Exception:  # noqa: BLE001
         log.exception("delete_user_documents failed for user %s", user_id)
+    _clear_scope(user_id)  # выбранного документа больше нет — сбрасываем скоуп
     await state.clear()
     await message.answer(
         "🗑 Готово. Я удалил историю диалога, ваше согласие и загруженные документы. "

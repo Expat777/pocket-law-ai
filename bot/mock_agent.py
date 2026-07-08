@@ -76,7 +76,10 @@ class MockAgent:
     def __init__(self) -> None:
         self._docs: dict[int, list[UserDocument]] = {}
 
-    async def answer_question(self, user_id: int, text: str) -> Answer:
+    async def answer_question(
+        self, user_id: int, text: str, doc_ids: list[str] | None = None
+    ) -> Answer:
+        # doc_ids (скоуп по документу) мок не использует — сигнатура по контракту.
         low = text.lower().strip()
 
         if not low or any(t in low for t in _REFUSE_TRIGGERS):
