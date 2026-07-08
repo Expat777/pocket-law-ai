@@ -51,7 +51,7 @@ def build_graph(deps: Deps):
     g.add_node("verify", partial(verify, deps=deps))
     g.add_node("compose", partial(compose_answer, deps=deps))
     g.add_node("clarify", make_clarify)
-    g.add_node("refuse", make_refuse)
+    g.add_node("refuse", partial(make_refuse, deps=deps))
     g.add_node("offtopic", make_offtopic)
 
     g.add_edge(START, "intent")
