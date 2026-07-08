@@ -80,7 +80,8 @@ async def _search_with_quota(
 async def retrieve(state: AgentState, deps: Deps) -> dict:
     from agent.tracing import tool_span
 
-    query = state.get("normalized_query") or state["question"]
+    # retrieval_query = normalized + HyDE (если включён); фолбэк на normalized/вопрос
+    query = state.get("retrieval_query") or state.get("normalized_query") or state["question"]
     # Маршрутизация по кодексу: intent назвал акты -> серверный фильтр search_law.
     # Не уверен (acts пусто) -> None -> ищем по всем кодексам (recall не теряем).
     acts = state.get("candidate_acts") or None
