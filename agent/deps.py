@@ -19,6 +19,8 @@ SearchLaw = Callable[
     [str, int | None, list[str] | None, list[str] | None],
     Awaitable[list[RetrievedChunk]],
 ]
+# Быстрый путь по номеру: (acts, article_nos) -> точные фрагменты статей.
+LookupArticles = Callable[[list[str], list[str]], Awaitable[list[RetrievedChunk]]]
 VerifyCitation = Callable[[Citation], Awaitable[CitationStatus]]
 LogConfidence = Callable[[str, float], Awaitable[None]]
 
@@ -28,6 +30,8 @@ class Deps:
     llm: LLMClient
     search_law: SearchLaw
     verify_citation: VerifyCitation
+    # быстрый путь по явному номеру статьи (None = отключён, только семантика)
+    lookup_articles: LookupArticles | None = None
     # необязательная телеметрия: запись confidence в Postgres (None = не пишем)
     log_confidence: LogConfidence | None = None
 
@@ -40,11 +44,13 @@ def build_default_deps() -> Deps:
 
     from .confidence_log import log_confidence
     from .llm import build_llm
+    from .tools.lookup_article import lookup_articles
     from .tools.verify_citation import verify_citation
 
     return Deps(
         llm=build_llm(),
         search_law=search_law,
         verify_citation=verify_citation,
+        lookup_articles=lookup_articles,
         log_confidence=log_confidence,
     )
