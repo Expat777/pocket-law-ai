@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -16,8 +18,12 @@ from aiogram.types import (
     Message,
 )
 
+from bot.agent_client import AgentClient
+from bot.formatter import format_documents_list
 from bot.repository import Repository
 from bot.states import Dialog
+
+log = logging.getLogger(__name__)
 
 router = Router(name="commands")
 
@@ -37,6 +43,7 @@ _HELP_TEXT = (
     "Команды:\n"
     "/start — начать и дать согласие на обработку данных\n"
     "/help — эта справка\n"
+    "/documents — список загруженных вами документов\n"
     "/delete — удалить все мои данные о вас\n\n"
     "⚠️ Ответы бота не являются юридической консультацией."
 )
@@ -108,11 +115,34 @@ async def cmd_help(message: Message) -> None:
     await message.answer(_HELP_TEXT)
 
 
+@router.message(Command("documents"))
+async def cmd_documents(message: Message, agent: AgentClient) -> None:
+    """Список загруженных пользователем документов (обычный текст, без MarkdownV2)."""
+    try:
+        docs = await agent.list_user_documents(message.from_user.id)
+    except Exception:  # noqa: BLE001 — деградируем мягко
+        log.exception("list_user_documents failed for user %s", message.from_user.id)
+        await message.answer(
+            "Не получилось получить список документов. Попробуйте позже."
+        )
+        return
+    await message.answer(format_documents_list(docs))
+
+
 @router.message(Command("delete"))
-async def cmd_delete(message: Message, state: FSMContext, repo: Repository) -> None:
-    await repo.delete_user_data(message.from_user.id)
+async def cmd_delete(
+    message: Message, state: FSMContext, repo: Repository, agent: AgentClient
+) -> None:
+    user_id = message.from_user.id
+    await repo.delete_user_data(user_id)  # Postgres: согласие + история диалога
+    # 152-ФЗ: удаляем и загруженные документы из векторной базы (Qdrant user_documents).
+    # best-effort: сбой очистки не должен ронять /delete (Postgres уже очищен).
+    try:
+        await agent.delete_user_documents(user_id)
+    except Exception:  # noqa: BLE001
+        log.exception("delete_user_documents failed for user %s", user_id)
     await state.clear()
     await message.answer(
-        "🗑 Готово. Я удалил историю диалога и ваше согласие. "
+        "🗑 Готово. Я удалил историю диалога, ваше согласие и загруженные документы. "
         "Чтобы снова пользоваться ботом — отправьте /start."
     )

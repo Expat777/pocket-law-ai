@@ -9,14 +9,22 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from shared.contracts import Answer, IngestResult
+from shared.contracts import Answer, IngestResult, UserDocument
 
 
 class AgentClient(Protocol):
     async def answer_question(self, user_id: int, text: str) -> Answer: ...
 
     async def ingest_document(
-        self, user_id: int, file_bytes: bytes, mime: str
+        self, user_id: int, file_bytes: bytes, mime: str, filename: str | None = None
     ) -> IngestResult: ...
 
-    async def ingest_url(self, user_id: int, url: str) -> IngestResult: ...
+    async def ingest_url(
+        self, user_id: int, url: str, filename: str | None = None
+    ) -> IngestResult: ...
+
+    async def list_user_documents(self, user_id: int) -> list[UserDocument]: ...
+
+    async def delete_user_documents(
+        self, user_id: int, doc_id: str | None = None
+    ) -> None: ...
