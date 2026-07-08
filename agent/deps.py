@@ -13,7 +13,8 @@ from shared.contracts import Citation, CitationStatus, RetrievedChunk
 
 from .llm import LLMClient
 
-SearchLaw = Callable[[str, int | None], Awaitable[list[RetrievedChunk]]]
+# acts: сузить поиск до этих значений `act` (мультикодексная база); None — по всем
+SearchLaw = Callable[[str, int | None, list[str] | None], Awaitable[list[RetrievedChunk]]]
 VerifyCitation = Callable[[Citation], Awaitable[CitationStatus]]
 LogConfidence = Callable[[str, float], Awaitable[None]]
 

@@ -39,7 +39,7 @@ def make_llm(is_legal: bool = True, answer_text: str = "Ответ по стат
 
 
 def make_deps(chunks, is_legal=True, answer_text="Ответ по статье.", active=True) -> Deps:
-    async def fake_search(query, user_id):
+    async def fake_search(query, user_id, acts=None):
         return list(chunks)
 
     async def fake_verify(citation):
@@ -74,23 +74,27 @@ async def test_refuse_when_no_law_found():
     assert ans.citations == []
 
 
-async def test_clarify_when_not_legal():
-    """Вопрос вне права / бессмысленный -> уточняющий вопрос, не отказ."""
+async def test_offtopic_soft_refusal_when_not_legal():
+    """Явно не-юр вопрос (непустой) -> мягкий отказ по области, а не переспрос."""
+    from agent.nodes.compose import OFFTOPIC_TEXT
+
     deps = make_deps([], is_legal=False)
-    ans = await answer_question(1, "asdf погода завтра", deps=deps)
+    ans = await answer_question(1, "какая завтра погода?", deps=deps)
 
-    assert ans.refused is False
-    assert ans.clarifying_question is not None
+    assert ans.refused is True
+    assert ans.clarifying_question is None
     assert ans.citations == []
+    assert ans.text == OFFTOPIC_TEXT
 
 
-async def test_not_legal_routes_to_clarify_even_with_chunks():
-    """Фикс A: неюр. вопрос -> clarify, даже если search_law вернул статьи."""
+async def test_not_legal_never_composes_even_with_chunks():
+    """Фикс A: неюр. вопрос НЕ отвечает юр-текстом с цитатами, даже если search_law
+    вернул статьи (теперь это мягкий отказ по области, не compose)."""
     deps = make_deps([TK_81], is_legal=False)  # retrieve вернул статью, но вопрос вне права
     ans = await answer_question(1, "какая завтра погода?", deps=deps)
 
-    assert ans.clarifying_question is not None
-    assert ans.refused is False
+    assert ans.refused is True
+    assert ans.clarifying_question is None
     assert ans.citations == []
 
 
@@ -214,7 +218,7 @@ async def test_empty_question_clarifies_without_calling_llm():
     def boom(system, user):
         raise AssertionError("LLM must not be called on empty input")
 
-    async def fake_search(query, user_id):
+    async def fake_search(query, user_id, acts=None):
         return []
 
     async def fake_verify(citation):
@@ -304,3 +308,100 @@ async def test_source_url_passed_to_citation():
     deps = make_deps([chunk], answer_text="Otvet po state.")
     ans = await answer_question(1, "vopros pro otpusk", deps=deps)
     assert ans.citations[0].source_url == "http://pravo.gov.ru/article/115"
+
+
+# --- Маршрутизация по кодексу (многокодексная база) ---
+
+def _law(act: str, article: str, score: float) -> RetrievedChunk:
+    return RetrievedChunk(
+        text=f"{act} ст.{article}", source="law", act=act, article=article,
+        status="active", effective_date=date(2026, 5, 15), score=score,
+    )
+
+
+def test_acts_for_branches_maps_and_ignores_unknown():
+    """Отрасли -> канонические акты; неизвестные/пустые игнорируются (=> без фильтра)."""
+    from agent.config import acts_for_branches
+
+    assert acts_for_branches(["трудовое"]) == ["ТК РФ"]
+    assert acts_for_branches(["уголовное", "семейное"]) == ["УК РФ", "СК РФ"]
+    assert acts_for_branches([" Трудовое ", "трудовое"]) == ["ТК РФ"]  # регистр/дубли
+    assert acts_for_branches(["чтототакое", "", None]) == []
+    assert acts_for_branches([]) == []
+    assert acts_for_branches(None) == []
+
+
+async def test_intent_emits_candidate_acts_from_branches():
+    """intent отдаёт canonical acts по списку branches (стык кодексов -> несколько)."""
+    from agent.nodes.intent import intent_classifier
+
+    def handler(system, user):
+        return json.dumps(
+            {"is_legal": True, "branches": ["уголовное", "семейное"], "normalized": "x"}
+        )
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=None, verify_citation=None)
+    out = await intent_classifier({"question": "q"}, deps)
+    assert set(out["candidate_acts"]) == {"УК РФ", "СК РФ"}
+    assert out["is_legal"] is True
+
+
+async def test_intent_backward_compat_single_branch():
+    """Старый формат {"branch": "..."} всё ещё маппится в candidate_acts."""
+    from agent.nodes.intent import intent_classifier
+
+    def handler(system, user):
+        return json.dumps({"is_legal": True, "branch": "трудовое", "normalized": "x"})
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=None, verify_citation=None)
+    out = await intent_classifier({"question": "q"}, deps)
+    assert out["candidate_acts"] == ["ТК РФ"]
+
+
+async def test_retrieve_passes_acts_to_search_law():
+    """candidate_acts пробрасываются в search_law (серверный фильтр по кодексу)."""
+    from agent.nodes.retrieve import retrieve
+
+    captured = {}
+
+    async def fake_search(query, user_id, acts=None):
+        captured["acts"] = acts
+        return [_law("УК РФ", "145.1", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve({"question": "q", "candidate_acts": ["УК РФ"]}, deps)
+    assert captured["acts"] == ["УК РФ"]
+
+
+async def test_retrieve_passes_none_when_acts_empty():
+    """Отрасль не определена (acts пусто) -> в search_law уходит None (по всем кодексам)."""
+    from agent.nodes.retrieve import retrieve
+
+    captured = {}
+
+    async def fake_search(query, user_id, acts=None):
+        captured["acts"] = acts
+        return [_law("ТК РФ", "81", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve({"question": "q", "candidate_acts": []}, deps)
+    assert captured["acts"] is None
+
+
+async def test_retrieve_keeps_user_docs():
+    """Фрагменты пользовательского документа не теряются при отборе top-K."""
+    from agent.nodes.retrieve import retrieve
+
+    doc = RetrievedChunk(text="договор: отпуск 28 дней", source="user_doc", score=0.7)
+    deps = make_deps([_law("ТК РФ", "115", 0.9), doc])
+    out = await retrieve({"question": "q", "candidate_acts": ["ТК РФ"]}, deps)
+    assert doc in out["chunks"]
+
+
+def test_zozpp_branch_mapped():
+    """Отрасль «защита прав потребителей» -> акт ЗоЗПП (строка сверена с Ролью 3)."""
+    from agent.config import acts_for_branches
+
+    assert acts_for_branches(["защита прав потребителей"]) == ["ЗоЗПП"]

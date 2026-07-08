@@ -14,6 +14,14 @@ REFUSE_TEXT = (
     "вопрос или обратитесь к юристу."
 )
 
+# Вопрос явно вне права (погода, рецепты, болтовня): мягко обозначаем область
+# работы, а не переспрашиваем «какая сфера права» (это сбивало — заметка Роли 1).
+OFFTOPIC_TEXT = (
+    "Я — помощник по правовым вопросам и отвечаю только по законодательству РФ "
+    "(трудовые, семейные, гражданские и другие правовые отношения). "
+    "Задайте, пожалуйста, вопрос юридического характера."
+)
+
 
 def _confidence(chunks: list[RetrievedChunk]) -> float:
     """Грубая оценка уверенности: средний score найденных статей закона.
@@ -64,3 +72,8 @@ async def make_clarify(state: AgentState) -> dict:
 
 async def make_refuse(state: AgentState) -> dict:
     return {"answer": Answer(text=REFUSE_TEXT, citations=[], refused=True)}
+
+
+async def make_offtopic(state: AgentState) -> dict:
+    """Не-юридический вопрос: мягкий отказ по области (refused=True, без цитат)."""
+    return {"answer": Answer(text=OFFTOPIC_TEXT, citations=[], refused=True)}

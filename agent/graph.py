@@ -16,6 +16,7 @@ from .nodes import (
     compose_answer,
     intent_classifier,
     make_clarify,
+    make_offtopic,
     make_refuse,
     retrieve,
     route_after_verify,
@@ -42,6 +43,7 @@ def build_graph(deps: Deps):
     g.add_node("compose", partial(compose_answer, deps=deps))
     g.add_node("clarify", make_clarify)
     g.add_node("refuse", make_refuse)
+    g.add_node("offtopic", make_offtopic)
 
     g.add_edge(START, "intent")
     g.add_edge("intent", "retrieve")
@@ -49,11 +51,17 @@ def build_graph(deps: Deps):
     g.add_conditional_edges(
         "verify",
         route_after_verify,
-        {"compose": "compose", "clarify": "clarify", "refuse": "refuse"},
+        {
+            "compose": "compose",
+            "clarify": "clarify",
+            "refuse": "refuse",
+            "offtopic": "offtopic",
+        },
     )
     g.add_edge("compose", END)
     g.add_edge("clarify", END)
     g.add_edge("refuse", END)
+    g.add_edge("offtopic", END)
 
     return g.compile()
 

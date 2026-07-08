@@ -9,8 +9,15 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
     from agent.tracing import tool_span
 
     query = state.get("normalized_query") or state["question"]
-    with tool_span("search_law", {"query": query, "user_id": state.get("user_id")}) as record:
-        chunks = await deps.search_law(query, state.get("user_id"))
+    # Маршрутизация по кодексу: intent назвал отрасли -> канонические акты.
+    # Фильтр СЕРВЕРНЫЙ (search_law(acts), Роль 4): Qdrant режет по `act` ДО top-K,
+    # поэтому нужный кодекс не вытесняется соседними. Не уверен (acts пусто) ->
+    # None -> ищем по всем кодексам (recall не теряем).
+    acts = state.get("candidate_acts") or None
+    with tool_span(
+        "search_law", {"query": query, "user_id": state.get("user_id"), "acts": acts}
+    ) as record:
+        chunks = await deps.search_law(query, state.get("user_id"), acts)
         record([f"{c.act or c.source} {c.article or ''}".strip() for c in chunks])
 
     # top-K статей закона (search_law уже отсортировал по score) + ВСЕ фрагменты
@@ -19,4 +26,5 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
     # файла вытесняются статьями закона и не доходят до compose как контекст.
     law = [c for c in chunks if c.source == "law" and c.score >= MIN_LAW_SCORE]
     user_docs = [c for c in chunks if c.source != "law"]
+
     return {"chunks": law[:TOP_K] + user_docs}
