@@ -265,8 +265,8 @@ async def test_confidence_logged_on_answer():
     assert isinstance(logged[0][1], float)
 
 
-async def test_confidence_not_logged_on_insufficient():
-    """Na INSUFFICIENT (otkaz) confidence ne pishetsya."""
+async def test_confidence_logged_on_insufficient():
+    """Na INSUFFICIENT (otkaz) confidence teper LOGIRUETSYA — signal kachestva."""
     logged = []
 
     async def fake_log(question, confidence):
@@ -277,7 +277,9 @@ async def test_confidence_not_logged_on_insufficient():
     ans = await answer_question(1, "vopros", deps=deps)
 
     assert ans.refused is True
-    assert logged == []
+    # ретрив-уверенность записана (verified TK_81 score 0.88), даже при отказе
+    assert len(logged) == 1
+    assert abs(logged[0][1] - 0.88) < 1e-6
 
 
 async def test_citations_capped_to_max():
@@ -700,3 +702,42 @@ async def test_retrieve_falls_back_to_normalized_without_hyde():
         deps,
     )
     assert seen["query"] == "расторжение договора"
+
+
+# --- confidence-телеметрия на всех юр-исходах (не только успех) ---
+
+
+async def test_refuse_logs_confidence():
+    """Юр-вопрос без цитат (refuse) пишет ретрив-уверенность в телеметрию."""
+    from agent.nodes.compose import make_refuse
+
+    logged = []
+
+    async def fake_log(q, c):
+        logged.append((q, c))
+
+    deps = make_deps([])
+    deps.log_confidence = fake_log
+    out = await make_refuse({"question": "уволили", "chunks": [_law("ТК РФ", "81", 0.6)]}, deps)
+    assert out["answer"].refused is True
+    assert logged and logged[0][0] == "уволили"
+    assert abs(logged[0][1] - 0.6) < 1e-6
+
+
+async def test_insufficient_logs_confidence():
+    """INSUFFICIENT-отказ тоже логирует confidence (важный сигнал качества)."""
+    from agent.nodes.compose import compose_answer
+
+    logged = []
+
+    async def fake_log(q, c):
+        logged.append((q, c))
+
+    deps = make_deps([], answer_text="INSUFFICIENT")
+    deps.log_confidence = fake_log
+    out = await compose_answer(
+        {"question": "q", "verified_chunks": [_law("ТК РФ", "1", 0.7)], "citations": []},
+        deps,
+    )
+    assert out["answer"].refused is True
+    assert logged and abs(logged[0][1] - 0.7) < 1e-6
