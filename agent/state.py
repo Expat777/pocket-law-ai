@@ -19,6 +19,8 @@ class AgentState(TypedDict, total=False):
 
     # intent_classifier
     normalized_query: str
+    # запрос для ретрива: normalized + HyDE-текст (если включён), иначе = normalized
+    retrieval_query: str
     branch_of_law: str | None
     # канонические акты-кандидаты для фильтра retrieve (пусто = искать по всем кодексам)
     candidate_acts: list[str]

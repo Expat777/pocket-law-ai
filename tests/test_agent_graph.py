@@ -613,3 +613,90 @@ async def test_delete_all_documents_filters_user_only():
     fake = _FakeQdrant([])
     await delete_user_documents(7, client=fake)
     assert len(fake.deleted[0].must) == 1
+
+
+# --- HyDE (гипотетический текст статьи для ретрива) ---
+
+
+async def test_intent_hyde_on_fuses_retrieval_query(monkeypatch):
+    """HyDE вкл: retrieval_query = normalized + HyDE-текст (второй LLM-вызов)."""
+    import agent.nodes.intent as intent_mod
+
+    monkeypatch.setattr(intent_mod, "HYDE_ENABLED", True)
+    deps = make_deps([])
+    out = await intent_mod.intent_classifier({"question": "уволили без причины"}, deps)
+    assert out["retrieval_query"].startswith(out["normalized_query"])
+    assert out["retrieval_query"] != out["normalized_query"]
+    # два вызова LLM (intent + HyDE)
+    assert len(deps.llm.calls) == 2
+
+
+async def test_intent_hyde_off_retrieval_query_equals_normalized(monkeypatch):
+    """HyDE выкл: retrieval_query = normalized, один LLM-вызов (обратная совместимость)."""
+    import agent.nodes.intent as intent_mod
+
+    monkeypatch.setattr(intent_mod, "HYDE_ENABLED", False)
+    deps = make_deps([])
+    out = await intent_mod.intent_classifier({"question": "уволили без причины"}, deps)
+    assert out["retrieval_query"] == out["normalized_query"]
+    assert len(deps.llm.calls) == 1
+
+
+async def test_intent_hyde_failure_falls_back(monkeypatch):
+    """Сбой HyDE не роняет ответ: retrieval_query = normalized, intent живёт."""
+    import agent.nodes.intent as intent_mod
+
+    monkeypatch.setattr(intent_mod, "HYDE_ENABLED", True)
+
+    def handler(system, user):
+        if "is_legal" in system:
+            return json.dumps({"is_legal": True, "branch": "трудовое", "normalized": user})
+        raise RuntimeError("HyDE упал")
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=None, verify_citation=None)
+    out = await intent_mod.intent_classifier({"question": "уволили без причины"}, deps)
+    assert out["retrieval_query"] == out["normalized_query"]
+    assert out["is_legal"] is True
+
+
+async def test_retrieve_prefers_retrieval_query_over_normalized():
+    """retrieve ищет по retrieval_query (вопрос+HyDE), а не по normalized — иначе HyDE впустую."""
+    from agent.nodes.retrieve import retrieve
+
+    seen = {}
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        seen["query"] = query
+        return [_law("ТК РФ", "81", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve(
+        {
+            "question": "уволили",
+            "normalized_query": "расторжение трудового договора",
+            "retrieval_query": "расторжение трудового договора. HyDE-текст статьи",
+            "candidate_acts": [],
+        },
+        deps,
+    )
+    assert seen["query"] == "расторжение трудового договора. HyDE-текст статьи"
+
+
+async def test_retrieve_falls_back_to_normalized_without_hyde():
+    """Нет retrieval_query (HyDE выкл) -> ищем по normalized_query."""
+    from agent.nodes.retrieve import retrieve
+
+    seen = {}
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        seen["query"] = query
+        return [_law("ТК РФ", "81", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    await retrieve(
+        {"question": "уволили", "normalized_query": "расторжение договора", "candidate_acts": []},
+        deps,
+    )
+    assert seen["query"] == "расторжение договора"
