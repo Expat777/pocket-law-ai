@@ -184,7 +184,7 @@ async def test_ingest_document_isolates_by_user():
     def fake_embed(chunks):
         return [[0.1, 0.2, 0.3] for _ in chunks]
 
-    async def fake_upsert(user_id, doc_id, chunks, vectors):
+    async def fake_upsert(user_id, doc_id, chunks, vectors, filename=None):
         captured["user_id"] = user_id
         captured["chunks"] = chunks
 
@@ -405,3 +405,102 @@ def test_zozpp_branch_mapped():
     from agent.config import acts_for_branches
 
     assert acts_for_branches(["защита прав потребителей"]) == ["ЗоЗПП"]
+
+
+# --- Управление документами (list / delete / filename) ---
+
+from types import SimpleNamespace  # noqa: E402
+
+
+class _FakeQdrant:
+    """Мини-фейк AsyncQdrantClient: scroll отдаёт заданные точки, delete пишет селектор."""
+
+    def __init__(self, points):
+        self._points = points
+        self.deleted = []
+
+    async def scroll(self, collection_name, scroll_filter=None, limit=256,
+                     offset=None, with_payload=True, with_vectors=False):
+        return (self._points, None)  # одна страница
+
+    async def delete(self, collection_name, points_selector=None, wait=True):
+        self.deleted.append(points_selector)
+
+
+def _pt(**payload):
+    return SimpleNamespace(payload=payload)
+
+
+async def test_ingest_stores_filename():
+    """filename пробрасывается в payload user_documents (для списка/выбора)."""
+    from agent.ingest import ingest_document
+    from shared.contracts import ParsedDoc
+
+    captured = {}
+
+    def fake_parse(fb, mime):
+        return ParsedDoc(text="абзац договора", pages=1, used_ocr=False)
+
+    def fake_embed(chunks):
+        return [[0.1, 0.2, 0.3] for _ in chunks]
+
+    async def fake_upsert(user_id, doc_id, chunks, vectors, filename=None):
+        captured["filename"] = filename
+
+    res = await ingest_document(
+        7, b"x", "text/plain", filename="Договор Альфа.pdf",
+        parse=fake_parse, embed=fake_embed, upsert=fake_upsert,
+    )
+    assert res.ok is True
+    assert captured["filename"] == "Договор Альфа.pdf"
+
+
+async def test_list_user_documents_aggregates_by_doc_id():
+    """Список документов агрегируется по doc_id; свежие сверху; считаются чанки."""
+    pytest.importorskip("qdrant_client")  # _user_filter строит Filter Qdrant
+    from agent.documents import list_user_documents
+
+    pts = [
+        _pt(doc_id="A", filename="Договор.pdf", uploaded_at="2026-07-08T10:00", chunk_no=0),
+        _pt(doc_id="A", filename="Договор.pdf", uploaded_at="2026-07-08T10:00", chunk_no=1),
+        _pt(doc_id="B", filename="Устав.pdf", uploaded_at="2026-07-08T11:00", chunk_no=0),
+    ]
+    docs = await list_user_documents(7, client=_FakeQdrant(pts))
+
+    assert {d.doc_id for d in docs} == {"A", "B"}
+    a = next(d for d in docs if d.doc_id == "A")
+    assert a.filename == "Договор.pdf" and a.chunks == 2
+    assert docs[0].doc_id == "B"  # 11:00 свежее 10:00
+
+
+async def test_list_user_documents_empty_on_error():
+    """Нет коллекции/сети -> пустой список, не падаем."""
+    pytest.importorskip("qdrant_client")
+    from agent.documents import list_user_documents
+
+    class Boom:
+        async def scroll(self, **k):
+            raise RuntimeError("no collection")
+
+    assert await list_user_documents(7, client=Boom()) == []
+
+
+async def test_delete_specific_document_filters_user_and_doc():
+    """delete(doc_id=X) -> селектор по user_id И doc_id (2 условия)."""
+    pytest.importorskip("qdrant_client")
+    from agent.documents import delete_user_documents
+
+    fake = _FakeQdrant([])
+    await delete_user_documents(7, doc_id="A", client=fake)
+    assert len(fake.deleted) == 1
+    assert len(fake.deleted[0].must) == 2
+
+
+async def test_delete_all_documents_filters_user_only():
+    """delete(doc_id=None) -> все документы пользователя (1 условие: user_id) — 152-ФЗ."""
+    pytest.importorskip("qdrant_client")
+    from agent.documents import delete_user_documents
+
+    fake = _FakeQdrant([])
+    await delete_user_documents(7, client=fake)
+    assert len(fake.deleted[0].must) == 1
