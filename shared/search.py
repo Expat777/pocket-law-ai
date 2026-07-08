@@ -7,7 +7,7 @@
 import os
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import FieldCondition, Filter, MatchValue
+from qdrant_client.models import FieldCondition, Filter, MatchAny, MatchValue
 
 from .contracts import RetrievedChunk
 from .embeddings import embed_query
@@ -31,14 +31,29 @@ def _get_client() -> AsyncQdrantClient:
     return _client
 
 
-async def search_law(query: str, user_id: int | None) -> list[RetrievedChunk]:
+async def search_law(
+    query: str, user_id: int | None, acts: list[str] | None = None
+) -> list[RetrievedChunk]:
+    """acts: сузить поиск до этих значений `act` (мультикодексная база, Роль 2/3).
+
+    Фильтр серверный (Qdrant), а не пост-фактум в Python: иначе top-K уже вырезан
+    по всей базе и до нужного акта могло не хватить места (см. STATUS.md, Роль 2 —
+    client-side фильтр в agent/nodes/retrieve.py как временная затычка до этого).
+    Пусто/None — не фильтруем (текущее поведение, полная обратная совместимость).
+    """
     vector = embed_query(query)
     client = _get_client()
 
     results: list[RetrievedChunk] = []
 
+    law_filter = (
+        Filter(must=[FieldCondition(key="act", match=MatchAny(any=acts))]) if acts else None
+    )
     law_hits = await client.query_points(
-        collection_name=LAW_COLLECTION, query=vector, limit=TOP_K_LAW
+        collection_name=LAW_COLLECTION,
+        query=vector,
+        query_filter=law_filter,
+        limit=TOP_K_LAW,
     )
     for hit in law_hits.points:
         payload = hit.payload or {}

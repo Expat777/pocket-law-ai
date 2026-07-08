@@ -64,8 +64,13 @@ class ParsedDoc(BaseModel):
     used_ocr: bool
 
 
-async def search_law(query: str, user_id: int | None) -> list[RetrievedChunk]:
-    """Гибридный поиск: law_articles всегда + user_documents этого user_id, если есть."""
+async def search_law(
+    query: str, user_id: int | None, acts: list[str] | None = None
+) -> list[RetrievedChunk]:
+    """Гибридный поиск: law_articles всегда + user_documents этого user_id, если есть.
+
+    acts: сузить поиск до этих значений `act` (мультикодексная база); None/пусто — без фильтра.
+    """
     ...
 
 
