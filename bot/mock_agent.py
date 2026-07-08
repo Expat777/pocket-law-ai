@@ -17,7 +17,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from shared.contracts import Answer, Citation, IngestResult
+from shared.contracts import Answer, Citation, IngestResult, UserDocument
 
 # --- фикстуры трёх веток -----------------------------------------------------
 
@@ -68,7 +68,13 @@ _REFUSE_TRIGGERS = ("погода", "рецепт", "asdf", "бессмысли�
 
 
 class MockAgent:
-    """Фикстурная реализация AgentClient. Никаких внешних вызовов."""
+    """Фикстурная реализация AgentClient. Никаких внешних вызовов.
+
+    Хранит загруженные документы в памяти, чтобы list/delete работали в тестах.
+    """
+
+    def __init__(self) -> None:
+        self._docs: dict[int, list[UserDocument]] = {}
 
     async def answer_question(self, user_id: int, text: str) -> Answer:
         low = text.lower().strip()
@@ -87,18 +93,39 @@ class MockAgent:
         return _ANSWER_FIXTURE
 
     async def ingest_document(
-        self, user_id: int, file_bytes: bytes, mime: str
+        self, user_id: int, file_bytes: bytes, mime: str, filename: str | None = None
     ) -> IngestResult:
         if not file_bytes:
             return IngestResult(doc_id="", chunks=0, ok=False, error="пустой файл")
 
         # мок: «нарезал» ~1 фрагмент на каждые 2 КБ
         chunks = max(1, len(file_bytes) // 2048)
-        return IngestResult(
-            doc_id=uuid.uuid4().hex, chunks=chunks, ok=True, error=None
+        doc_id = uuid.uuid4().hex
+        self._docs.setdefault(user_id, []).append(
+            UserDocument(doc_id=doc_id, filename=filename, chunks=chunks)
         )
+        return IngestResult(doc_id=doc_id, chunks=chunks, ok=True, error=None)
 
-    async def ingest_url(self, user_id: int, url: str) -> IngestResult:
+    async def ingest_url(
+        self, user_id: int, url: str, filename: str | None = None
+    ) -> IngestResult:
         if not url.startswith(("http://", "https://")):
             return IngestResult(doc_id="", chunks=0, ok=False, error="некорректная ссылка")
-        return IngestResult(doc_id=uuid.uuid4().hex, chunks=3, ok=True, error=None)
+        doc_id = uuid.uuid4().hex
+        self._docs.setdefault(user_id, []).append(
+            UserDocument(doc_id=doc_id, filename=filename or url, chunks=3)
+        )
+        return IngestResult(doc_id=doc_id, chunks=3, ok=True, error=None)
+
+    async def list_user_documents(self, user_id: int) -> list[UserDocument]:
+        return list(reversed(self._docs.get(user_id, [])))  # свежие сверху
+
+    async def delete_user_documents(
+        self, user_id: int, doc_id: str | None = None
+    ) -> None:
+        if doc_id is None:
+            self._docs.pop(user_id, None)
+        else:
+            self._docs[user_id] = [
+                d for d in self._docs.get(user_id, []) if d.doc_id != doc_id
+            ]

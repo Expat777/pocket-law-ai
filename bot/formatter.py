@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from shared.contracts import Answer, Citation, IngestResult
+from shared.contracts import Answer, Citation, IngestResult, UserDocument
 
 DISCLAIMER = "Не является юридической консультацией."
 
@@ -87,6 +87,27 @@ def format_answer_message(answer: Answer) -> str:
     if answer.refused:
         return format_refused(answer)
     return format_answer(answer)
+
+
+def format_documents_list(docs: list[UserDocument]) -> str:
+    """Список загруженных документов (`/documents`). Обычный текст, без MarkdownV2.
+
+    Имена файлов приходят от пользователя, поэтому НЕ выводим их в MarkdownV2 —
+    отправляем как обычный текст, чтобы спецсимволы в имени не ломали сообщение.
+    """
+    if not docs:
+        return (
+            "📄 У вас пока нет загруженных документов.\n"
+            "Пришлите PDF или фото — я учту его содержимое в ответах."
+        )
+    lines = ["📄 Ваши загруженные документы:", ""]
+    for i, d in enumerate(docs, 1):
+        name = d.filename or "без названия"
+        when = f" · {d.uploaded_at}" if d.uploaded_at else ""
+        lines.append(f"{i}. {name} — фрагментов: {d.chunks}{when}")
+    lines.append("")
+    lines.append("Удалить все свои данные и документы — /delete.")
+    return "\n".join(lines)
 
 
 def format_ingest_result(result: IngestResult) -> str:

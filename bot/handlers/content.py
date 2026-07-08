@@ -147,7 +147,7 @@ async def on_url(
 
         await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
         try:
-            result = await agent.ingest_url(user_id, url)
+            result = await agent.ingest_url(user_id, url, filename=url)
         except Exception:  # noqa: BLE001
             log.exception("ingest_url failed for user %s", user_id)
             await message.answer(
@@ -296,7 +296,7 @@ async def on_file(
         # 4) обработка через контракт 3.1
         await message.bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
         try:
-            result = await agent.ingest_document(user_id, file_bytes, mime)
+            result = await agent.ingest_document(user_id, file_bytes, mime, filename=doc_name)
         except Exception:  # noqa: BLE001
             log.exception("ingest_document failed for user %s", user_id)
             await message.answer("Не получилось обработать документ. Попробуйте позже.")
