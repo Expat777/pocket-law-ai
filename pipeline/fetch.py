@@ -72,28 +72,41 @@ def _extract_html_from_mhtml(raw: bytes) -> str:
     raise FetchError("в экспорте ИПС не нашлось HTML-части (формат изменился?)")
 
 
+_MIN_DOC_BYTES = 5_000  # меньше — это страница-ошибка ИПС, а не короткий закон
+
 def _fetch_body(nd: str, rdk: int) -> str:
     """Тело документа в HTML. Основной путь — экспорт savertf (MHTML).
 
     Для ОЧЕНЬ больших документов (НК ч.2, ~9 МБ) savertf валит шлюз ИПС
     (ConnectionReset/502 даже с page=all). Запасной путь — вьюер `doc_itself&fulltext=1`:
     отдаёт весь текст напрямую HTML-ом (проверено: НК ч.2 → textCompleted=True, 540 статей).
-    Обычные акты как и раньше идут через savertf — их поведение не меняется.
+
+    savertf на длинном экспорте (>=100 КБ) считаем заведомо полным. Если короче —
+    документ либо реально небольшой (59-ФЗ, 5242-1: <100 КБ и это ВЕСЬ текст), либо
+    savertf обрезал большой. Не решаем это байтовым порогом: берём более длинный из
+    savertf/fulltext, а полноту по числу статей проверяет parse (min_articles).
     """
+    html_savertf = ""
     try:
         raw = _get(f"{_BASE}?savertf=&nd={nd}&page=all&rdk={rdk}", timeout=300)
-        html = _extract_html_from_mhtml(raw)
-        if len(html) >= 100_000:
-            return html
-        log.warning("nd=%s: savertf дал короткий экспорт (%d) — пробую doc_itself&fulltext=1", nd, len(html))
+        html_savertf = _extract_html_from_mhtml(raw)
+        if len(html_savertf) >= 100_000:
+            return html_savertf
+        log.warning("nd=%s: savertf дал короткий экспорт (%d) — сверяю с doc_itself&fulltext=1", nd, len(html_savertf))
     except FetchError:
         raise
     except Exception as e:
         log.warning("nd=%s: savertf не удался (%s) — пробую doc_itself&fulltext=1", nd, e)
 
-    html = _get(f"{_BASE}?doc_itself=&nd={nd}&rdk={rdk}&fulltext=1", timeout=300).decode("cp1251", errors="replace")
-    if len(html) < 100_000:
-        raise FetchError(f"nd={nd}: и savertf, и fulltext дали слишком короткий текст ({len(html)} байт)")
+    html_fulltext = ""
+    try:
+        html_fulltext = _get(f"{_BASE}?doc_itself=&nd={nd}&rdk={rdk}&fulltext=1", timeout=300).decode("cp1251", errors="replace")
+    except Exception as e:
+        log.warning("nd=%s: fulltext не удался (%s)", nd, e)
+
+    html = html_savertf if len(html_savertf) >= len(html_fulltext) else html_fulltext
+    if len(html) < _MIN_DOC_BYTES:
+        raise FetchError(f"nd={nd}: и savertf, и fulltext пусты/слишком коротки ({len(html)} байт) — вероятно страница-ошибка")
     return html
 
 
