@@ -8,7 +8,7 @@
 import asyncio
 import json
 
-from agent.config import HYDE_ENABLED, acts_for_branches
+from agent.config import HYDE_ENABLED, acts_for_branches, keyword_acts
 from agent.deps import Deps
 from agent.prompts import HYDE_SYSTEM, INTENT_SYSTEM
 from agent.state import AgentState
@@ -58,6 +58,13 @@ async def intent_classifier(state: AgentState, deps: Deps) -> dict:
     if not isinstance(branches, list):
         branches = [parsed["branch"]] if parsed.get("branch") else []
     acts = acts_for_branches([b for b in branches if isinstance(b, str)])
+    # Предохранитель: однозначный поверхностный термин ('ипотека', 'осаго', ...) в
+    # СЫРОМ вопросе принудительно добавляет спецзакон, даже если LLM его уронил под
+    # шумом. В приоритет (перед LLM-актами), чтобы MAX_QUOTA_ACTS не срезал его в
+    # хвосте. Дедуп со стабильным порядком; на обычных вопросах список пуст — no-op.
+    kw = keyword_acts(question)
+    if kw:
+        acts = list(dict.fromkeys(kw + acts))
     normalized = parsed.get("normalized") or question
     return {
         "normalized_query": normalized,

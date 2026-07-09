@@ -831,3 +831,75 @@ async def test_quota_fanout_capped():
     assert len(calls) == MAX_QUOTA_ACTS
     # режем хвост, а не голову: первые (уверенные) акты сохранены
     assert calls == many[:MAX_QUOTA_ACTS]
+
+
+def test_keyword_acts_unit():
+    """Предохранитель роутинга: однозначный термин -> спецзакон; иначе молчит."""
+    from agent.config import keyword_acts
+
+    assert keyword_acts("разделить квартиру в ипотеке при разводе") == ["Закон об ипотеке"]
+    assert keyword_acts("не платят по ОСАГО") == ["ОСАГО"]
+    assert keyword_acts("взял микрозайм под конский процент") == ["Закон о потребкредите"]
+    assert keyword_acts("как получить материнский капитал") == ["Закон о материнском капитале"]
+    assert keyword_acts("коллекторы угрожают") == ["Закон о взыскании задолженности"]
+    # не триггерим на общем «залог» (аренда/задаток) и на нейтральных вопросах
+    assert keyword_acts("вернут ли залог за съёмную квартиру") == []
+    assert keyword_acts("как уволиться по собственному желанию") == []
+    assert keyword_acts("") == []
+
+
+async def test_intent_keyword_net_recovers_dropped_special_law():
+    """Реальный кейс: LLM под шумом уронил ипотеку -> предохранитель её возвращает
+    ПЕРВОЙ (переживёт обрезку MAX_QUOTA_ACTS), не ломая LLM-акты."""
+    from agent.nodes.intent import intent_classifier
+
+    def handler(system, user):  # LLM видит только развод/раздел, ипотеку не назвал
+        return json.dumps(
+            {"is_legal": True, "branches": ["семейное", "гражданское"], "normalized": "раздел имущества"}
+        )
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=None, verify_citation=None)
+    q = "разделить квартиру которая в ипотеке, разводимся, покусала собака жены"
+    out = await intent_classifier({"question": q}, deps)
+    acts = out["candidate_acts"]
+    assert "Закон об ипотеке" in acts
+    assert acts[0] == "Закон об ипотеке"  # приоритет: не срежется хвостом квоты
+    assert {"СК РФ", "ГК РФ"} <= set(acts)  # LLM-акты сохранены
+
+
+def test_round_robin_by_act_gives_each_act_a_seat():
+    """Слабый по score акт не тонет: топ-1 каждого акта идёт в верхушку по кругу."""
+    from agent.nodes.retrieve import _round_robin_by_act
+
+    chunks = [  # СК скорит выше, ипотека ниже — но уже отсортировано по score
+        _law("СК РФ", "38", 0.62),
+        _law("СК РФ", "39", 0.58),
+        _law("СК РФ", "24", 0.57),
+        _law("Закон об ипотеке", "61", 0.56),
+        _law("Закон об ипотеке", "78", 0.55),
+    ]
+    out = _round_robin_by_act(chunks, ["Закон об ипотеке", "СК РФ"])
+    # порядок обхода = act_order: сперва ипотека, потом СК, затем 2-е каждого...
+    assert [(c.act, c.article) for c in out] == [
+        ("Закон об ипотеке", "61"),
+        ("СК РФ", "38"),
+        ("Закон об ипотеке", "78"),
+        ("СК РФ", "39"),
+        ("СК РФ", "24"),
+    ]
+    # ипотека в топ-2 (в MAX_CITATIONS попадёт), хотя по чистому score была бы 4-й
+    assert out[0].act == "Закон об ипотеке"
+
+
+async def test_retrieve_round_robin_only_when_multi_act():
+    """Одноактный роутинг НЕ трогаем (побитово прежний score-порядок, recall цел)."""
+    from agent.nodes.retrieve import retrieve
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        return [_law("ТК РФ", "81", 0.5), _law("ТК РФ", "80", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    out = await retrieve({"question": "q", "candidate_acts": ["ТК РФ"]}, deps)
+    # один акт -> чистая сортировка по score, round-robin не вмешивается
+    assert [(c.act, c.article) for c in out["chunks"]] == [("ТК РФ", "80"), ("ТК РФ", "81")]

@@ -55,6 +55,37 @@ def _dedup_law(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
     return [best[k] for k in order]
 
 
+def _round_robin_by_act(
+    chunks: list[RetrievedChunk], act_order: list[str]
+) -> list[RetrievedChunk]:
+    """Переупорядочивает статьи по кругу актов: топ-1 каждого акта, потом топ-2 и т.д.
+
+    Завершает исходную цель квоты: search_law уже ИЗВЛЁК по акту, но глобальная
+    сортировка по score потом топила слабый акт (напр. ипотека на «разводном»
+    запросе: score ниже СК/ЖК -> вылетала из MAX_CITATIONS). Round-robin гарантирует
+    каждому акту место в верхушке -> покрытие всех релевантных актов, а не только
+    сильнейшего. `chunks` уже отсортированы по score, поэтому внутри акта порядок
+    остаётся по score. Порядок обхода актов = act_order (уверенные/предохранитель
+    первыми), хвостом — акты, которых нет в act_order (напр. из безфильтрового поиска).
+    """
+    groups: dict[str | None, list[RetrievedChunk]] = {}
+    appear: list[str | None] = []
+    for c in chunks:
+        if c.act not in groups:
+            groups[c.act] = []
+            appear.append(c.act)
+        groups[c.act].append(c)
+    seq = [a for a in act_order if a in groups] + [a for a in appear if a not in act_order]
+    result: list[RetrievedChunk] = []
+    idx = {a: 0 for a in seq}
+    while len(result) < len(chunks):
+        for a in seq:
+            if idx[a] < len(groups[a]):
+                result.append(groups[a][idx[a]])
+                idx[a] += 1
+    return result
+
+
 async def _search_with_quota(
     deps: Deps, query: str, user_id, acts, doc_ids
 ) -> list[RetrievedChunk]:
@@ -114,5 +145,15 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
     # Точные попадания (fast-path) впереди семантики; дедуп повторов статьи.
     law = _dedup_law(exact + law)
     law.sort(key=lambda c: c.score, reverse=True)
+
+    # При мультикодексном роутинге (≥2 актов) — round-robin по актам, чтобы слабый по
+    # score акт не вылетел из цитат (см. _round_robin_by_act). Одноактный/безфильтровый
+    # случай не трогаем: там глобальный score-порядок правильный (recall не размываем).
+    # Fast-path хиты (явная «ст.N АКТ») остаются впереди — это точный ответ, не семантика.
+    if acts and len(acts) >= 2:
+        exact_keys = {(c.act, c.article) for c in exact}
+        lead = [c for c in law if (c.act, c.article) in exact_keys]
+        rest = [c for c in law if (c.act, c.article) not in exact_keys]
+        law = lead + _round_robin_by_act(rest, acts)
 
     return {"chunks": law[:TOP_K] + user_docs}
