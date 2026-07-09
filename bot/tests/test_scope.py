@@ -21,7 +21,19 @@ def _fake_callback(uid: int, data: str):
     cb.from_user = MagicMock(id=uid, username="u")
     cb.data = data
     cb.answer = AsyncMock()
+    cb.message = MagicMock()
+    cb.message.edit_reply_markup = AsyncMock()  # перерисовка ✓ в пикере
     return cb
+
+
+def _active_marked(markup) -> set[str]:
+    """Тексты кнопок с галочкой ✓ в перерисованной клавиатуре пикера."""
+    return {
+        btn.text
+        for row in markup.inline_keyboard
+        for btn in row
+        if btn.text.startswith("✓")
+    }
 
 
 def _fake_message(text: str, uid: int):
@@ -54,6 +66,37 @@ async def test_scope_select_sets_and_all_clears():
 
     await on_scope_select(_fake_callback(uid, "scope:all"), agent)
     assert _get_scope(uid) is None
+
+
+@pytest.mark.asyncio
+async def test_scope_select_moves_checkmark_in_keyboard():
+    """Тап по документу → ✓ в клавиатуре переезжает на него (Н2: не залипает)."""
+    uid = 605
+    _clear_scope(uid)
+    agent = MockAgent()
+    await agent.ingest_document(uid, b"x" * 4000, "application/pdf", filename="A.pdf")
+    await agent.ingest_document(uid, b"y" * 4000, "application/pdf", filename="B.pdf")
+    docs = await agent.list_user_documents(uid)  # свежие сверху: [B, A]
+    b_doc = next(d for d in docs if d.filename == "B.pdf")
+
+    cb = _fake_callback(uid, f"scope:{b_doc.doc_id}")
+    await on_scope_select(cb, agent)
+
+    cb.message.edit_reply_markup.assert_awaited_once()
+    markup = cb.message.edit_reply_markup.await_args.kwargs["reply_markup"]
+    marked = _active_marked(markup)
+    assert any("B.pdf" in t for t in marked)  # ✓ на выбранном
+    assert not any("A.pdf" in t for t in marked)  # не на другом
+    assert not any("по всем" in t for t in marked)  # и не на «искать по всем»
+
+    # сброс на «искать по всем» → ✓ переезжает туда
+    cb2 = _fake_callback(uid, "scope:all")
+    await on_scope_select(cb2, agent)
+    markup2 = cb2.message.edit_reply_markup.await_args.kwargs["reply_markup"]
+    marked2 = _active_marked(markup2)
+    assert any("по всем" in t for t in marked2)
+    assert not any(".pdf" in t for t in marked2)
+    _clear_scope(uid)
 
 
 @pytest.mark.asyncio

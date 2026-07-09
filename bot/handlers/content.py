@@ -304,7 +304,13 @@ async def _flush_album(mgid: str) -> None:
     buf = _album_buffers.pop(mgid, None)
     if buf is None:
         return
-    await buf["message"].answer(format_album_result(buf["ok"], buf["failed"]))
+    # Это detached-задача: глобальный @dp.errors её не ловит. Сбой отправки (сеть/
+    # удалённое сообщение) не должен уходить в «Task exception was never retrieved» —
+    # логируем, сводку теряем осознанно, а не молча.
+    try:
+        await buf["message"].answer(format_album_result(buf["ok"], buf["failed"]))
+    except Exception:  # noqa: BLE001
+        log.exception("не удалось отправить сводку альбома %s", mgid)
 
 
 async def _accept_file(message: Message, mgid: str | None, name: str, result) -> None:
@@ -416,18 +422,51 @@ async def on_file(
         _ingest_end(user_id)
 
 
+async def _refresh_picker(
+    callback: CallbackQuery,
+    agent: AgentClient,
+    user_id: int,
+    active_id: str | None,
+    docs: list | None = None,
+) -> None:
+    """Best-effort перерисовка ✓ в клавиатуре пикера под сообщением /documents.
+
+    Иначе галочка активного документа «залипает» до следующего /documents. Всё в
+    try/except: старое сообщение или «разметка не изменилась» — не повод падать.
+    """
+    if callback.message is None:
+        return
+    try:
+        if docs is None:
+            docs = await agent.list_user_documents(user_id)
+        if not docs:
+            return
+        # lazy-import: commands импортирует content на старте — не создаём цикл на модуле.
+        from bot.handlers.commands import _documents_keyboard
+
+        await callback.message.edit_reply_markup(
+            reply_markup=_documents_keyboard(docs, active_id)
+        )
+    except TelegramBadRequest:
+        pass  # message too old / not modified — не критично
+    except Exception:  # noqa: BLE001
+        log.exception("refresh picker failed for user %s", user_id)
+
+
 @router.callback_query(F.data.startswith(SCOPE_PREFIX))
 async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
     """Кнопка пикера в /documents: выбрать активный документ или «искать по всем».
 
     callback_data = "scope:all" (сброс) либо "scope:<doc_id>" (скоуп на документ).
+    После выбора двигаем ✓ в клавиатуре, чтобы она не показывала устаревший активный.
     """
     user_id = callback.from_user.id
     payload = callback.data[len(SCOPE_PREFIX):]
 
     if payload == "all":
-        _clear_scope(user_id)
+        _clear_scope(user_id)  # сброс работает всегда, даже если агент недоступен
         await callback.answer("🔎 Ищу по всем документам")
+        await _refresh_picker(callback, agent, user_id, active_id=None)
         return
 
     # payload = doc_id → находим имя (и заодно проверяем, что документ ещё существует)
@@ -442,11 +481,13 @@ async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
     if doc is None:  # удалён/устарел — сбрасываем на «по всем»
         _clear_scope(user_id)
         await callback.answer("Документ не найден (возможно, удалён). Ищу по всем.")
+        await _refresh_picker(callback, agent, user_id, active_id=None, docs=docs)
         return
 
     name = doc.filename or "без названия"
     _set_scope(user_id, doc.doc_id, name)
     await callback.answer(f"🔎 Ищу по: {name}")
+    await _refresh_picker(callback, agent, user_id, active_id=doc.doc_id, docs=docs)
 
 
 @router.message()
