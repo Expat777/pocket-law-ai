@@ -20,7 +20,12 @@ from aiogram.types import (
 
 from bot.agent_client import AgentClient
 from bot.formatter import format_documents_list
-from bot.handlers.content import SCOPE_PREFIX, _clear_scope, _scope_ids
+from bot.handlers.content import (
+    SCOPE_PREFIX,
+    _clear_last_answer,
+    _clear_scope,
+    _scope_ids,
+)
 from bot.repository import Repository
 from bot.states import Dialog
 
@@ -211,6 +216,7 @@ async def cmd_delete(
     except Exception:  # noqa: BLE001
         log.exception("delete_user_documents failed for user %s", user_id)
     _clear_scope(user_id)  # выбранного документа больше нет — сбрасываем скоуп
+    _clear_last_answer(user_id)  # и последний ответ для экспорта (152-ФЗ)
     await state.clear()
     await message.answer(
         "🗑 Готово. Я удалил историю диалога, ваше согласие и загруженные документы. "
