@@ -1,6 +1,6 @@
 """Граф LangGraph Роли 2 и публичный API для бота (контракт 3.1).
 
-Граф: intent_classifier -> retrieve -> verify -> {compose | clarify | refuse}.
+Граф: intent_classifier -> retrieve -> verify -> {compose | clarify | refuse | offtopic}.
 answer_question / ingest_document — ровно то, что зовёт Роль 1.
 """
 

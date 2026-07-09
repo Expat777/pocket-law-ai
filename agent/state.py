@@ -28,6 +28,9 @@ class AgentState(TypedDict, total=False):
     # к вопросу приложен документ (скоуп doc_ids): compose даёт консультацию по нему,
     # а не law-only ответ; документ ведёт классификацию/запрос на шаге intent
     doc_context: bool
+    # упорядоченная голова документа (fetch_document_text): compose разбирает ЕЁ,
+    # а не top-K похожих чанков — многочанковое письмо разбирается целиком с шапки
+    doc_text: str
 
     # retrieve
     chunks: list[RetrievedChunk]

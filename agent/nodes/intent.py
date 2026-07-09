@@ -81,6 +81,9 @@ async def intent_classifier(state: AgentState, deps: Deps) -> dict:
             "candidate_acts": acts,
             "is_legal": bool(parsed.get("is_legal", True)),
             "doc_context": True,
+            # упорядоченная голова документа для compose: разбор идёт по ней, а не по
+            # top-K похожих чанков (многочанковое письмо иначе разбиралось бы частично)
+            "doc_text": doc_text,
         }
 
     # --- Обычная ветка: вопрос (+ HyDE параллельно, его сбой не роняет ответ) ---

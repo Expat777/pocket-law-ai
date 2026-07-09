@@ -842,6 +842,11 @@ def test_keyword_acts_unit():
     assert keyword_acts("взял микрозайм под конский процент") == ["Закон о потребкредите"]
     assert keyword_acts("как получить материнский капитал") == ["Закон о материнском капитале"]
     assert keyword_acts("коллекторы угрожают") == ["Закон о взыскании задолженности"]
+    assert keyword_acts("коллекторское агентство названивает") == ["Закон о взыскании задолженности"]
+    # омоним «коллектор» (сантехника): одиночная форма НЕ триггерит — предохранитель
+    # обязан быть высокоточным (промах доберёт LLM-intent, ложный триггер хуже)
+    assert keyword_acts("прорвало коллектор отопления, кто отвечает") == []
+    assert keyword_acts("из коллектора канализации затопило подвал") == []
     # не триггерим на общем «залог» (аренда/задаток) и на нейтральных вопросах
     assert keyword_acts("вернут ли залог за съёмную квартиру") == []
     assert keyword_acts("как уволиться по собственному желанию") == []
@@ -955,6 +960,7 @@ async def test_intent_document_drives_routing():
     assert out["doc_context"] is True
     assert out["candidate_acts"] == ["ТК РФ"]
     assert "Трудовой договор" in out["retrieval_query"]  # суть документа -> в запрос
+    assert out["doc_text"].startswith("Трудовой договор")  # голова дока -> в state для compose
 
 
 def test_route_doc_context_to_compose_without_law_citations():
@@ -976,21 +982,46 @@ def test_route_non_legal_document_to_offtopic():
     assert route_after_verify(state) == "offtopic"
 
 
-async def test_compose_doc_mode_keeps_citations_no_insufficient():
-    """Doc-режим: цитаты закона сохраняются, INSUFFICIENT не превращается в refuse."""
-    from agent.nodes.compose import compose_answer
+async def test_compose_doc_mode_insufficient_guard():
+    """Doc-режим: маркер INSUFFICIENT не уходит литералом — честный текст без цитат
+    (и не refuse: документ принят, просто база не покрывает оценку)."""
+    from agent.nodes.compose import DOC_UNCLEAR_TEXT, compose_answer
 
-    async def fake_verify(citation):
-        return CitationStatus(exists=True, active=True, current_revision=date(2026, 5, 15))
-
-    # даже если модель вернёт INSUFFICIENT — в doc-режиме это НЕ отказ (разбираем письмо)
-    deps = Deps(llm=make_llm(answer_text="INSUFFICIENT"), search_law=None, verify_citation=fake_verify)
+    deps = Deps(llm=make_llm(answer_text="INSUFFICIENT"), search_law=None, verify_citation=None)
     cit = Citation(act="ТК РФ", article="81", revision_date=date(2026, 5, 15))
     state = {
-        "question": "что это?", "doc_context": True,
+        "question": "что это?", "doc_context": True, "doc_text": "Трудовой договор",
         "verified_chunks": [_doc_chunk("Трудовой договор"), TK_81], "citations": [cit],
     }
     out = await compose_answer(state, deps)
     ans = out["answer"]
     assert ans.refused is False
-    assert ans.citations == [cit]  # основание сохранено
+    assert ans.text == DOC_UNCLEAR_TEXT  # не литерал INSUFFICIENT
+    assert ans.citations == []  # чипы под «не смог разобрать» — противоречие
+
+
+async def test_compose_doc_mode_uses_doc_head_and_keeps_citations():
+    """Doc-режим (штатный): цитаты сохраняются; в промпт идёт ГОЛОВА документа
+    (state.doc_text), а не найденные поиском чанки (многочанковое письмо целиком)."""
+    from agent.nodes.compose import compose_answer
+
+    seen = {}
+
+    def handler(system, user):
+        seen["prompt"] = user
+        return "Разбор документа."
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=None, verify_citation=None)
+    cit = Citation(act="ТК РФ", article="81", revision_date=date(2026, 5, 15))
+    state = {
+        "question": "что это?", "doc_context": True,
+        "doc_text": "ШАПКА ПИСЬМА: банк требует 340000 за кредит",
+        "verified_chunks": [_doc_chunk("случайный похожий чанк"), TK_81],
+        "citations": [cit],
+    }
+    out = await compose_answer(state, deps)
+    ans = out["answer"]
+    assert ans.refused is False and ans.citations == [cit]
+    assert "ШАПКА ПИСЬМА" in seen["prompt"]  # упорядоченная голова в промпте
+    assert "случайный похожий чанк" not in seen["prompt"]  # searched-чанки заменены головой
+    assert "ТК РФ" in seen["prompt"]  # статьи закона остались
