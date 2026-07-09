@@ -22,7 +22,7 @@ from html.parser import HTMLParser
 log = logging.getLogger(__name__)
 
 _RE_CHAPTER = re.compile(r"^ГЛАВА\s+([\d.]+)[.\s]*(.*)", re.IGNORECASE)
-_RE_ARTICLE = re.compile(r"^Статья\s+([\d.]+(?:-\d+)?)\.?\s*(.*)")  # бывает «348.11-1»
+_RE_ARTICLE = re.compile(r"^Статья\s+([\d.]+(?:-\d+)*)\.?\s*(.*)")  # дефисные номера: «348.11-1», двойные «201.15-2-1» (банкротство застройщиков)
 _RE_REPEALED = re.compile(r"утратил[аи]?\s+силу", re.IGNORECASE)
 # сноски «(В редакции федерального закона …)» повторяются сотнями и шумят в поиске
 _RE_FOOTNOTE = re.compile(r"\((?:В редакции|Наименование в редакции)[^()]*\)")
