@@ -9,7 +9,7 @@
 import asyncio
 import re
 
-from agent.config import ACT_ALIASES, MIN_LAW_SCORE, PER_CODE_QUOTA, TOP_K
+from agent.config import ACT_ALIASES, MAX_QUOTA_ACTS, MIN_LAW_SCORE, PER_CODE_QUOTA, TOP_K
 from agent.deps import Deps
 from agent.state import AgentState
 from shared.contracts import RetrievedChunk
@@ -64,6 +64,10 @@ async def _search_with_quota(
     """
     if not acts or len(acts) < 2 or PER_CODE_QUOTA <= 0:
         return await deps.search_law(query, user_id, acts or None, doc_ids)
+
+    # Потолок fan-out: хвост union'а отрезаем (уверенные ветки LLM идут первыми) —
+    # иначе размытый вопрос на 5-6 отраслей = столько же эмбеддингов/запросов Qdrant.
+    acts = acts[:MAX_QUOTA_ACTS]
 
     async def one(i: int, act: str) -> list[RetrievedChunk]:
         uid = user_id if i == 0 else None
