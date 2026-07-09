@@ -459,10 +459,12 @@ async def _refresh_picker(
     active_id: str | None,
     docs: list | None = None,
 ) -> None:
-    """Best-effort перерисовка ✓ в клавиатуре пикера под сообщением /documents.
+    """Best-effort перерисовка сообщения /documents после смены скоупа.
 
-    Иначе галочка активного документа «залипает» до следующего /documents. Всё в
-    try/except: старое сообщение или «разметка не изменилась» — не повод падать.
+    Перерисовываем ВСЁ сообщение (текст-заголовок + клавиатуру), а не только
+    кнопки: иначе заголовок «Сейчас ищу по: X» разошёлся бы с галочкой ✓ (текст
+    остаётся старым при edit_reply_markup). Всё в try/except: старое сообщение или
+    «сообщение не изменилось» — не повод падать.
     """
     if callback.message is None:
         return
@@ -472,11 +474,10 @@ async def _refresh_picker(
         if not docs:
             return
         # lazy-import: commands импортирует content на старте — не создаём цикл на модуле.
-        from bot.handlers.commands import _documents_keyboard
+        from bot.handlers.commands import _documents_view
 
-        await callback.message.edit_reply_markup(
-            reply_markup=_documents_keyboard(docs, active_id)
-        )
+        text, keyboard = _documents_view(docs, active_id)
+        await callback.message.edit_text(text, reply_markup=keyboard)
     except TelegramBadRequest:
         pass  # message too old / not modified — не критично
     except Exception:  # noqa: BLE001
