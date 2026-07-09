@@ -437,6 +437,17 @@ async def on_file(
             _clear_scope(user_id)
         await _accept_file(message, mgid, doc_name, result)
         await state.set_state(Dialog.normal_question)
+
+        # Одиночный файл прислан с подписью-вопросом → отвечаем по нему сразу
+        # (как «ссылка+вопрос»). Для альбома пропускаем: подпись есть лишь у одного
+        # файла и относилась бы не ко всей пачке.
+        if mgid is None and result.ok:
+            caption = (message.caption or "").strip()
+            if _looks_like_question(caption):
+                await _answer_question(
+                    message, state, repo, agent, caption,
+                    scope_override=(result.doc_id, doc_name),
+                )
     finally:
         _ingest_end(user_id)
 

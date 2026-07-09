@@ -15,7 +15,7 @@ from bot.handlers.content import (
 )
 from bot.mock_agent import MockAgent
 from bot.repository import InMemoryRepository
-from shared.contracts import Answer
+from shared.contracts import Answer, IngestResult
 
 
 def _fake_upload(uid: int, data: bytes = b"%PDF-1.4\n" + b"x" * 4000):
@@ -26,6 +26,7 @@ def _fake_upload(uid: int, data: bytes = b"%PDF-1.4\n" + b"x" * 4000):
     m.document = MagicMock(file_id="fid", file_size=len(data), file_name="new.pdf")
     m.photo = None
     m.media_group_id = None
+    m.caption = None
     m.bot = MagicMock()
     m.bot.send_chat_action = AsyncMock()
 
@@ -189,4 +190,31 @@ async def test_new_upload_clears_sticky_scope():
         msg.bot, max_file_bytes=20 * 1024 * 1024,
     )
     assert _get_scope(uid) is None
+    _clear_scope(uid)
+
+
+@pytest.mark.asyncio
+async def test_file_caption_question_answered_scoped_to_new_doc():
+    """Файл с вопросом в подписи → сразу ответ по этому документу (#7)."""
+    uid = 609
+    _clear_scope(uid)
+    agent = MagicMock()
+    agent.ingest_document = AsyncMock(
+        return_value=IngestResult(doc_id="DOCX", chunks=2, ok=True, error=None)
+    )
+    agent.answer_question = AsyncMock(
+        return_value=Answer(text="оклад 120000", citations=[], refused=False)
+    )
+    msg = _fake_upload(uid)
+    msg.caption = "какой оклад в договоре?"
+
+    await on_file(
+        msg, _fake_state(), InMemoryRepository(), agent,
+        msg.bot, max_file_bytes=20 * 1024 * 1024,
+    )
+
+    # вопрос из подписи ушёл в агента со скоупом на только что загруженный документ
+    agent.answer_question.assert_awaited_once()
+    assert agent.answer_question.await_args.args[1] == "какой оклад в договоре?"
+    assert agent.answer_question.await_args.kwargs["doc_ids"] == ["DOCX"]
     _clear_scope(uid)
