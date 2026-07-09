@@ -94,9 +94,9 @@ async def test_topic_question_answers_with_consent():
     await on_topic_question(cb, _state(), repo, agent, _cfg())
 
     agent.answer_question.assert_awaited_once()
-    # ушёл ровно выбранный вопрос темы, user_id — из callback
+    # ушёл ПОЛНЫЙ вопрос темы (не короткий label кнопки), user_id — из callback
     assert agent.answer_question.await_args.args[0] == 1
-    assert agent.answer_question.await_args.args[1] == TOPICS["labor"][1][0]
+    assert agent.answer_question.await_args.args[1] == TOPICS["labor"][1][0][1]
     # вопрос показан пользователю
     assert any("❓" in c.args[0] for c in cb.message.answer.await_args_list)
 
