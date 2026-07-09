@@ -4,9 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from bot.handlers.content import _URL_RE, on_url
+from bot.handlers.content import _URL_RE, _clear_scope, _get_scope, _set_scope, on_url
 from bot.mock_agent import MockAgent
 from bot.repository import InMemoryRepository
+from shared.contracts import Answer, IngestResult
 
 
 def test_url_regex_extracts_first_url():
@@ -47,3 +48,29 @@ async def test_on_url_ingests_and_replies():
     assert "принят" in msg.answer.await_args.args[0]
     # состояние вернулось в обычный режим
     assert state.set_state.await_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_on_url_question_scoped_to_new_doc_and_clears_sticky_scope():
+    """Ссылка+вопрос: отвечаем по ТОЛЬКО ЧТО загруженному документу, а не по старому скоупу."""
+    uid = 1
+    _set_scope(uid, "OLD", "старый.pdf")  # был липкий скоуп на другой файл
+    agent = MagicMock()
+    agent.ingest_url = AsyncMock(
+        return_value=IngestResult(doc_id="NEW", chunks=3, ok=True, error=None)
+    )
+    agent.answer_question = AsyncMock(
+        return_value=Answer(text="28 дней", citations=[], refused=False)
+    )
+    msg = _fake_message("https://example.com/tk.html сколько дней отпуска?")
+    state = MagicMock()
+    state.set_state = AsyncMock()
+
+    await on_url(msg, state, InMemoryRepository(), agent)
+
+    # вопрос ушёл в агента со скоупом на НОВЫЙ документ, не на старый «OLD»
+    agent.answer_question.assert_awaited_once()
+    assert agent.answer_question.await_args.kwargs["doc_ids"] == ["NEW"]
+    # прежний липкий скоуп сброшен (новый документ его обнулил)
+    assert _get_scope(uid) is None
+    _clear_scope(uid)

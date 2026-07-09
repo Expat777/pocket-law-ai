@@ -4,16 +4,37 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from bot.handlers.commands import cmd_all
 from bot.handlers.content import (
     _clear_scope,
     _get_scope,
     _set_scope,
+    on_file,
     on_question,
     on_scope_select,
 )
 from bot.mock_agent import MockAgent
 from bot.repository import InMemoryRepository
 from shared.contracts import Answer
+
+
+def _fake_upload(uid: int, data: bytes = b"%PDF-1.4\n" + b"x" * 4000):
+    m = MagicMock()
+    m.text = None
+    m.from_user = MagicMock(id=uid, username="u")
+    m.chat = MagicMock(id=uid)
+    m.document = MagicMock(file_id="fid", file_size=len(data), file_name="new.pdf")
+    m.photo = None
+    m.media_group_id = None
+    m.bot = MagicMock()
+    m.bot.send_chat_action = AsyncMock()
+
+    async def _dl(file_id, destination):
+        destination.write(data)
+
+    m.bot.download = AsyncMock(side_effect=_dl)
+    m.answer = AsyncMock()
+    return m
 
 
 def _fake_callback(uid: int, data: str):
@@ -144,3 +165,28 @@ async def test_answer_passes_none_without_scope():
     agent.answer_question.assert_awaited_once_with(uid, "вопрос?", doc_ids=None)
     # без скоупа подписи быть не должно
     assert all("по документу:" not in c.args[0] for c in msg.answer.await_args_list)
+
+
+@pytest.mark.asyncio
+async def test_cmd_all_clears_scope():
+    """/all снимает выбор документа без удаления данных (ответ на жалобу: как сбросить)."""
+    uid = 607
+    _set_scope(uid, "d1", "дог.pdf")
+    m = _fake_message("/all", uid)
+    await cmd_all(m)
+    assert _get_scope(uid) is None
+    assert "дог.pdf" in m.answer.await_args.args[0]  # сказал, что снял именно этот
+
+
+@pytest.mark.asyncio
+async def test_new_upload_clears_sticky_scope():
+    """Загрузка нового документа сбрасывает прежний скоуп — он не залипает на старом файле."""
+    uid = 608
+    _set_scope(uid, "old-doc", "старый.pdf")
+    msg = _fake_upload(uid)
+    await on_file(
+        msg, _fake_state(), InMemoryRepository(), MockAgent(),
+        msg.bot, max_file_bytes=20 * 1024 * 1024,
+    )
+    assert _get_scope(uid) is None
+    _clear_scope(uid)
