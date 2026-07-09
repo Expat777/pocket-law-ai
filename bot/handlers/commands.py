@@ -20,12 +20,7 @@ from aiogram.types import (
 
 from bot.agent_client import AgentClient
 from bot.formatter import format_documents_list
-from bot.handlers.content import (
-    SCOPE_PREFIX,
-    _clear_scope,
-    _scope_ids,
-    _scope_names,
-)
+from bot.handlers.content import SCOPE_PREFIX, _clear_scope, _scope_ids
 from bot.repository import Repository
 from bot.states import Dialog
 
@@ -50,8 +45,8 @@ _HELP_TEXT = (
     "Команды:\n"
     "/start — начать и дать согласие на обработку данных\n"
     "/help — эта справка\n"
-    "/documents — список документов; тапом отметьте один или несколько для поиска\n"
-    "/all — искать по всем документам (снять отметки)\n"
+    "/documents — список документов; тапом отметьте один или несколько для поиска "
+    "(там же — «Отметить все» и «Сбросить отметки»)\n"
     "/delete — удалить все мои данные о вас\n\n"
     "⚠️ Ответы бота не являются юридической консультацией."
 )
@@ -177,7 +172,7 @@ def _documents_view(docs: list, active_ids):
             head = f"🔎 Сейчас ищу по {len(names)} документам: {', '.join(names)}"
         text = (
             head + "\nТап по документу — отметить/снять (можно несколько). "
-            "Снять все — «♻️ Сбросить отметки» или /all.\n\n"
+            "Кнопки ниже: «☑️ Отметить все» и «♻️ Сбросить отметки».\n\n"
         ) + text
     return text, _documents_keyboard(docs, active_ids)
 
@@ -201,25 +196,6 @@ async def cmd_documents(message: Message, agent: AgentClient) -> None:
 
     text, keyboard = _documents_view(docs, set(_scope_ids(user_id)))
     await message.answer(text, reply_markup=keyboard)
-
-
-@router.message(Command("all"))
-async def cmd_all(message: Message) -> None:
-    """Снять все отметки — снова искать по всем документам и базе законов."""
-    user_id = message.from_user.id
-    names = _scope_names(user_id)
-    _clear_scope(user_id)
-    if names:
-        what = names[0] if len(names) == 1 else f"{len(names)} документам"
-        await message.answer(
-            f"♻️ Готово. Снял отметки ({what}) — "
-            "ищу по всем вашим документам и законам РФ."
-        )
-    else:
-        await message.answer(
-            "Отмеченных документов и так нет — ищу по всему. "
-            "Отметить документы можно в /documents."
-        )
 
 
 @router.message(Command("delete"))

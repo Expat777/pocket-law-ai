@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from bot.handlers.commands import cmd_all
 from bot.handlers.content import (
     _clear_scope,
     _scope_ids,
@@ -222,18 +221,6 @@ async def test_answer_passes_none_without_scope():
     agent.answer_question.assert_awaited_once_with(uid, "вопрос?", doc_ids=None)
     # без скоупа подписи быть не должно
     assert all("по документу:" not in c.args[0] for c in msg.answer.await_args_list)
-
-
-@pytest.mark.asyncio
-async def test_cmd_all_clears_scope():
-    """/all снимает выбор документа без удаления данных (ответ на жалобу: как сбросить)."""
-    uid = 607
-    _clear_scope(uid)
-    _toggle_scope(uid, "d1", "дог.pdf")
-    m = _fake_message("/all", uid)
-    await cmd_all(m)
-    assert _scope_ids(uid) == []
-    assert "дог.pdf" in m.answer.await_args.args[0]  # сказал, что снял именно этот
 
 
 @pytest.mark.asyncio

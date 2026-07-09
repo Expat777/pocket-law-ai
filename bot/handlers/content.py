@@ -89,7 +89,7 @@ def _scope_footer(names: list[str]) -> str:
     else:
         shown = ", ".join(names[:3]) + ("…" if len(names) > 3 else "")
         body = f"по {len(names)} документам: {shown}"
-    return f"🔎 {body} · сбросить — /all"
+    return f"🔎 {body} · снять отметки — /documents"
 
 _TG_LIMIT = 4096  # максимум символов в одном сообщении Telegram
 
