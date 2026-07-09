@@ -7,8 +7,8 @@ import pytest
 from bot.handlers.commands import cmd_all
 from bot.handlers.content import (
     _clear_scope,
-    _get_scope,
-    _set_scope,
+    _scope_ids,
+    _toggle_scope,
     on_file,
     on_question,
     on_scope_select,
@@ -84,10 +84,10 @@ async def test_scope_select_sets_and_all_clears():
     doc = (await agent.list_user_documents(uid))[0]
 
     await on_scope_select(_fake_callback(uid, f"scope:{doc.doc_id}"), agent)
-    assert _get_scope(uid) == (doc.doc_id, "дог.pdf")
+    assert _scope_ids(uid) == [doc.doc_id]
 
     await on_scope_select(_fake_callback(uid, "scope:all"), agent)
-    assert _get_scope(uid) is None
+    assert _scope_ids(uid) == []
 
 
 @pytest.mark.asyncio
@@ -127,19 +127,48 @@ async def test_scope_select_moves_checkmark_in_keyboard():
 
 
 @pytest.mark.asyncio
-async def test_scope_unknown_doc_clears():
+async def test_scope_tap_deleted_doc_drops_it():
     uid = 602
-    _set_scope(uid, "stale-id", "старый.pdf")
-    cb = _fake_callback(uid, "scope:does-not-exist")
-    await on_scope_select(cb, MockAgent())
-    assert _get_scope(uid) is None  # неизвестный doc_id → сброс на «по всем»
+    _clear_scope(uid)
+    _toggle_scope(uid, "gone-id", "удалённый.pdf")  # был отмечен, потом удалён
+    cb = _fake_callback(uid, "scope:gone-id")
+    await on_scope_select(cb, MockAgent())  # у мока документов нет
+    assert _scope_ids(uid) == []  # отсутствующий убран из выборки
     assert "не найден" in cb.answer.await_args.args[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_scope_multiselect_marks_and_passes_all_doc_ids():
+    """Можно отметить НЕСКОЛЬКО документов — ✓ на всех, поиск по всем doc_ids."""
+    uid = 610
+    _clear_scope(uid)
+    agent = MockAgent()
+    await agent.ingest_document(uid, b"x" * 4000, "application/pdf", filename="A.pdf")
+    await agent.ingest_document(uid, b"y" * 4000, "application/pdf", filename="B.pdf")
+    docs = await agent.list_user_documents(uid)
+    a = next(d for d in docs if d.filename == "A.pdf")
+    b = next(d for d in docs if d.filename == "B.pdf")
+
+    await on_scope_select(_fake_callback(uid, f"scope:{a.doc_id}"), agent)
+    cb = _fake_callback(uid, f"scope:{b.doc_id}")
+    await on_scope_select(cb, agent)  # второй тап НЕ снимает первый
+
+    assert set(_scope_ids(uid)) == {a.doc_id, b.doc_id}
+    marked = _active_marked(cb.message.edit_text.await_args.kwargs["reply_markup"])
+    assert any("A.pdf" in t for t in marked) and any("B.pdf" in t for t in marked)
+    assert "по 2 документам" in cb.message.edit_text.await_args.args[0]
+
+    # повторный тап по A — снимает только A
+    await on_scope_select(_fake_callback(uid, f"scope:{a.doc_id}"), agent)
+    assert _scope_ids(uid) == [b.doc_id]
+    _clear_scope(uid)
 
 
 @pytest.mark.asyncio
 async def test_answer_passes_doc_ids_when_scoped():
     uid = 603
-    _set_scope(uid, "doc-42", "дог.pdf")
+    _clear_scope(uid)
+    _toggle_scope(uid, "doc-42", "дог.pdf")
     agent = MagicMock()
     agent.answer_question = AsyncMock(
         return_value=Answer(text="ответ", citations=[], refused=False)
@@ -177,10 +206,11 @@ async def test_answer_passes_none_without_scope():
 async def test_cmd_all_clears_scope():
     """/all снимает выбор документа без удаления данных (ответ на жалобу: как сбросить)."""
     uid = 607
-    _set_scope(uid, "d1", "дог.pdf")
+    _clear_scope(uid)
+    _toggle_scope(uid, "d1", "дог.pdf")
     m = _fake_message("/all", uid)
     await cmd_all(m)
-    assert _get_scope(uid) is None
+    assert _scope_ids(uid) == []
     assert "дог.pdf" in m.answer.await_args.args[0]  # сказал, что снял именно этот
 
 
@@ -188,13 +218,14 @@ async def test_cmd_all_clears_scope():
 async def test_new_upload_clears_sticky_scope():
     """Загрузка нового документа сбрасывает прежний скоуп — он не залипает на старом файле."""
     uid = 608
-    _set_scope(uid, "old-doc", "старый.pdf")
+    _clear_scope(uid)
+    _toggle_scope(uid, "old-doc", "старый.pdf")
     msg = _fake_upload(uid)
     await on_file(
         msg, _fake_state(), InMemoryRepository(), MockAgent(),
         msg.bot, max_file_bytes=20 * 1024 * 1024,
     )
-    assert _get_scope(uid) is None
+    assert _scope_ids(uid) == []
     _clear_scope(uid)
 
 
