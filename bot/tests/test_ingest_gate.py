@@ -43,6 +43,7 @@ def _fake_document_message(uid: int = 556, size: int = 10):
     msg.document = MagicMock(file_id="fid", file_size=size, file_name="doc.pdf")
     msg.photo = None
     msg.media_group_id = None  # одиночный файл (не альбом)
+    msg.caption = None
     msg.bot = MagicMock()
     msg.bot.send_chat_action = AsyncMock()
     msg.answer = AsyncMock()
