@@ -23,6 +23,8 @@ SearchLaw = Callable[
 LookupArticles = Callable[[list[str], list[str]], Awaitable[list[RetrievedChunk]]]
 VerifyCitation = Callable[[Citation], Awaitable[CitationStatus]]
 LogConfidence = Callable[[str, float], Awaitable[None]]
+# Текст загруженного документа (user_id, doc_ids) — для консультации по документу.
+FetchDocumentText = Callable[[int, list[str] | None], Awaitable[str]]
 
 
 @dataclass
@@ -34,6 +36,8 @@ class Deps:
     lookup_articles: LookupArticles | None = None
     # необязательная телеметрия: запись confidence в Postgres (None = не пишем)
     log_confidence: LogConfidence | None = None
+    # текст документа для консультации (None = функция скоупа выключена)
+    fetch_document_text: FetchDocumentText | None = None
 
 
 def build_default_deps() -> Deps:
@@ -43,6 +47,7 @@ def build_default_deps() -> Deps:
     from shared.search import search_law
 
     from .confidence_log import log_confidence
+    from .documents import fetch_document_text
     from .llm import build_llm
     from .tools.lookup_article import lookup_articles
     from .tools.verify_citation import verify_citation
@@ -53,4 +58,5 @@ def build_default_deps() -> Deps:
         verify_citation=verify_citation,
         lookup_articles=lookup_articles,
         log_confidence=log_confidence,
+        fetch_document_text=fetch_document_text,
     )

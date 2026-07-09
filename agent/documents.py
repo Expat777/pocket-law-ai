@@ -85,6 +85,47 @@ async def list_user_documents(user_id: int, *, client=None) -> list[UserDocument
     return sorted(docs.values(), key=lambda d: d.uploaded_at or "", reverse=True)
 
 
+async def fetch_document_text(
+    user_id: int, doc_ids: list[str] | None = None, *, max_chars: int = 3000, client=None
+) -> str:
+    """Текст загруженного документа(ов) для консультации — суть, а не Q&A по файлу.
+
+    Скроллит `user_documents` (изоляция по `user_id`, опц. сужение по `doc_ids`),
+    склеивает чанки по порядку (`chunk_no`) и обрезает по бюджету (input-токены LLM).
+    Нужен на шаге intent: содержимое документа ВЕДЁТ классификацию отрасли и запрос к
+    закону (короткий вопрос «что это?» сам по себе неинформативен). Пусто, если
+    документов нет / коллекции нет.
+    """
+    from qdrant_client.models import FieldCondition, Filter, MatchAny, MatchValue
+
+    client = client or _default_client()
+    must = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+    if doc_ids:
+        must.append(FieldCondition(key="doc_id", match=MatchAny(any=doc_ids)))
+    flt = Filter(must=must)
+    rows: list[tuple[str, int, str]] = []
+    offset = None
+    try:
+        while True:
+            points, offset = await client.scroll(
+                collection_name=USER_DOCS_COLLECTION,
+                scroll_filter=flt,
+                limit=256,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for p in points:
+                pl = p.payload or {}
+                rows.append((pl.get("doc_id") or "", pl.get("chunk_no") or 0, pl.get("text") or ""))
+            if offset is None:
+                break
+    except Exception:  # noqa: BLE001 — нет коллекции/сети: пусто, не падаем
+        return ""
+    rows.sort(key=lambda r: (r[0], r[1]))
+    return "\n\n".join(t for _, _, t in rows if t)[:max_chars]
+
+
 async def delete_user_documents(
     user_id: int, doc_id: str | None = None, *, client=None
 ) -> None:

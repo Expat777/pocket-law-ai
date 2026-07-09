@@ -25,6 +25,9 @@ class AgentState(TypedDict, total=False):
     # канонические акты-кандидаты для фильтра retrieve (пусто = искать по всем кодексам)
     candidate_acts: list[str]
     is_legal: bool
+    # к вопросу приложен документ (скоуп doc_ids): compose даёт консультацию по нему,
+    # а не law-only ответ; документ ведёт классификацию/запрос на шаге intent
+    doc_context: bool
 
     # retrieve
     chunks: list[RetrievedChunk]

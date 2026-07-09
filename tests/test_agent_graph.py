@@ -12,7 +12,7 @@ import pytest
 from agent.deps import Deps
 from agent.graph import answer_question
 from agent.llm.fake import FakeLLMClient
-from shared.contracts import CitationStatus, RetrievedChunk
+from shared.contracts import Citation, CitationStatus, RetrievedChunk
 
 TK_81 = RetrievedChunk(
     text="Расторжение трудового договора по инициативе работодателя...",
@@ -903,3 +903,94 @@ async def test_retrieve_round_robin_only_when_multi_act():
     out = await retrieve({"question": "q", "candidate_acts": ["ТК РФ"]}, deps)
     # один акт -> чистая сортировка по score, round-robin не вмешивается
     assert [(c.act, c.article) for c in out["chunks"]] == [("ТК РФ", "80"), ("ТК РФ", "81")]
+
+
+# --- Баг B: консультация по присланному документу (документ ведёт роутинг) ---
+
+def _doc_chunk(text: str) -> RetrievedChunk:
+    return RetrievedChunk(text=text, source="user_doc", doc_id="d1", score=0.4)
+
+
+class _FakeScrollClient:
+    """Минимальный Qdrant-клиент: один scroll-батч из готовых payload'ов."""
+
+    def __init__(self, payloads):
+        self._payloads = payloads
+
+    async def scroll(self, collection_name, scroll_filter, limit, offset, with_payload, with_vectors):
+        pts = [type("P", (), {"payload": p})() for p in self._payloads]
+        return pts, None  # offset=None -> один проход
+
+
+async def test_fetch_document_text_orders_and_truncates():
+    from agent.documents import fetch_document_text
+
+    client = _FakeScrollClient([  # намеренно вперемешку — должно склеиться по chunk_no
+        {"doc_id": "d1", "chunk_no": 1, "text": "второй"},
+        {"doc_id": "d1", "chunk_no": 0, "text": "первый"},
+    ])
+    txt = await fetch_document_text(1, ["d1"], client=client)
+    assert txt == "первый\n\nвторой"
+    # обрезка по бюджету
+    client2 = _FakeScrollClient([{"doc_id": "d1", "chunk_no": 0, "text": "a" * 100}])
+    assert len(await fetch_document_text(1, ["d1"], max_chars=10, client=client2)) == 10
+
+
+async def test_intent_document_drives_routing():
+    """Документ в скоупе ведёт отрасль и запрос: короткий вопрос неинформативен."""
+    from agent.nodes.intent import intent_classifier
+
+    async def fake_fetch(user_id, doc_ids):
+        return "Трудовой договор № 5. Оклад 137000. Испытательный срок 3 месяца."
+
+    def handler(system, user):  # intent видит документ в user-сообщении
+        assert "Трудовой договор" in user
+        return json.dumps({"is_legal": True, "branches": ["трудовое"], "normalized": "трудовой договор"})
+
+    deps = Deps(
+        llm=FakeLLMClient(handler), search_law=None, verify_citation=None,
+        fetch_document_text=fake_fetch,
+    )
+    out = await intent_classifier({"question": "что это?", "user_id": 1, "doc_ids": ["d1"]}, deps)
+    assert out["doc_context"] is True
+    assert out["candidate_acts"] == ["ТК РФ"]
+    assert "Трудовой договор" in out["retrieval_query"]  # суть документа -> в запрос
+
+
+def test_route_doc_context_to_compose_without_law_citations():
+    """Разбор документа доходит до compose даже без law-цитат (не refuse)."""
+    from agent.nodes.verify import route_after_verify
+
+    state = {
+        "is_legal": True, "doc_context": True, "question": "что это?",
+        "verified_chunks": [_doc_chunk("текст письма")], "citations": [],
+    }
+    assert route_after_verify(state) == "compose"
+
+
+def test_route_non_legal_document_to_offtopic():
+    """Не-юр документ (рецепт-скан) -> offtopic, а не clarify (ввод-то есть)."""
+    from agent.nodes.verify import route_after_verify
+
+    state = {"is_legal": False, "doc_context": True, "question": ""}
+    assert route_after_verify(state) == "offtopic"
+
+
+async def test_compose_doc_mode_keeps_citations_no_insufficient():
+    """Doc-режим: цитаты закона сохраняются, INSUFFICIENT не превращается в refuse."""
+    from agent.nodes.compose import compose_answer
+
+    async def fake_verify(citation):
+        return CitationStatus(exists=True, active=True, current_revision=date(2026, 5, 15))
+
+    # даже если модель вернёт INSUFFICIENT — в doc-режиме это НЕ отказ (разбираем письмо)
+    deps = Deps(llm=make_llm(answer_text="INSUFFICIENT"), search_law=None, verify_citation=fake_verify)
+    cit = Citation(act="ТК РФ", article="81", revision_date=date(2026, 5, 15))
+    state = {
+        "question": "что это?", "doc_context": True,
+        "verified_chunks": [_doc_chunk("Трудовой договор"), TK_81], "citations": [cit],
+    }
+    out = await compose_answer(state, deps)
+    ans = out["answer"]
+    assert ans.refused is False
+    assert ans.citations == [cit]  # основание сохранено
