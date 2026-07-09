@@ -11,21 +11,30 @@ import asyncio
 import io
 import logging
 import re
+from datetime import datetime
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatAction
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import (
+    BufferedInputFile,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
 from bot.agent_client import AgentClient
 from bot.formatter import (
     format_album_result,
     format_answer_message,
+    format_export_markdown,
     format_ingest_result,
 )
 from bot.repository import Repository
 from bot.states import Dialog
+from shared.contracts import Answer
 
 router = Router(name="content")
 log = logging.getLogger(__name__)
@@ -91,6 +100,29 @@ def _scope_footer(names: list[str]) -> str:
         body = f"по {len(names)} документам: {shown}"
     return f"🔎 {body} · снять отметки — /documents"
 
+
+# --- Экспорт последнего ответа в «памятку» ----------------------------------
+# Держим последний СОДЕРЖАТЕЛЬНЫЙ ответ на пользователя (вопрос + Answer), чтобы по
+# кнопке отдать его файлом с источниками. В памяти процесса; чистится при /delete.
+_last_answer: dict[int, tuple[str, Answer]] = {}
+_EXPORT_KB = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="📄 Скачать с источниками", callback_data="export:md")]
+    ]
+)
+
+
+def _set_last_answer(user_id: int, question: str, answer: Answer) -> None:
+    _last_answer[user_id] = (question, answer)
+
+
+def _get_last_answer(user_id: int) -> tuple[str, Answer] | None:
+    return _last_answer.get(user_id)
+
+
+def _clear_last_answer(user_id: int) -> None:
+    _last_answer.pop(user_id, None)
+
 _TG_LIMIT = 4096  # максимум символов в одном сообщении Telegram
 
 # Пользователи, у кого прямо сейчас индексируется загруженный документ (файл/ссылка).
@@ -155,18 +187,21 @@ def _split_md(text: str, limit: int = _TG_LIMIT) -> list[str]:
     return parts
 
 
-async def _send_md(message: Message, md_text: str) -> None:
+async def _send_md(message: Message, md_text: str, reply_markup=None) -> None:
     """Отправка MarkdownV2 с мягкой деградацией и разбивкой длинных сообщений.
 
     Длинный ответ дробится на части ≤4096 (дисклеймер не теряется). Если часть
     ломает разметку — шлём её обычным текстом (снимая экранирование), не теряя ответ.
+    `reply_markup` вешается только на ПОСЛЕДНЮЮ часть (напр. кнопка экспорта).
     """
-    for part in _split_md(md_text):
+    parts = _split_md(md_text)
+    for i, part in enumerate(parts):
+        markup = reply_markup if i == len(parts) - 1 else None
         try:
-            await message.answer(part, parse_mode="MarkdownV2")
+            await message.answer(part, parse_mode="MarkdownV2", reply_markup=markup)
         except TelegramBadRequest:
             log.warning("MarkdownV2 отклонён Telegram — отправляю как обычный текст")
-            await message.answer(part.replace("\\", ""))
+            await message.answer(part.replace("\\", ""), reply_markup=markup)
 
 # Валидация файлов ДО обработки (задача MVP 5): размер проверяем по метаданным,
 # тип — по magic bytes скачанного заголовка, а не по расширению/заявленному mime.
@@ -253,14 +288,18 @@ async def _answer_question(
     agent: AgentClient,
     text: str,
     doc_ids_override: list[str] | None = None,
+    user_id: int | None = None,
 ) -> None:
     """Ядро обработки вопроса: сохранить → спросить агента → ответить (формат 3.5).
 
     Общее для обычного сообщения, отредактированного и вопроса рядом со ссылкой.
     `doc_ids_override` имеет приоритет над «липким» скоупом — им вопрос рядом со
     ссылкой/подписью привязывается к ТОЛЬКО ЧТО загруженному документу.
+    `user_id` можно передать явно, когда `message` принадлежит боту (напр. ответ на
+    кнопку онбординга: отвечаем в chat юзера, но user_id берём из callback).
     """
-    user_id = message.from_user.id
+    if user_id is None:
+        user_id = message.from_user.id
     await repo.save_dialog(user_id, "user", text, [])
 
     # Явный override (вопрос рядом со ссылкой) > липкий мультискоуп > по всем.
@@ -288,7 +327,13 @@ async def _answer_question(
         await state.set_state(Dialog.normal_question)
 
     await repo.save_dialog(user_id, "assistant", answer.text, answer.citations)
-    await _send_md(message, format_answer_message(answer))
+    # Содержательный ответ (не уточнение/не отказ) можно сохранить в «памятку» —
+    # вешаем кнопку экспорта и запоминаем ответ для скачивания.
+    export_kb = None
+    if not answer.clarifying_question and not answer.refused:
+        _set_last_answer(user_id, text, answer)
+        export_kb = _EXPORT_KB
+    await _send_md(message, format_answer_message(answer), reply_markup=export_kb)
     # Подпись с «сбросить» — только для ЛИПКОГО скоупа (его есть смысл снимать).
     # Для одноразового override (вопрос рядом со ссылкой) сбрасывать нечего.
     if doc_ids_override is None and sticky_names:
@@ -578,6 +623,38 @@ async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
     else:
         await callback.answer(f"➖ Снят: {name}" + (f" (осталось: {count})" if count else ""))
     await _refresh_picker(callback, agent, user_id, docs=docs)
+
+
+@router.callback_query(F.data == "export:md")
+async def on_export(callback: CallbackQuery) -> None:
+    """Кнопка «Скачать с источниками» под ответом → отдаём .md-памятку.
+
+    Никаких новых вызовов LLM/данных — переупаковываем последний ответ пользователя.
+    """
+    user_id = callback.from_user.id
+    last = _get_last_answer(user_id)
+    if last is None:
+        await callback.answer("Нечего сохранять — сначала задайте вопрос.")
+        return
+    question, answer = last
+    when = datetime.now().strftime("%d.%m.%Y %H:%M")
+    md = format_export_markdown(question, answer, when)
+    file = BufferedInputFile(md.encode("utf-8"), filename="pocket-law-otvet.md")
+    try:
+        if callback.message is not None:
+            await callback.message.answer_document(
+                file, caption="📄 Справочно. Не является юридической консультацией."
+            )
+        else:  # сообщение недоступно (старое) — шлём напрямую в чат
+            await callback.bot.send_document(
+                user_id, file,
+                caption="📄 Справочно. Не является юридической консультацией.",
+            )
+    except Exception:  # noqa: BLE001
+        log.exception("export failed for user %s", user_id)
+        await callback.answer("Не получилось сформировать файл, попробуйте позже.")
+        return
+    await callback.answer("Готово — файл отправлен")
 
 
 @router.message()

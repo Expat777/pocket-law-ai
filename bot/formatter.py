@@ -140,3 +140,36 @@ def format_ingest_result(result: IngestResult) -> str:
         f"✅ Документ принят, обработано фрагментов: *{result.chunks}*\\.\n"
         f"Теперь можно задать вопрос — учту содержимое документа\\."
     )
+
+
+def format_export_markdown(question: str, answer: Answer, when: str) -> str:
+    """«Памятка» для скачивания — обычный Markdown (это файл, не MarkdownV2-сообщение).
+
+    Оформлена как СПРАВКА, не как заключение: нейтральный заголовок, дисклеймер
+    вверху и внизу, явно «не официальный документ» — чтобы не имитировать юруслугу.
+    """
+    lines = [
+        "# Справочная информация по вашему вопросу",
+        f"_Сгенерировано ботом pocket-law-ai · {when} · носит справочный характер_",
+        "",
+        f"**Вопрос:** {question.strip()}",
+        "",
+        "**Ответ:**",
+        "",
+        answer.text.strip() or "—",
+        "",
+    ]
+    if answer.citations:
+        lines.append("**Основание:**")
+        for c in answer.citations:
+            rev = c.revision_date.strftime("%d.%m.%Y")
+            src = f" — {c.source_url}" if c.source_url else ""
+            lines.append(f"- ст. {c.article} {c.act} (ред. от {rev}){src}")
+        lines.append("")
+    lines += [
+        "---",
+        "⚠️ **Не является юридической консультацией и не является официальным документом.**",
+        "Информация носит справочный характер. Проверьте актуальность нормы. "
+        "При важных вопросах обратитесь к юристу.",
+    ]
+    return "\n".join(lines)
