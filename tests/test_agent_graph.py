@@ -741,3 +741,17 @@ async def test_insufficient_logs_confidence():
     )
     assert out["answer"].refused is True
     assert logged and abs(logged[0][1] - 0.7) < 1e-6
+
+
+def test_new_branches_tier3_mapped():
+    """5 новых отраслей (Роль 3, батч +5 актов) маппятся в свои act-строки."""
+    from agent.config import acts_for_branches
+
+    assert acts_for_branches(["земельное"]) == ["ЗК РФ"]
+    assert acts_for_branches(["административное судопроизводство"]) == ["КАС РФ"]
+    assert acts_for_branches(["исполнительное производство"]) == ["Закон об исполнительном производстве"]
+    assert acts_for_branches(["банкротство"]) == ["Закон о банкротстве"]
+    assert acts_for_branches(["ОСАГО"]) == ["ОСАГО"]  # .lower() -> ключ "осаго"
+    # КАС (судопроизводство) НЕ путать с КоАП (административные правонарушения)
+    assert acts_for_branches(["административное"]) == ["КоАП РФ"]
+    assert acts_for_branches(["административное судопроизводство"]) != ["КоАП РФ"]
