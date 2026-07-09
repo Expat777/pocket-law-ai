@@ -61,6 +61,15 @@ def _scope_discard(user_id: int, doc_id: str) -> None:
             _doc_scope.pop(user_id, None)
 
 
+def _mark_all_scope(user_id: int, docs: list) -> None:
+    """Отметить все документы разом (обратная к «Сбросить все»)."""
+    sel = {d.doc_id: (d.filename or "без названия") for d in docs}
+    if sel:
+        _doc_scope[user_id] = sel
+    else:
+        _doc_scope.pop(user_id, None)
+
+
 def _clear_scope(user_id: int) -> None:
     _doc_scope.pop(user_id, None)
 
@@ -532,6 +541,18 @@ async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
         _clear_scope(user_id)  # сброс работает всегда, даже если агент недоступен
         await callback.answer("🔎 Ищу по всем документам")
         await _refresh_picker(callback, agent, user_id)
+        return
+
+    if payload == "mark_all":  # отметить все документы разом
+        try:
+            docs = await agent.list_user_documents(user_id)
+        except Exception:  # noqa: BLE001
+            log.exception("list_user_documents failed for user %s", user_id)
+            await callback.answer("Не получилось отметить все, попробуйте позже.")
+            return
+        _mark_all_scope(user_id, docs)
+        await callback.answer(f"☑️ Отмечены все ({len(docs)})")
+        await _refresh_picker(callback, agent, user_id, docs=docs)
         return
 
     # payload = doc_id → находим имя (и заодно проверяем, что документ ещё существует)

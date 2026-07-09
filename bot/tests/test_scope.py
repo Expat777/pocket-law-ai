@@ -165,6 +165,28 @@ async def test_scope_multiselect_marks_and_passes_all_doc_ids():
 
 
 @pytest.mark.asyncio
+async def test_mark_all_selects_every_doc():
+    """Кнопка «Отметить все» отмечает все документы разом (симметрично сбросу)."""
+    uid = 611
+    _clear_scope(uid)
+    agent = MockAgent()
+    await agent.ingest_document(uid, b"x" * 4000, "application/pdf", filename="A.pdf")
+    await agent.ingest_document(uid, b"y" * 4000, "application/pdf", filename="B.pdf")
+    docs = await agent.list_user_documents(uid)
+
+    cb = _fake_callback(uid, "scope:mark_all")
+    await on_scope_select(cb, agent)
+
+    assert set(_scope_ids(uid)) == {d.doc_id for d in docs}
+    # все отмечены → кнопки «Отметить все» больше нет, есть «Сбросить отметки»
+    kb = cb.message.edit_text.await_args.kwargs["reply_markup"]
+    texts = [b.text for r in kb.inline_keyboard for b in r]
+    assert not any("Отметить все" in t for t in texts)
+    assert any("Сбросить отметки" in t for t in texts)
+    _clear_scope(uid)
+
+
+@pytest.mark.asyncio
 async def test_answer_passes_doc_ids_when_scoped():
     uid = 603
     _clear_scope(uid)

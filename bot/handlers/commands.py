@@ -143,7 +143,13 @@ def _documents_keyboard(docs: list, active_ids) -> InlineKeyboardMarkup:
                 )
             ]
         )
-    # Когда что-то отмечено — делаем «сброс» явным (иначе непонятно, как снять отметки).
+    # «Отметить все» — показываем, когда отмечены не все (иначе кнопка бессмысленна).
+    all_ids = {d.doc_id for d in docs}
+    if active_ids != all_ids:
+        rows.append(
+            [InlineKeyboardButton(text="☑️ Отметить все", callback_data=f"{SCOPE_PREFIX}mark_all")]
+        )
+    # «Сбросить/искать по всем» — явный сброс, когда что-то отмечено; иначе индикатор режима.
     if not active_ids:
         all_text = "✓ 🔎 Искать по всем"
     else:
