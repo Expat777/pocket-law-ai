@@ -47,6 +47,22 @@ async def test_album_aggregates_into_one_summary(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_album_flush_survives_send_error(monkeypatch):
+    """Сбой отправки сводки (сеть/удалённое сообщение) не роняет detached-задачу (Н1)."""
+    monkeypatch.setattr(content_mod, "_ALBUM_DEBOUNCE_SEC", 0.05)
+    msg = MagicMock()
+    msg.answer = AsyncMock(side_effect=RuntimeError("telegram network down"))
+    mgid = "grp-err"
+    _album_buffers.pop(mgid, None)
+
+    _album_add(mgid, msg, ok=True, name="a.pdf", chunks=3)
+    await asyncio.sleep(0.15)  # не должно всплыть исключение из задачи
+
+    msg.answer.assert_awaited_once()          # попытка отправки была
+    assert mgid not in _album_buffers          # буфер вычищен, без утечки
+
+
+@pytest.mark.asyncio
 async def test_on_file_album_buffers_not_immediate(monkeypatch):
     """Файл из альбома не отвечает сразу — уходит в буфер, сводка позже."""
     monkeypatch.setattr(content_mod, "_ALBUM_DEBOUNCE_SEC", 0.05)
