@@ -184,10 +184,18 @@ async def on_url(
         await _send_md(message, format_ingest_result(result))
         await state.set_state(Dialog.normal_question)
 
-        # №4: если рядом со ссылкой есть вопрос — ответить на него (по загруженному документу)
-        remainder = _URL_RE.sub(" ", message.text).strip()
-        if result.ok and _looks_like_question(remainder):
-            await _answer_question(message, state, repo, agent, remainder)
+        if result.ok:
+            # Новый документ → прежний «липкий» скоуп больше не актуален (не липнем
+            # к старому файлу). См. также on_file.
+            _clear_scope(user_id)
+            # №4: вопрос рядом со ссылкой → отвечаем строго по ТОЛЬКО ЧТО загруженному
+            # документу (override), а не по всей базе и не по старому скоупу.
+            remainder = _URL_RE.sub(" ", message.text).strip()
+            if _looks_like_question(remainder):
+                await _answer_question(
+                    message, state, repo, agent, remainder,
+                    scope_override=(result.doc_id, url),
+                )
     finally:
         _ingest_end(user_id)
 
@@ -203,16 +211,20 @@ async def _answer_question(
     repo: Repository,
     agent: AgentClient,
     text: str,
+    scope_override: tuple[str, str] | None = None,
 ) -> None:
     """Ядро обработки вопроса: сохранить → спросить агента → ответить (формат 3.5).
 
     Общее для обычного сообщения, отредактированного и вопроса рядом со ссылкой.
+    `scope_override` (doc_id, имя) имеет приоритет над «липким» скоупом — им
+    вопрос рядом со ссылкой привязывается к ТОЛЬКО ЧТО загруженному документу.
     """
     user_id = message.from_user.id
     await repo.save_dialog(user_id, "user", text, [])
 
-    # Активный скоуп → сужаем поиск до выбранного документа (иначе — по всем).
-    scope = _get_scope(user_id)
+    # Явный override (вопрос рядом со ссылкой) > липкий скоуп пользователя > по всем.
+    sticky = _get_scope(user_id)
+    scope = scope_override or sticky
     doc_ids = [scope[0]] if scope else None
 
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
@@ -233,8 +245,10 @@ async def _answer_question(
 
     await repo.save_dialog(user_id, "assistant", answer.text, answer.citations)
     await _send_md(message, format_answer_message(answer))
-    if scope:  # подпись «липкого» скоупа — обычным текстом, имя не ломает разметку
-        await message.answer(f"🔎 по документу: {scope[1]} · сбросить — /documents")
+    # Подпись с «сбросить» — только для ЛИПКОГО скоупа (его есть смысл снимать).
+    # Для одноразового override (вопрос рядом со ссылкой) сбрасывать нечего.
+    if scope_override is None and sticky:
+        await message.answer(f"🔎 по документу: {sticky[1]} · сбросить — /documents или /all")
 
 
 @router.message(F.text & ~F.text.startswith("/"))
@@ -416,6 +430,11 @@ async def on_file(
             await state.set_state(Dialog.normal_question)
             return
 
+        if result.ok:
+            # Новый документ → сбрасываем прежний «липкий» скоуп, чтобы он не
+            # «залипал» на старом файле (частая путаница). Поиск снова по всем,
+            # включая только что загруженный; сузить — снова через /documents.
+            _clear_scope(user_id)
         await _accept_file(message, mgid, doc_name, result)
         await state.set_state(Dialog.normal_question)
     finally:

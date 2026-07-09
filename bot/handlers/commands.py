@@ -44,7 +44,8 @@ _HELP_TEXT = (
     "Команды:\n"
     "/start — начать и дать согласие на обработку данных\n"
     "/help — эта справка\n"
-    "/documents — список загруженных вами документов\n"
+    "/documents — список загруженных документов и выбор, по какому искать\n"
+    "/all — искать по всем документам (снять выбор)\n"
     "/delete — удалить все мои данные о вас\n\n"
     "⚠️ Ответы бота не являются юридической консультацией."
 )
@@ -132,9 +133,13 @@ def _documents_keyboard(docs: list, active_doc_id: str | None) -> InlineKeyboard
                 )
             ]
         )
-    all_mark = "✓ " if active_doc_id is None else ""
+    # Когда документ выбран — делаем «сброс» явным (иначе непонятно, как снять выбор).
+    if active_doc_id is None:
+        all_text = "✓ 🔎 Искать по всем"
+    else:
+        all_text = "♻️ Сбросить выбор — искать по всем"
     rows.append(
-        [InlineKeyboardButton(text=f"{all_mark}🔎 Искать по всем", callback_data=f"{SCOPE_PREFIX}all")]
+        [InlineKeyboardButton(text=all_text, callback_data=f"{SCOPE_PREFIX}all")]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -158,10 +163,31 @@ async def cmd_documents(message: Message, agent: AgentClient) -> None:
 
     scope = _get_scope(user_id)
     active_doc_id = scope[0] if scope else None
-    await message.answer(
-        format_documents_list(docs),
-        reply_markup=_documents_keyboard(docs, active_doc_id),
-    )
+    text = format_documents_list(docs)
+    if scope:  # явно показываем активный скоуп и как его снять
+        text = (
+            f"🔎 Сейчас ищу только по документу: {scope[1]}\n"
+            "Снять выбор — кнопка «♻️ Сбросить выбор» ниже или команда /all.\n\n"
+        ) + text
+    await message.answer(text, reply_markup=_documents_keyboard(docs, active_doc_id))
+
+
+@router.message(Command("all"))
+async def cmd_all(message: Message) -> None:
+    """Снять выбор документа — снова искать по всем документам и базе законов."""
+    user_id = message.from_user.id
+    scope = _get_scope(user_id)
+    _clear_scope(user_id)
+    if scope:
+        await message.answer(
+            f"♻️ Готово. Больше не сужаю поиск на «{scope[1]}» — "
+            "ищу по всем вашим документам и законам РФ."
+        )
+    else:
+        await message.answer(
+            "Выбранного документа и так нет — ищу по всему. "
+            "Выбрать конкретный документ можно в /documents."
+        )
 
 
 @router.message(Command("delete"))
