@@ -142,34 +142,102 @@ def format_ingest_result(result: IngestResult) -> str:
     )
 
 
-def format_export_markdown(question: str, answer: Answer, when: str) -> str:
-    """«Памятка» для скачивания — обычный Markdown (это файл, не MarkdownV2-сообщение).
+def format_export_text(question: str, answer: Answer, when: str) -> str:
+    """«Памятка» для скачивания — ЧИСТЫЙ текст (.txt), читается в любом просмотрщике.
 
-    Оформлена как СПРАВКА, не как заключение: нейтральный заголовок, дисклеймер
-    вверху и внизу, явно «не официальный документ» — чтобы не имитировать юруслугу.
+    Без Markdown-разметки (`#`/`**`/`-`) — обычный пользователь открыл бы .md и увидел
+    сырые символы. Структура — заголовками капсом, разделителями и «•». Оформлена как
+    СПРАВКА, не заключение: дисклеймер сверху и снизу, явно «не официальный документ».
     """
+    sep = "─" * 40
     lines = [
-        "# Справочная информация по вашему вопросу",
-        f"_Сгенерировано ботом pocket-law-ai · {when} · носит справочный характер_",
+        "СПРАВОЧНАЯ ИНФОРМАЦИЯ ПО ВАШЕМУ ВОПРОСУ",
+        f"Сгенерировано ботом pocket-law-ai · {when}",
+        "Носит справочный характер, не является юридической консультацией.",
+        sep,
         "",
-        f"**Вопрос:** {question.strip()}",
+        "ВОПРОС:",
+        question.strip(),
         "",
-        "**Ответ:**",
-        "",
+        "ОТВЕТ:",
         answer.text.strip() or "—",
         "",
     ]
     if answer.citations:
-        lines.append("**Основание:**")
+        lines.append("ОСНОВАНИЕ:")
         for c in answer.citations:
             rev = c.revision_date.strftime("%d.%m.%Y")
-            src = f" — {c.source_url}" if c.source_url else ""
-            lines.append(f"- ст. {c.article} {c.act} (ред. от {rev}){src}")
+            lines.append(f"• ст. {c.article} {c.act} (ред. от {rev})")
+            if c.source_url:
+                lines.append(f"  {c.source_url}")
         lines.append("")
     lines += [
-        "---",
-        "⚠️ **Не является юридической консультацией и не является официальным документом.**",
-        "Информация носит справочный характер. Проверьте актуальность нормы. "
+        sep,
+        "⚠️ НЕ является юридической консультацией и НЕ является официальным документом.",
+        "Информация носит справочный характер. Проверьте актуальность нормы.",
         "При важных вопросах обратитесь к юристу.",
     ]
     return "\n".join(lines)
+
+
+def _wrap_line(text: str, font, size: float, max_w: float) -> list[str]:
+    """Перенос одной строки по ширине max_w (слова; сверхдлинное слово/URL — жёстко)."""
+    if not text:
+        return [""]
+    out: list[str] = []
+    cur = ""
+    for word in text.split(" "):
+        trial = word if not cur else f"{cur} {word}"
+        if font.text_length(trial, size) <= max_w:
+            cur = trial
+            continue
+        if cur:
+            out.append(cur)
+            cur = ""
+        if font.text_length(word, size) > max_w:  # длинное слово/URL — режем посимвольно
+            chunk = ""
+            for ch in word:
+                if font.text_length(chunk + ch, size) <= max_w:
+                    chunk += ch
+                else:
+                    out.append(chunk)
+                    chunk = ch
+            cur = chunk
+        else:
+            cur = word
+    if cur:
+        out.append(cur)
+    return out
+
+
+def format_export_pdf(question: str, answer: Answer, when: str) -> bytes:
+    """Та же «памятка», что и .txt, но в PDF — читабельно и печатно для юзера.
+
+    Рендер через PyMuPDF (уже зависимость проекта) встроенным шрифтом `helv`
+    (покрывает кириллицу) — без внешних TTF и без новых зависимостей.
+    """
+    import fitz  # локальный импорт: нужен только здесь (тяжёлая зависимость)
+
+    text = format_export_text(question, answer, when)
+    font = fitz.Font("helv")
+    size, margin, lead = 11, 50.0, 15.9  # lead = size * 1.45
+    doc = fitz.open()
+    try:
+        page = doc.new_page()
+        max_w = page.rect.width - 2 * margin
+        writer = fitz.TextWriter(page.rect)
+        y = margin + size
+        for paragraph in text.split("\n"):
+            for line in _wrap_line(paragraph, font, size, max_w):
+                if y > page.rect.height - margin:
+                    writer.write_text(page)
+                    page = doc.new_page()
+                    writer = fitz.TextWriter(page.rect)
+                    y = margin + size
+                if line:
+                    writer.append((margin, y), line, font=font, fontsize=size)
+                y += lead
+        writer.write_text(page)
+        return doc.tobytes()
+    finally:
+        doc.close()

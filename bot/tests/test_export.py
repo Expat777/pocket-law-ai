@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from bot.formatter import format_export_markdown
+from bot.formatter import format_export_pdf, format_export_text
 from bot.handlers.content import (
     _clear_last_answer,
     _get_last_answer,
@@ -58,13 +58,30 @@ def _fake_callback(uid, data="export:md"):
     return cb
 
 
-def test_format_export_has_question_sources_and_disclaimer():
-    md = format_export_markdown("Можно ли уволить в отпуске?", _ANSWER, "09.07.2026 15:00")
-    assert "Можно ли уволить в отпуске?" in md
-    assert "ст. 81 ТК РФ (ред. от 01.11.2024)" in md
-    assert "http://pravo.gov.ru/" in md  # источник кликабелен
-    assert "Не является юридической консультацией" in md
-    assert "не является официальным документом" in md.lower()
+def test_format_export_text_has_question_sources_and_disclaimer():
+    txt = format_export_text("Можно ли уволить в отпуске?", _ANSWER, "09.07.2026 15:00")
+    assert "Можно ли уволить в отпуске?" in txt
+    assert "ст. 81 ТК РФ (ред. от 01.11.2024)" in txt
+    assert "http://pravo.gov.ru/" in txt  # источник
+    assert "юридической консультацией" in txt
+    assert "официальным документом" in txt.lower()
+    # чистый текст: без markdown-разметки, которую увидел бы обычный юзер
+    assert "**" not in txt and "# " not in txt
+
+
+def test_format_export_pdf_renders_cyrillic():
+    pytest.importorskip("fitz")  # PyMuPDF — зависимость проекта; локально может не стоять
+    data = format_export_pdf("Можно ли уволить в отпуске?", _ANSWER, "09.07.2026 15:00")
+    assert data[:5] == b"%PDF-"  # это PDF
+    import fitz
+
+    doc = fitz.open(stream=data, filetype="pdf")
+    text = "".join(p.get_text() for p in doc)
+    doc.close()
+    # кириллица и источник дошли до PDF (не «квадраты»)
+    assert "уволить" in text.lower()
+    assert "ст. 81 ТК РФ" in text
+    assert "pravo.gov.ru" in text
 
 
 @pytest.mark.asyncio

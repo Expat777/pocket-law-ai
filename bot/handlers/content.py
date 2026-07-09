@@ -29,7 +29,8 @@ from bot.agent_client import AgentClient
 from bot.formatter import (
     format_album_result,
     format_answer_message,
-    format_export_markdown,
+    format_export_pdf,
+    format_export_text,
     format_ingest_result,
 )
 from bot.repository import Repository
@@ -627,9 +628,10 @@ async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
 
 @router.callback_query(F.data == "export:md")
 async def on_export(callback: CallbackQuery) -> None:
-    """Кнопка «Скачать с источниками» под ответом → отдаём .md-памятку.
+    """Кнопка «Скачать с источниками» под ответом → отдаём PDF-памятку.
 
     Никаких новых вызовов LLM/данных — переупаковываем последний ответ пользователя.
+    PDF рендерим через PyMuPDF; если что-то пошло не так — откатываемся на .txt.
     """
     user_id = callback.from_user.id
     last = _get_last_answer(user_id)
@@ -638,8 +640,13 @@ async def on_export(callback: CallbackQuery) -> None:
         return
     question, answer = last
     when = datetime.now().strftime("%d.%m.%Y %H:%M")
-    md = format_export_markdown(question, answer, when)
-    file = BufferedInputFile(md.encode("utf-8"), filename="pocket-law-otvet.md")
+    try:
+        data, filename = format_export_pdf(question, answer, when), "pocket-law-otvet.pdf"
+    except Exception:  # noqa: BLE001 — рендер PDF не должен ронять экспорт
+        log.exception("PDF export failed → откат на .txt для %s", user_id)
+        data = format_export_text(question, answer, when).encode("utf-8")
+        filename = "pocket-law-otvet.txt"
+    file = BufferedInputFile(data, filename=filename)
     try:
         if callback.message is not None:
             await callback.message.answer_document(
