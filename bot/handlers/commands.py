@@ -145,6 +145,24 @@ def _documents_keyboard(docs: list, active_doc_id: str | None) -> InlineKeyboard
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def _documents_view(docs: list, active_doc_id: str | None):
+    """Текст + клавиатура для /documents из ОДНОГО источника.
+
+    Заголовок «Сейчас ищу по: X» и галочка ✓ строятся здесь вместе, поэтому не
+    расходятся при перерисовке после смены скоупа (см. content._refresh_picker).
+    Имя активного документа берём из самого списка — всегда актуальное.
+    """
+    text = format_documents_list(docs)
+    if active_doc_id is not None:
+        active = next((d for d in docs if d.doc_id == active_doc_id), None)
+        if active is not None:
+            text = (
+                f"🔎 Сейчас ищу только по документу: {active.filename or 'без названия'}\n"
+                "Снять выбор — кнопка «♻️ Сбросить выбор» ниже или команда /all.\n\n"
+            ) + text
+    return text, _documents_keyboard(docs, active_doc_id)
+
+
 @router.message(Command("documents"))
 async def cmd_documents(message: Message, agent: AgentClient) -> None:
     """Список загруженных документов + пикер: по какому искать (скоуп)."""
@@ -164,13 +182,8 @@ async def cmd_documents(message: Message, agent: AgentClient) -> None:
 
     scope = _get_scope(user_id)
     active_doc_id = scope[0] if scope else None
-    text = format_documents_list(docs)
-    if scope:  # явно показываем активный скоуп и как его снять
-        text = (
-            f"🔎 Сейчас ищу только по документу: {scope[1]}\n"
-            "Снять выбор — кнопка «♻️ Сбросить выбор» ниже или команда /all.\n\n"
-        ) + text
-    await message.answer(text, reply_markup=_documents_keyboard(docs, active_doc_id))
+    text, keyboard = _documents_view(docs, active_doc_id)
+    await message.answer(text, reply_markup=keyboard)
 
 
 @router.message(Command("all"))

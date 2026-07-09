@@ -44,7 +44,7 @@ def _fake_callback(uid: int, data: str):
     cb.data = data
     cb.answer = AsyncMock()
     cb.message = MagicMock()
-    cb.message.edit_reply_markup = AsyncMock()  # перерисовка ✓ в пикере
+    cb.message.edit_text = AsyncMock()  # перерисовка сообщения /documents (текст+кнопки)
     return cb
 
 
@@ -104,20 +104,25 @@ async def test_scope_select_moves_checkmark_in_keyboard():
     cb = _fake_callback(uid, f"scope:{b_doc.doc_id}")
     await on_scope_select(cb, agent)
 
-    cb.message.edit_reply_markup.assert_awaited_once()
-    markup = cb.message.edit_reply_markup.await_args.kwargs["reply_markup"]
+    cb.message.edit_text.assert_awaited_once()
+    text = cb.message.edit_text.await_args.args[0]
+    markup = cb.message.edit_text.await_args.kwargs["reply_markup"]
     marked = _active_marked(markup)
     assert any("B.pdf" in t for t in marked)  # ✓ на выбранном
     assert not any("A.pdf" in t for t in marked)  # не на другом
     assert not any("по всем" in t for t in marked)  # и не на «искать по всем»
+    # заголовок сообщения совпадает с ✓ (не расходится) — регресс из скрина
+    assert "Сейчас ищу только по документу: B.pdf" in text
 
-    # сброс на «искать по всем» → ✓ переезжает туда
+    # сброс на «искать по всем» → ✓ переезжает туда, заголовок-скоуп исчезает
     cb2 = _fake_callback(uid, "scope:all")
     await on_scope_select(cb2, agent)
-    markup2 = cb2.message.edit_reply_markup.await_args.kwargs["reply_markup"]
+    text2 = cb2.message.edit_text.await_args.args[0]
+    markup2 = cb2.message.edit_text.await_args.kwargs["reply_markup"]
     marked2 = _active_marked(markup2)
     assert any("по всем" in t for t in marked2)
     assert not any(".pdf" in t for t in marked2)
+    assert "Сейчас ищу только по" not in text2
     _clear_scope(uid)
 
 
