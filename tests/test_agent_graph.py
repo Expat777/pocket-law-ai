@@ -788,3 +788,46 @@ def test_demand_side_fz_branches_mapped():
     # всего отраслей в карте: 15 (коды/ранее) + 20 = 35
     from agent.config import BRANCH_TO_ACTS
     assert len(BRANCH_TO_ACTS) == 35
+
+
+def test_act_aliases_cover_zk_kas():
+    """Номерной fast-path знает ЗК и КАС (были в базе, но не в алиасах)."""
+    from agent.nodes.retrieve import _parse_article_refs
+
+    assert _parse_article_refs("что говорит ст. 39.6 ЗК про аренду") == (["ЗК РФ"], ["39.6"])
+    assert _parse_article_refs("подать по статье 218 кас") == (["КАС РФ"], ["218"])
+
+
+def test_branch_map_and_intent_prompt_in_sync():
+    """Канарейка дрейфа: каждая ветка BRANCH_TO_ACTS обязана быть в INTENT_SYSTEM.
+
+    Список веток живёт в двух местах (config + промпт) — при добавлении акта
+    легко забыть одно из них: ветка в промпте без карты = молчаливый игнор,
+    в карте без промпта = LLM не может её назвать.
+    """
+    from agent.config import BRANCH_TO_ACTS
+    from agent.prompts import INTENT_SYSTEM
+
+    low = INTENT_SYSTEM.lower()
+    for branch in BRANCH_TO_ACTS:
+        assert branch in low, f"ветка «{branch}» есть в BRANCH_TO_ACTS, но нет в INTENT_SYSTEM"
+
+
+async def test_quota_fanout_capped():
+    """Fan-out квоты ограничен MAX_QUOTA_ACTS: 6 актов -> не больше 4 запросов."""
+    from agent.config import MAX_QUOTA_ACTS
+    from agent.nodes.retrieve import retrieve
+
+    calls = []
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        calls.append(acts[0])
+        return [_law(acts[0], "1", 0.9)]
+
+    deps = make_deps([])
+    deps.search_law = fake_search
+    many = ["ТК РФ", "ГК РФ", "ЖК РФ", "НК РФ", "УК РФ", "СК РФ"]
+    await retrieve({"question": "q", "candidate_acts": many}, deps)
+    assert len(calls) == MAX_QUOTA_ACTS
+    # режем хвост, а не голову: первые (уверенные) акты сохранены
+    assert calls == many[:MAX_QUOTA_ACTS]
