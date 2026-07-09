@@ -8,13 +8,17 @@ agent/ingest.py). Изоляция по `user_id` обязательна во в
   152-ФЗ: `/delete` бота чистил только Postgres, а файлы оставались в векторной
   базе). `doc_id=None` — удалить ВСЕ документы пользователя.
 
-Скоуп поиска по конкретному `doc_id` здесь НЕ реализован: он требует фильтра в
-`search_law` (Роль 4, `shared/`) и `doc_id` в `RetrievedChunk` — оформлено как
-контракт (см. STATUS). Тут — только перечисление и удаление, целиком наша зона.
+- `fetch_document_text` — упорядоченная голова документа для консультации
+  (intent/compose читают суть присланного письма, а не гадают по вопросу).
+
+Скоуп поиска по `doc_id` живёт в `search_law` Роли 4 (серверный MatchAny) и
+прокинут через `answer_question(doc_ids)` → retrieve (PR #27).
 """
 
 import os
 from dataclasses import dataclass
+
+from agent.config import DOC_CONTEXT_CHARS
 
 USER_DOCS_COLLECTION = "user_documents"
 
@@ -29,10 +33,18 @@ class UserDocument:
     chunks: int
 
 
-def _default_client():
-    from qdrant_client import AsyncQdrantClient
+_client = None
 
-    return AsyncQdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+
+def _default_client():
+    # Кэш клиента (как в shared/search.py): fetch_document_text зовётся на каждом
+    # вопросе со скоупом — новый AsyncQdrantClient на вызов был бы расточителен.
+    global _client
+    if _client is None:
+        from qdrant_client import AsyncQdrantClient
+
+        _client = AsyncQdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+    return _client
 
 
 def _user_filter(user_id: int, doc_id: str | None = None):
@@ -86,7 +98,11 @@ async def list_user_documents(user_id: int, *, client=None) -> list[UserDocument
 
 
 async def fetch_document_text(
-    user_id: int, doc_ids: list[str] | None = None, *, max_chars: int = 3000, client=None
+    user_id: int,
+    doc_ids: list[str] | None = None,
+    *,
+    max_chars: int = DOC_CONTEXT_CHARS,
+    client=None,
 ) -> str:
     """Текст загруженного документа(ов) для консультации — суть, а не Q&A по файлу.
 

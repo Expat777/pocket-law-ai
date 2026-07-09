@@ -22,6 +22,13 @@ OFFTOPIC_TEXT = (
     "Задайте, пожалуйста, вопрос юридического характера."
 )
 
+# Doc-режим: модель вопреки промпту вернула INSUFFICIENT — литерал пользователю не
+# показываем, отвечаем честно (и без цитат: чипы под «не смог разобрать» — противоречие).
+DOC_UNCLEAR_TEXT = (
+    "Не смог уверенно разобрать этот документ по моей базе законов. "
+    "Уточните, что именно вас интересует в нём, или покажите документ юристу."
+)
+
 
 def _confidence(chunks: list[RetrievedChunk]) -> float:
     """Грубая оценка уверенности: средний score найденных статей закона.
@@ -42,23 +49,36 @@ async def _log_confidence(deps: Deps, question: str, confidence: float) -> None:
 async def compose_answer(state: AgentState, deps: Deps) -> dict:
     chunks = state.get("verified_chunks", [])
     citations = state["citations"]
-    prompt = build_compose_prompt(state["question"], chunks)
 
     # Консультация по присланному документу: своя структура (что это / что хотят / по
     # закону / что делать / осторожно об антифроде). Закон = основание (цитаты
     # сохраняем), но даже при скудном законе документ всё равно разбираем —
     # INSUFFICIENT-терминала тут нет (пользователь ждёт разбор письма, не отказ).
+    # В промпт идёт упорядоченная голова документа (state.doc_text), а не top-K
+    # похожих чанков — иначе многочанковое письмо разбиралось бы частично.
     if state.get("doc_context"):
+        prompt = build_compose_prompt(
+            state["question"], chunks, doc_text=state.get("doc_text", "")
+        )
         text = await deps.llm.complete(COMPOSE_DOC_SYSTEM, prompt)
         stripped = text.strip()
         confidence = _confidence(chunks)
         await _log_confidence(deps, state["question"], confidence)
+        # Страховка: doc-промпт маркер не просит, но если модель его вернула —
+        # литерал «INSUFFICIENT» пользователю не отдаём.
+        if stripped.upper().startswith(INSUFFICIENT_MARKER):
+            return {
+                "answer": Answer(text=DOC_UNCLEAR_TEXT, citations=[], refused=False),
+                "draft_text": text,
+                "confidence": 0.0,
+            }
         return {
             "answer": Answer(text=stripped, citations=citations, refused=False),
             "draft_text": text,
             "confidence": confidence,
         }
 
+    prompt = build_compose_prompt(state["question"], chunks)
     text = await deps.llm.complete(COMPOSE_SYSTEM, prompt)
     stripped = text.strip()
     confidence = _confidence(chunks)
