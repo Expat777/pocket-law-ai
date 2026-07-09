@@ -1,7 +1,7 @@
 """compose_answer + терминальные узлы clarify/refuse — сборка Answer (контракт 3.1)."""
 
 from agent.deps import Deps
-from agent.prompts import COMPOSE_SYSTEM, build_compose_prompt
+from agent.prompts import COMPOSE_DOC_SYSTEM, COMPOSE_SYSTEM, build_compose_prompt
 from agent.state import AgentState
 from shared.contracts import Answer, RetrievedChunk
 
@@ -43,6 +43,22 @@ async def compose_answer(state: AgentState, deps: Deps) -> dict:
     chunks = state.get("verified_chunks", [])
     citations = state["citations"]
     prompt = build_compose_prompt(state["question"], chunks)
+
+    # Консультация по присланному документу: своя структура (что это / что хотят / по
+    # закону / что делать / осторожно об антифроде). Закон = основание (цитаты
+    # сохраняем), но даже при скудном законе документ всё равно разбираем —
+    # INSUFFICIENT-терминала тут нет (пользователь ждёт разбор письма, не отказ).
+    if state.get("doc_context"):
+        text = await deps.llm.complete(COMPOSE_DOC_SYSTEM, prompt)
+        stripped = text.strip()
+        confidence = _confidence(chunks)
+        await _log_confidence(deps, state["question"], confidence)
+        return {
+            "answer": Answer(text=stripped, citations=citations, refused=False),
+            "draft_text": text,
+            "confidence": confidence,
+        }
+
     text = await deps.llm.complete(COMPOSE_SYSTEM, prompt)
     stripped = text.strip()
     confidence = _confidence(chunks)

@@ -66,7 +66,13 @@ def route_after_verify(state: AgentState) -> str:
     честный отказ.
     """
     if not state.get("is_legal", True):
-        return "clarify" if not state.get("question", "").strip() else "offtopic"
+        # есть ввод (вопрос или документ) но он не про право -> offtopic; совсем пусто -> clarify
+        has_input = state.get("question", "").strip() or state.get("doc_context")
+        return "offtopic" if has_input else "clarify"
+    # Консультация по присланному документу: разбираем его, даже если проверенных
+    # law-цитат нет (пользователь ждёт разбор письма, а не отказ «нет норм»).
+    if state.get("doc_context") and state.get("verified_chunks"):
+        return "compose"
     if state.get("citations"):
         return "compose"
     return "refuse"
