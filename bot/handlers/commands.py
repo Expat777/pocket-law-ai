@@ -19,9 +19,11 @@ from aiogram.types import (
 )
 
 from bot.agent_client import AgentClient
+from bot.config import Config
 from bot.formatter import format_documents_list
 from bot.handlers.content import (
     SCOPE_PREFIX,
+    _answer_question,
     _clear_last_answer,
     _clear_scope,
     _scope_ids,
@@ -50,6 +52,7 @@ _HELP_TEXT = (
     "Команды:\n"
     "/start — начать и дать согласие на обработку данных\n"
     "/help — эта справка\n"
+    "/topics — частые темы и вопросы (быстрый старт)\n"
     "/documents — список документов; тапом отметьте один или несколько для поиска "
     "(там же — «Отметить все» и «Сбросить отметки»)\n"
     "/delete — удалить все мои данные о вас\n\n"
@@ -74,7 +77,8 @@ async def cmd_start(message: Message, state: FSMContext, repo: Repository) -> No
     if await repo.has_consent(user.id):
         await state.set_state(Dialog.normal_question)
         await message.answer(
-            "С возвращением! Задайте вопрос по законам РФ или пришлите документ."
+            "С возвращением! Задайте вопрос по законам РФ или пришлите документ.",
+            reply_markup=topics_entry_kb(),
         )
         return
 
@@ -101,7 +105,8 @@ async def consent_yes(
         await callback.message.edit_reply_markup(reply_markup=None)
         await callback.message.answer(
             "Спасибо! Согласие получено. Задайте вопрос по законам РФ "
-            "или пришлите PDF/фото документа."
+            "или пришлите PDF/фото документа.",
+            reply_markup=topics_entry_kb(),
         )
     await callback.answer()
 
@@ -221,4 +226,149 @@ async def cmd_delete(
     await message.answer(
         "🗑 Готово. Я удалил историю диалога, ваше согласие и загруженные документы. "
         "Чтобы снова пользоваться ботом — отправьте /start."
+    )
+
+
+# --- Онбординг: частые темы и вопросы ---------------------------------------
+# Кнопки-темы снижают порог входа (пустое поле пугает) и ведут к вопросам, которые
+# наша база уверенно закрывает. Тап по вопросу прогоняется через обычный
+# _answer_question. Callback: "topics:root" (список тем) / "topic:<id>" (вопросы
+# темы) / "tq:<id>:<idx>" (задать вопрос). Вопросы взяты из покрытых нами отраслей.
+TOPICS: dict[str, tuple[str, list[str]]] = {
+    "labor": ("💼 Трудовые", [
+        "Могут ли уволить во время отпуска?",
+        "Сколько дней ежегодного отпуска положено?",
+        "Что положено работнику при сокращении?",
+        "Какой максимальный испытательный срок?",
+    ]),
+    "family": ("👪 Семейные", [
+        "Как подать на развод?",
+        "Как рассчитываются алименты на ребёнка?",
+        "Как делится имущество супругов при разводе?",
+    ]),
+    "consumer": ("🛒 Права потребителя", [
+        "Как вернуть некачественный товар?",
+        "В какой срок можно вернуть товар?",
+        "Что делать, если не возвращают деньги за товар?",
+    ]),
+    "housing": ("🏠 Жильё и ЖКХ", [
+        "Что делать, если затопил сосед сверху?",
+        "Как приватизировать квартиру?",
+        "Кто отвечает за капитальный ремонт дома?",
+    ]),
+    "traffic": ("🚗 Штрафы и ДТП", [
+        "Как оспорить штраф ГИБДД?",
+        "Что делать при ДТП без пострадавших?",
+        "Как получить выплату по ОСАГО?",
+    ]),
+    "money": ("💳 Кредиты и долги", [
+        "Можно ли досрочно погасить кредит без штрафа?",
+        "Что делать, если приставы арестовали карту?",
+        "Как объявить себя банкротом?",
+    ]),
+}
+
+_TOPICS_INTRO = "💡 Выберите тему — покажу частые вопросы. Или просто напишите свой вопрос."
+
+
+def topics_entry_kb() -> InlineKeyboardMarkup:
+    """Одна кнопка «Частые темы» — под приветствием/согласием."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="💡 Частые темы", callback_data="topics:root")]]
+    )
+
+
+def _topics_keyboard() -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(text=title, callback_data=f"topic:{tid}")]
+        for tid, (title, _) in TOPICS.items()
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _topic_questions_keyboard(topic_id: str) -> InlineKeyboardMarkup:
+    _, questions = TOPICS[topic_id]
+    rows = [
+        [InlineKeyboardButton(text=q, callback_data=f"tq:{topic_id}:{i}")]
+        for i, q in enumerate(questions)
+    ]
+    rows.append([InlineKeyboardButton(text="← Назад к темам", callback_data="topics:root")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+@router.message(Command("topics"))
+async def cmd_topics(message: Message) -> None:
+    await message.answer(_TOPICS_INTRO, reply_markup=_topics_keyboard())
+
+
+@router.callback_query(F.data == "topics:root")
+async def on_topics_root(callback: CallbackQuery) -> None:
+    if callback.message is not None:
+        try:
+            await callback.message.edit_text(_TOPICS_INTRO, reply_markup=_topics_keyboard())
+        except Exception:  # noqa: BLE001 — сообщение старое/не изменилось
+            await callback.message.answer(_TOPICS_INTRO, reply_markup=_topics_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("topic:"))
+async def on_topic_pick(callback: CallbackQuery) -> None:
+    topic_id = callback.data.split(":", 1)[1]
+    if topic_id not in TOPICS:
+        await callback.answer("Тема не найдена")
+        return
+    title, _ = TOPICS[topic_id]
+    text = f"{title} — частые вопросы. Выберите или напишите свой:"
+    if callback.message is not None:
+        try:
+            await callback.message.edit_text(text, reply_markup=_topic_questions_keyboard(topic_id))
+        except Exception:  # noqa: BLE001
+            await callback.message.answer(text, reply_markup=_topic_questions_keyboard(topic_id))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("tq:"))
+async def on_topic_question(
+    callback: CallbackQuery,
+    state: FSMContext,
+    repo: Repository,
+    agent: AgentClient,
+    config: Config,
+) -> None:
+    """Тап по частому вопросу → прогоняем через обычный ответ (с гейтами согласия/лимита)."""
+    parts = callback.data.split(":")
+    if len(parts) != 3 or parts[1] not in TOPICS:
+        await callback.answer("Вопрос не найден")
+        return
+    topic_id, idx = parts[1], int(parts[2])
+    questions = TOPICS[topic_id][1]
+    if not (0 <= idx < len(questions)):
+        await callback.answer("Вопрос не найден")
+        return
+    question = questions[idx]
+    user_id = callback.from_user.id
+
+    # Callback идёт мимо consent/rate-limit middlewares (они на content-роутере) —
+    # повторяем гейты здесь: без согласия и сверх лимита вопрос в LLM не уходит.
+    if not await repo.has_consent(user_id):
+        await callback.answer("Сначала дайте согласие — отправьте /start", show_alert=True)
+        return
+    decision = await repo.check_rate_limit(user_id, config.rate_limit_per_hour)
+    if not decision.allowed:
+        minutes = max(1, decision.retry_after_sec // 60)
+        await callback.answer(
+            f"Слишком много запросов (лимит {config.rate_limit_per_hour}/час). "
+            f"Попробуйте через ~{minutes} мин.",
+            show_alert=True,
+        )
+        return
+    if callback.message is None:
+        await callback.answer("Откройте /topics заново", show_alert=True)
+        return
+
+    await repo.ensure_user(user_id, callback.from_user.username)
+    await callback.answer()  # закрыть «часики» до похода в LLM
+    await callback.message.answer(f"❓ {question}")  # показать выбранный вопрос
+    await _answer_question(
+        callback.message, state, repo, agent, question, user_id=user_id
     )
