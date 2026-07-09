@@ -76,10 +76,13 @@ class _ParagraphCollector(HTMLParser):
             self._cls = None
 
 
-def parse_ips_html(html: str, act: str, min_articles: int) -> list[Article]:
-    collector = _ParagraphCollector()
-    collector.feed(html)
+def _collect(paragraphs: list[tuple[str, str]], act: str, allow_body_headers: bool) -> list[Article]:
+    """Собирает статьи из последовательности (класс, текст).
 
+    В современных актах заголовки статей — класс H. У старых (напр. Закон РФ 1991 г.
+    «О приватизации жилищного фонда») заголовки идут обычным <p> без класса — тогда
+    вызываем с allow_body_headers=True и распознаём «Статья N.» в бесклассовых <p>.
+    """
     articles: list[Article] = []
     chapter = ""
     current: Article | None = None
@@ -100,7 +103,16 @@ def parse_ips_html(html: str, act: str, min_articles: int) -> list[Article]:
             articles.append(current)
             current = None
 
-    for cls, text in collector.paragraphs:
+    def start(m: re.Match, seed_body: bool = False) -> None:
+        nonlocal current, body
+        flush()
+        # старый формат: контент идёт на той же строке, что «Статья N.» → это тело статьи,
+        # а не заголовок. Современный формат: group(2) — короткий заголовок, тело ниже.
+        title = "" if seed_body else m.group(2)
+        body = [m.group(2)] if (seed_body and m.group(2).strip()) else []
+        current = Article(act=act, article_no=m.group(1).rstrip("."), title=title, chapter=chapter)
+
+    for cls, text in paragraphs:
         if cls in ("I", "C", "T"):
             continue
         if cls == "H":
@@ -110,14 +122,32 @@ def parse_ips_html(html: str, act: str, min_articles: int) -> list[Article]:
                 continue
             m = _RE_ARTICLE.match(text)
             if m:
-                flush()
-                body = []
-                current = Article(act=act, article_no=m.group(1).rstrip("."), title=m.group(2), chapter=chapter)
-                continue
+                start(m)
             continue  # прочие H-заголовки (например, название кодекса)
-        if cls == "" and current is not None:
-            body.append(text)
+        if cls == "":
+            m = _RE_ARTICLE.match(text) if allow_body_headers else None
+            if m:
+                start(m, seed_body=True)
+            elif current is not None:
+                body.append(text)
     flush()
+    return articles
+
+
+def parse_ips_html(html: str, act: str, min_articles: int) -> list[Article]:
+    collector = _ParagraphCollector()
+    collector.feed(html)
+
+    # основной разбор: заголовки статей — класс H (все современные акты).
+    articles = _collect(collector.paragraphs, act, allow_body_headers=False)
+    if len(articles) < min_articles:
+        # старый формат (Закон РФ 1991 и т.п.): заголовки статей без класса H —
+        # вторая попытка. Включается только когда основной разбор не набрал норму,
+        # поэтому на уже работающих актах поведение не меняется.
+        alt = _collect(collector.paragraphs, act, allow_body_headers=True)
+        if len(alt) > len(articles):
+            log.info("parse %s: fallback на разметку без класса H (%d → %d статей)", act, len(articles), len(alt))
+            articles = alt
 
     # Строгие проверки: при поломке разметки падаем громко, а не портим базу молча
     if len(articles) < min_articles:
