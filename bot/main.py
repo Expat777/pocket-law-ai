@@ -37,7 +37,6 @@ async def _set_commands(bot: Bot) -> None:
             BotCommand(command="start", description="Начать и дать согласие"),
             BotCommand(command="help", description="Справка"),
             BotCommand(command="documents", description="Мои документы (отметить для поиска)"),
-            BotCommand(command="all", description="Искать по всем документам (снять отметки)"),
             BotCommand(command="delete", description="Удалить мои данные"),
         ]
     )
