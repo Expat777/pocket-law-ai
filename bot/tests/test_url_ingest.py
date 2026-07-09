@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from bot.handlers.content import _URL_RE, _clear_scope, _get_scope, _set_scope, on_url
+from bot.handlers.content import _URL_RE, _clear_scope, _scope_ids, _toggle_scope, on_url
 from bot.mock_agent import MockAgent
 from bot.repository import InMemoryRepository
 from shared.contracts import Answer, IngestResult
@@ -54,7 +54,8 @@ async def test_on_url_ingests_and_replies():
 async def test_on_url_question_scoped_to_new_doc_and_clears_sticky_scope():
     """Ссылка+вопрос: отвечаем по ТОЛЬКО ЧТО загруженному документу, а не по старому скоупу."""
     uid = 1
-    _set_scope(uid, "OLD", "старый.pdf")  # был липкий скоуп на другой файл
+    _clear_scope(uid)
+    _toggle_scope(uid, "OLD", "старый.pdf")  # был липкий скоуп на другой файл
     agent = MagicMock()
     agent.ingest_url = AsyncMock(
         return_value=IngestResult(doc_id="NEW", chunks=3, ok=True, error=None)
@@ -72,5 +73,5 @@ async def test_on_url_question_scoped_to_new_doc_and_clears_sticky_scope():
     agent.answer_question.assert_awaited_once()
     assert agent.answer_question.await_args.kwargs["doc_ids"] == ["NEW"]
     # прежний липкий скоуп сброшен (новый документ его обнулил)
-    assert _get_scope(uid) is None
+    assert _scope_ids(uid) == []
     _clear_scope(uid)

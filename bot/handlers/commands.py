@@ -20,7 +20,12 @@ from aiogram.types import (
 
 from bot.agent_client import AgentClient
 from bot.formatter import format_documents_list
-from bot.handlers.content import SCOPE_PREFIX, _clear_scope, _get_scope
+from bot.handlers.content import (
+    SCOPE_PREFIX,
+    _clear_scope,
+    _scope_ids,
+    _scope_names,
+)
 from bot.repository import Repository
 from bot.states import Dialog
 
@@ -45,8 +50,8 @@ _HELP_TEXT = (
     "Команды:\n"
     "/start — начать и дать согласие на обработку данных\n"
     "/help — эта справка\n"
-    "/documents — список загруженных документов и выбор, по какому искать\n"
-    "/all — искать по всем документам (снять выбор)\n"
+    "/documents — список документов; тапом отметьте один или несколько для поиска\n"
+    "/all — искать по всем документам (снять отметки)\n"
     "/delete — удалить все мои данные о вас\n\n"
     "⚠️ Ответы бота не являются юридической консультацией."
 )
@@ -118,14 +123,18 @@ async def cmd_help(message: Message) -> None:
     await message.answer(_HELP_TEXT)
 
 
-def _documents_keyboard(docs: list, active_doc_id: str | None) -> InlineKeyboardMarkup:
-    """Пикер скоупа: по кнопке на документ + «искать по всем». Активный помечен ✓."""
+def _documents_keyboard(docs: list, active_ids) -> InlineKeyboardMarkup:
+    """Пикер скоупа: кнопка на каждый документ (тап переключает ✓) + «искать по всем».
+
+    `active_ids` — множество отмеченных doc_id (мультивыбор): у всех отмеченных ✓.
+    """
+    active_ids = set(active_ids)
     rows: list[list[InlineKeyboardButton]] = []
     for i, d in enumerate(docs, 1):
         name = d.filename or "без названия"
         if len(name) > 30:  # длинные имена режем для подписи кнопки
             name = name[:29] + "…"
-        mark = "✓ " if d.doc_id == active_doc_id else ""
+        mark = "✓ " if d.doc_id in active_ids else ""
         rows.append(
             [
                 InlineKeyboardButton(
@@ -134,33 +143,37 @@ def _documents_keyboard(docs: list, active_doc_id: str | None) -> InlineKeyboard
                 )
             ]
         )
-    # Когда документ выбран — делаем «сброс» явным (иначе непонятно, как снять выбор).
-    if active_doc_id is None:
+    # Когда что-то отмечено — делаем «сброс» явным (иначе непонятно, как снять отметки).
+    if not active_ids:
         all_text = "✓ 🔎 Искать по всем"
     else:
-        all_text = "♻️ Сбросить выбор — искать по всем"
+        all_text = "♻️ Сбросить отметки — искать по всем"
     rows.append(
         [InlineKeyboardButton(text=all_text, callback_data=f"{SCOPE_PREFIX}all")]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def _documents_view(docs: list, active_doc_id: str | None):
-    """Текст + клавиатура для /documents из ОДНОГО источника.
+def _documents_view(docs: list, active_ids):
+    """Текст + клавиатура для /documents из ОДНОГО источника (мультивыбор).
 
-    Заголовок «Сейчас ищу по: X» и галочка ✓ строятся здесь вместе, поэтому не
-    расходятся при перерисовке после смены скоупа (см. content._refresh_picker).
-    Имя активного документа берём из самого списка — всегда актуальное.
+    Заголовок «Сейчас ищу по: …» и галочки ✓ строятся здесь вместе, поэтому не
+    расходятся при перерисовке после смены отметок (см. content._refresh_picker).
+    Имена отмеченных берём из самого списка — всегда актуальные.
     """
+    active_ids = set(active_ids)
     text = format_documents_list(docs)
-    if active_doc_id is not None:
-        active = next((d for d in docs if d.doc_id == active_doc_id), None)
-        if active is not None:
-            text = (
-                f"🔎 Сейчас ищу только по документу: {active.filename or 'без названия'}\n"
-                "Снять выбор — кнопка «♻️ Сбросить выбор» ниже или команда /all.\n\n"
-            ) + text
-    return text, _documents_keyboard(docs, active_doc_id)
+    if active_ids:
+        names = [d.filename or "без названия" for d in docs if d.doc_id in active_ids]
+        if len(names) == 1:
+            head = f"🔎 Сейчас ищу только по документу: {names[0]}"
+        else:
+            head = f"🔎 Сейчас ищу по {len(names)} документам: {', '.join(names)}"
+        text = (
+            head + "\nТап по документу — отметить/снять (можно несколько). "
+            "Снять все — «♻️ Сбросить отметки» или /all.\n\n"
+        ) + text
+    return text, _documents_keyboard(docs, active_ids)
 
 
 @router.message(Command("documents"))
@@ -180,27 +193,26 @@ async def cmd_documents(message: Message, agent: AgentClient) -> None:
         await message.answer(format_documents_list(docs))
         return
 
-    scope = _get_scope(user_id)
-    active_doc_id = scope[0] if scope else None
-    text, keyboard = _documents_view(docs, active_doc_id)
+    text, keyboard = _documents_view(docs, set(_scope_ids(user_id)))
     await message.answer(text, reply_markup=keyboard)
 
 
 @router.message(Command("all"))
 async def cmd_all(message: Message) -> None:
-    """Снять выбор документа — снова искать по всем документам и базе законов."""
+    """Снять все отметки — снова искать по всем документам и базе законов."""
     user_id = message.from_user.id
-    scope = _get_scope(user_id)
+    names = _scope_names(user_id)
     _clear_scope(user_id)
-    if scope:
+    if names:
+        what = names[0] if len(names) == 1 else f"{len(names)} документам"
         await message.answer(
-            f"♻️ Готово. Больше не сужаю поиск на «{scope[1]}» — "
+            f"♻️ Готово. Снял отметки ({what}) — "
             "ищу по всем вашим документам и законам РФ."
         )
     else:
         await message.answer(
-            "Выбранного документа и так нет — ищу по всему. "
-            "Выбрать конкретный документ можно в /documents."
+            "Отмеченных документов и так нет — ищу по всему. "
+            "Отметить документы можно в /documents."
         )
 
 

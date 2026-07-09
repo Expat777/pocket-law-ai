@@ -30,25 +30,57 @@ from bot.states import Dialog
 router = Router(name="content")
 log = logging.getLogger(__name__)
 
-# --- Скоуп поиска по конкретному документу ----------------------------------
-# Пользователь может в /documents выбрать «искать по документу N» (кнопкой). Скоуп
-# ЛИПКИЙ: держится, пока не сменит/сбросит. Храним в памяти процесса (user_id →
-# (doc_id, имя)); при рестарте сбрасывается на «по всем» — это ок для UI-настройки.
-# Префикс callback_data кнопок пикера (общий с commands.cmd_documents).
+# --- Скоуп поиска по документам (МУЛЬТИВЫБОР) --------------------------------
+# В /documents тапом можно ОТМЕТИТЬ несколько документов (✓) — поиск пойдёт по
+# всем отмеченным (агент принимает список doc_ids, серверный фильтр MatchAny).
+# Скоуп ЛИПКИЙ: держится, пока не снимут/сбросят. Храним в памяти процесса
+# (user_id → {doc_id: имя}, порядок отметки сохраняется); при рестарте сбрасывается
+# на «по всем» — ок для UI-настройки. Префикс callback_data кнопок пикера.
 SCOPE_PREFIX = "scope:"
-_doc_scope: dict[int, tuple[str, str]] = {}
+_doc_scope: dict[int, dict[str, str]] = {}
 
 
-def _set_scope(user_id: int, doc_id: str, name: str) -> None:
-    _doc_scope[user_id] = (doc_id, name)
+def _toggle_scope(user_id: int, doc_id: str, name: str) -> bool:
+    """Отметить/снять документ в выборке. True — теперь отмечен, False — снят."""
+    sel = _doc_scope.setdefault(user_id, {})
+    if doc_id in sel:
+        del sel[doc_id]
+        if not sel:
+            _doc_scope.pop(user_id, None)
+        return False
+    sel[doc_id] = name
+    return True
+
+
+def _scope_discard(user_id: int, doc_id: str) -> None:
+    """Убрать документ из выборки (напр. он удалён) — без ошибки, если его нет."""
+    sel = _doc_scope.get(user_id)
+    if sel and doc_id in sel:
+        del sel[doc_id]
+        if not sel:
+            _doc_scope.pop(user_id, None)
 
 
 def _clear_scope(user_id: int) -> None:
     _doc_scope.pop(user_id, None)
 
 
-def _get_scope(user_id: int) -> tuple[str, str] | None:
-    return _doc_scope.get(user_id)
+def _scope_ids(user_id: int) -> list[str]:
+    return list(_doc_scope.get(user_id, {}).keys())
+
+
+def _scope_names(user_id: int) -> list[str]:
+    return list(_doc_scope.get(user_id, {}).values())
+
+
+def _scope_footer(names: list[str]) -> str:
+    """Подпись под ответом: по каким документам сейчас ищем + как сбросить."""
+    if len(names) == 1:
+        body = f"по документу: {names[0]}"
+    else:
+        shown = ", ".join(names[:3]) + ("…" if len(names) > 3 else "")
+        body = f"по {len(names)} документам: {shown}"
+    return f"🔎 {body} · сбросить — /all"
 
 _TG_LIMIT = 4096  # максимум символов в одном сообщении Telegram
 
@@ -194,7 +226,7 @@ async def on_url(
             if _looks_like_question(remainder):
                 await _answer_question(
                     message, state, repo, agent, remainder,
-                    scope_override=(result.doc_id, url),
+                    doc_ids_override=[result.doc_id],
                 )
     finally:
         _ingest_end(user_id)
@@ -211,21 +243,24 @@ async def _answer_question(
     repo: Repository,
     agent: AgentClient,
     text: str,
-    scope_override: tuple[str, str] | None = None,
+    doc_ids_override: list[str] | None = None,
 ) -> None:
     """Ядро обработки вопроса: сохранить → спросить агента → ответить (формат 3.5).
 
     Общее для обычного сообщения, отредактированного и вопроса рядом со ссылкой.
-    `scope_override` (doc_id, имя) имеет приоритет над «липким» скоупом — им
-    вопрос рядом со ссылкой привязывается к ТОЛЬКО ЧТО загруженному документу.
+    `doc_ids_override` имеет приоритет над «липким» скоупом — им вопрос рядом со
+    ссылкой/подписью привязывается к ТОЛЬКО ЧТО загруженному документу.
     """
     user_id = message.from_user.id
     await repo.save_dialog(user_id, "user", text, [])
 
-    # Явный override (вопрос рядом со ссылкой) > липкий скоуп пользователя > по всем.
-    sticky = _get_scope(user_id)
-    scope = scope_override or sticky
-    doc_ids = [scope[0]] if scope else None
+    # Явный override (вопрос рядом со ссылкой) > липкий мультискоуп > по всем.
+    if doc_ids_override is not None:
+        doc_ids = doc_ids_override or None
+        sticky_names: list[str] = []
+    else:
+        doc_ids = _scope_ids(user_id) or None
+        sticky_names = _scope_names(user_id)
 
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     try:
@@ -247,8 +282,8 @@ async def _answer_question(
     await _send_md(message, format_answer_message(answer))
     # Подпись с «сбросить» — только для ЛИПКОГО скоупа (его есть смысл снимать).
     # Для одноразового override (вопрос рядом со ссылкой) сбрасывать нечего.
-    if scope_override is None and sticky:
-        await message.answer(f"🔎 по документу: {sticky[1]} · сбросить — /documents или /all")
+    if doc_ids_override is None and sticky_names:
+        await message.answer(_scope_footer(sticky_names))
 
 
 @router.message(F.text & ~F.text.startswith("/"))
@@ -446,7 +481,7 @@ async def on_file(
             if _looks_like_question(caption):
                 await _answer_question(
                     message, state, repo, agent, caption,
-                    scope_override=(result.doc_id, doc_name),
+                    doc_ids_override=[result.doc_id],
                 )
     finally:
         _ingest_end(user_id)
@@ -456,15 +491,14 @@ async def _refresh_picker(
     callback: CallbackQuery,
     agent: AgentClient,
     user_id: int,
-    active_id: str | None,
     docs: list | None = None,
 ) -> None:
-    """Best-effort перерисовка сообщения /documents после смены скоупа.
+    """Best-effort перерисовка сообщения /documents после смены отметок скоупа.
 
     Перерисовываем ВСЁ сообщение (текст-заголовок + клавиатуру), а не только
-    кнопки: иначе заголовок «Сейчас ищу по: X» разошёлся бы с галочкой ✓ (текст
-    остаётся старым при edit_reply_markup). Всё в try/except: старое сообщение или
-    «сообщение не изменилось» — не повод падать.
+    кнопки: иначе заголовок «Сейчас ищу по: …» разошёлся бы с галочками ✓ (текст
+    остаётся старым при edit_reply_markup). Набор отметок читаем из скоупа. Всё в
+    try/except: старое сообщение или «сообщение не изменилось» — не повод падать.
     """
     if callback.message is None:
         return
@@ -476,7 +510,7 @@ async def _refresh_picker(
         # lazy-import: commands импортирует content на старте — не создаём цикл на модуле.
         from bot.handlers.commands import _documents_view
 
-        text, keyboard = _documents_view(docs, active_id)
+        text, keyboard = _documents_view(docs, set(_scope_ids(user_id)))
         await callback.message.edit_text(text, reply_markup=keyboard)
     except TelegramBadRequest:
         pass  # message too old / not modified — не критично
@@ -486,10 +520,10 @@ async def _refresh_picker(
 
 @router.callback_query(F.data.startswith(SCOPE_PREFIX))
 async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
-    """Кнопка пикера в /documents: выбрать активный документ или «искать по всем».
+    """Кнопка пикера в /documents: отметить/снять документ (мультивыбор) или сбросить.
 
-    callback_data = "scope:all" (сброс) либо "scope:<doc_id>" (скоуп на документ).
-    После выбора двигаем ✓ в клавиатуре, чтобы она не показывала устаревший активный.
+    callback_data = "scope:all" (снять все отметки) либо "scope:<doc_id>" (переключить
+    отметку документа). Отмеченных может быть несколько — поиск идёт по всем.
     """
     user_id = callback.from_user.id
     payload = callback.data[len(SCOPE_PREFIX):]
@@ -497,7 +531,7 @@ async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
     if payload == "all":
         _clear_scope(user_id)  # сброс работает всегда, даже если агент недоступен
         await callback.answer("🔎 Ищу по всем документам")
-        await _refresh_picker(callback, agent, user_id, active_id=None)
+        await _refresh_picker(callback, agent, user_id)
         return
 
     # payload = doc_id → находим имя (и заодно проверяем, что документ ещё существует)
@@ -505,20 +539,24 @@ async def on_scope_select(callback: CallbackQuery, agent: AgentClient) -> None:
         docs = await agent.list_user_documents(user_id)
     except Exception:  # noqa: BLE001
         log.exception("list_user_documents failed for user %s", user_id)
-        await callback.answer("Не получилось выбрать документ, попробуйте позже.")
+        await callback.answer("Не получилось отметить документ, попробуйте позже.")
         return
 
     doc = next((d for d in docs if d.doc_id == payload), None)
-    if doc is None:  # удалён/устарел — сбрасываем на «по всем»
-        _clear_scope(user_id)
-        await callback.answer("Документ не найден (возможно, удалён). Ищу по всем.")
-        await _refresh_picker(callback, agent, user_id, active_id=None, docs=docs)
+    if doc is None:  # удалён/устарел — убираем из выборки, показываем актуальный список
+        _scope_discard(user_id, payload)
+        await callback.answer("Документ не найден (возможно, удалён).")
+        await _refresh_picker(callback, agent, user_id, docs=docs)
         return
 
     name = doc.filename or "без названия"
-    _set_scope(user_id, doc.doc_id, name)
-    await callback.answer(f"🔎 Ищу по: {name}")
-    await _refresh_picker(callback, agent, user_id, active_id=doc.doc_id, docs=docs)
+    now_on = _toggle_scope(user_id, doc.doc_id, name)
+    count = len(_scope_ids(user_id))
+    if now_on:
+        await callback.answer(f"✅ Отмечен: {name} (всего: {count})")
+    else:
+        await callback.answer(f"➖ Снят: {name}" + (f" (осталось: {count})" if count else ""))
+    await _refresh_picker(callback, agent, user_id, docs=docs)
 
 
 @router.message()
