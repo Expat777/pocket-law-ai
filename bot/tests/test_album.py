@@ -7,7 +7,13 @@ import pytest
 
 from bot.formatter import format_album_result
 from bot.handlers import content as content_mod
-from bot.handlers.content import _album_add, _album_buffers, on_file
+from bot.handlers.content import (
+    _album_add,
+    _album_buffers,
+    _clear_scope,
+    _scope_ids,
+    on_file,
+)
 from bot.mock_agent import MockAgent
 from bot.repository import InMemoryRepository
 
@@ -44,6 +50,26 @@ async def test_album_aggregates_into_one_summary(monkeypatch):
     out = msg.answer.await_args.args[0]
     assert "a.pdf" in out and "b.pdf" in out and "Принято документов: 2" in out
     assert mgid not in _album_buffers  # буфер вычищен
+
+
+@pytest.mark.asyncio
+async def test_album_autoscopes_to_its_docs(monkeypatch):
+    """После сводки альбома скоуп авто-выставлен на его документы (координация с Ролью 2)."""
+    monkeypatch.setattr(content_mod, "_ALBUM_DEBOUNCE_SEC", 0.05)
+    uid = 810
+    _clear_scope(uid)
+    msg = MagicMock()
+    msg.answer = AsyncMock()
+    msg.from_user = MagicMock(id=uid)
+    mgid = "grp-scope"
+    _album_buffers.pop(mgid, None)
+
+    _album_add(mgid, msg, ok=True, name="a.pdf", chunks=3, doc_id="D1")
+    _album_add(mgid, msg, ok=True, name="b.pdf", chunks=2, doc_id="D2")
+    await asyncio.sleep(0.15)
+
+    assert set(_scope_ids(uid)) == {"D1", "D2"}  # оба документа альбома отмечены
+    _clear_scope(uid)
 
 
 @pytest.mark.asyncio

@@ -72,6 +72,6 @@ async def test_on_url_question_scoped_to_new_doc_and_clears_sticky_scope():
     # вопрос ушёл в агента со скоупом на НОВЫЙ документ, не на старый «OLD»
     agent.answer_question.assert_awaited_once()
     assert agent.answer_question.await_args.kwargs["doc_ids"] == ["NEW"]
-    # прежний липкий скоуп сброшен (новый документ его обнулил)
-    assert _scope_ids(uid) == []
+    # прежний скоуп заменён авто-скоупом на новый документ (для follow-up вопросов)
+    assert _scope_ids(uid) == ["NEW"]
     _clear_scope(uid)

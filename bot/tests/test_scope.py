@@ -224,17 +224,21 @@ async def test_answer_passes_none_without_scope():
 
 
 @pytest.mark.asyncio
-async def test_new_upload_clears_sticky_scope():
-    """Загрузка нового документа сбрасывает прежний скоуп — он не залипает на старом файле."""
+async def test_new_upload_autoscopes_to_it():
+    """Загрузка файла АВТО-выбирает его (замена старого скоупа) — координация с Ролью 2:
+    без авто-скоупа следующий вопрос шёл бы без doc_ids и doc-разбор не включался бы."""
     uid = 608
     _clear_scope(uid)
     _toggle_scope(uid, "old-doc", "старый.pdf")
+    agent = MockAgent()
     msg = _fake_upload(uid)
     await on_file(
-        msg, _fake_state(), InMemoryRepository(), MockAgent(),
+        msg, _fake_state(), InMemoryRepository(), agent,
         msg.bot, max_file_bytes=20 * 1024 * 1024,
     )
-    assert _scope_ids(uid) == []
+    docs = await agent.list_user_documents(uid)  # только что загруженный
+    assert _scope_ids(uid) == [docs[0].doc_id]  # авто-скоуп на новый
+    assert "old-doc" not in _scope_ids(uid)  # старый снят
     _clear_scope(uid)
 
 
