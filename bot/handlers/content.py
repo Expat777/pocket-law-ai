@@ -84,6 +84,19 @@ def _clear_scope(user_id: int) -> None:
     _doc_scope.pop(user_id, None)
 
 
+def _scope_set_only(user_id: int, doc_id: str, name: str) -> None:
+    """Заменить выборку одним документом (авто-скоуп на свежезагруженный файл)."""
+    _doc_scope[user_id] = {doc_id: name}
+
+
+def _scope_set_many(user_id: int, mapping: dict[str, str]) -> None:
+    """Заменить выборку набором (авто-скоуп на документы альбома). Пусто → сброс."""
+    if mapping:
+        _doc_scope[user_id] = dict(mapping)
+    else:
+        _doc_scope.pop(user_id, None)
+
+
 def _scope_ids(user_id: int) -> list[str]:
     return list(_doc_scope.get(user_id, {}).keys())
 
@@ -262,9 +275,10 @@ async def on_url(
         await state.set_state(Dialog.normal_question)
 
         if result.ok:
-            # Новый документ → прежний «липкий» скоуп больше не актуален (не липнем
-            # к старому файлу). См. также on_file.
-            _clear_scope(user_id)
+            # Новый документ → авто-скоуп на него: и прежний «липкий» скоуп больше не
+            # актуален, и следующий вопрос идёт по этому документу (иначе doc-разбор
+            # агента не включится — координация с Ролью 2). См. также on_file.
+            _scope_set_only(user_id, result.doc_id, url)
             # №4: вопрос рядом со ссылкой → отвечаем строго по ТОЛЬКО ЧТО загруженному
             # документу (override), а не по всей базе и не по старому скоупу.
             remainder = _URL_RE.sub(" ", message.text).strip()
@@ -386,12 +400,17 @@ def _album_add(
     name: str,
     chunks: int = 0,
     reason: str | None = None,
+    doc_id: str | None = None,
 ) -> None:
     """Добавляет результат одного файла в буфер альбома и (пере)ставит debounce."""
-    buf = _album_buffers.setdefault(mgid, {"ok": [], "failed": [], "task": None})
+    buf = _album_buffers.setdefault(
+        mgid, {"ok": [], "failed": [], "task": None, "scope": {}}
+    )
     buf["message"] = message  # любое сообщение альбома годится, чтобы ответить
     if ok:
         buf["ok"].append((name, chunks))
+        if doc_id:  # копим для авто-скоупа на документы альбома
+            buf["scope"][doc_id] = name
     else:
         buf["failed"].append((name, reason or "ошибка"))
     old = buf.get("task")
@@ -408,11 +427,15 @@ async def _flush_album(mgid: str) -> None:
     buf = _album_buffers.pop(mgid, None)
     if buf is None:
         return
+    # Авто-скоуп на загруженные документы альбома (замена прежнего) — чтобы следующий
+    # вопрос шёл по ним (координация с Ролью 2 по doc-разбору). Пусто → сброс.
+    msg = buf["message"]
+    _scope_set_many(msg.from_user.id, buf.get("scope") or {})
     # Это detached-задача: глобальный @dp.errors её не ловит. Сбой отправки (сеть/
     # удалённое сообщение) не должен уходить в «Task exception was never retrieved» —
     # логируем, сводку теряем осознанно, а не молча.
     try:
-        await buf["message"].answer(format_album_result(buf["ok"], buf["failed"]))
+        await msg.answer(format_album_result(buf["ok"], buf["failed"]))
     except Exception:  # noqa: BLE001
         log.exception("не удалось отправить сводку альбома %s", mgid)
 
@@ -422,7 +445,7 @@ async def _accept_file(message: Message, mgid: str | None, name: str, result) ->
     if mgid is None:
         await _send_md(message, format_ingest_result(result))
     elif result.ok:
-        _album_add(mgid, message, ok=True, name=name, chunks=result.chunks)
+        _album_add(mgid, message, ok=True, name=name, chunks=result.chunks, doc_id=result.doc_id)
     else:
         _album_add(mgid, message, ok=False, name=name, reason=result.error or "ошибка")
 
@@ -520,11 +543,11 @@ async def on_file(
             await state.set_state(Dialog.normal_question)
             return
 
-        if result.ok:
-            # Новый документ → сбрасываем прежний «липкий» скоуп, чтобы он не
-            # «залипал» на старом файле (частая путаница). Поиск снова по всем,
-            # включая только что загруженный; сузить — снова через /documents.
-            _clear_scope(user_id)
+        if result.ok and mgid is None:
+            # Одиночный файл → авто-скоуп на него: следующий вопрос идёт по этому
+            # документу (иначе doc-разбор агента не включается — координация с Ролью 2),
+            # и прежний скоуп не «залипает» на старом файле. Альбом — на flush сводки.
+            _scope_set_only(user_id, result.doc_id, doc_name)
         await _accept_file(message, mgid, doc_name, result)
         await state.set_state(Dialog.normal_question)
 
