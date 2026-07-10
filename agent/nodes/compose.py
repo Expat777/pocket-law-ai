@@ -1,5 +1,7 @@
 """compose_answer + терминальные узлы clarify/refuse — сборка Answer (контракт 3.1)."""
 
+import re
+
 from agent.deps import Deps
 from agent.prompts import COMPOSE_DOC_SYSTEM, COMPOSE_SYSTEM, build_compose_prompt
 from agent.state import AgentState
@@ -7,6 +9,15 @@ from shared.contracts import Answer, RetrievedChunk
 
 # Маркер: модель вернула его, когда переданных статей не хватает для ответа.
 INSUFFICIENT_MARKER = "INSUFFICIENT"
+# Ловим маркер как ОТДЕЛЬНОЕ СЛОВО где угодно, а не только в начале: вопреки промпту
+# «верни РОВНО одно слово» модель иногда пишет пояснение, а потом INSUFFICIENT (живой
+# баг: «...статьи не по теме. INSUFFICIENT» утекал юзеру с нерелевантными цитатами).
+# Латинский маркер в русском ответе естественно не встречается — ложных срабатываний нет.
+_INSUFFICIENT_RE = re.compile(rf"\b{INSUFFICIENT_MARKER}\b", re.IGNORECASE)
+
+
+def _is_insufficient(text: str) -> bool:
+    return bool(_INSUFFICIENT_RE.search(text))
 
 REFUSE_TEXT = (
     "Не нашёл в доступной базе законов норм, чтобы ответить на это точно. "
@@ -65,8 +76,8 @@ async def compose_answer(state: AgentState, deps: Deps) -> dict:
         confidence = _confidence(chunks)
         await _log_confidence(deps, state["question"], confidence)
         # Страховка: doc-промпт маркер не просит, но если модель его вернула —
-        # литерал «INSUFFICIENT» пользователю не отдаём.
-        if stripped.upper().startswith(INSUFFICIENT_MARKER):
+        # литерал «INSUFFICIENT» пользователю не отдаём (в т.ч. в конце пояснения).
+        if _is_insufficient(stripped):
             return {
                 "answer": Answer(text=DOC_UNCLEAR_TEXT, citations=[], refused=False),
                 "draft_text": text,
@@ -83,11 +94,12 @@ async def compose_answer(state: AgentState, deps: Deps) -> dict:
     stripped = text.strip()
     confidence = _confidence(chunks)
 
-    # Фикс B: модель сама признала, что переданных статей не хватает —
-    # честный отказ БЕЗ цитат (иначе бот показал бы «Основание: ст. N…» под
-    # ответом «данных недостаточно» — противоречие). Ретрив-уверенность всё
-    # равно логируем: честный отказ при высоком score — важный сигнал качества.
-    if stripped.upper().startswith(INSUFFICIENT_MARKER):
+    # Модель сама признала, что переданных статей не хватает — честный отказ БЕЗ
+    # цитат (иначе бот показал бы «Основание: ст. N…» под ответом «данных
+    # недостаточно» — противоречие). Ловим маркер ГДЕ УГОДНО (модель порой пишет
+    # пояснение, а потом INSUFFICIENT). Ретрив-уверенность логируем: честный отказ
+    # при высоком score — важный сигнал качества.
+    if _is_insufficient(stripped):
         await _log_confidence(deps, state["question"], confidence)
         return {
             "answer": Answer(text=REFUSE_TEXT, citations=[], refused=True),
