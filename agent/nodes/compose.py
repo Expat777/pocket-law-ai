@@ -2,10 +2,34 @@
 
 import re
 
+from agent.config import MAX_CITATIONS
 from agent.deps import Deps
 from agent.prompts import COMPOSE_DOC_SYSTEM, COMPOSE_SYSTEM, build_compose_prompt
 from agent.state import AgentState
-from shared.contracts import Answer, RetrievedChunk
+from shared.contracts import Answer, Citation, RetrievedChunk
+
+# Номер статьи после «ст»/«статья» в тексте ОТВЕТА: «(статья 91 ТК РФ)», «ст. 133».
+# Триггер «ст…» обязателен, чтобы не хватать любые числа (суммы, даты, «14 дней»).
+_ARTICLE_IN_PROSE = re.compile(r"\bст(?:ать[ияею]|\.)?\s*№?\s*(\d+(?:\.\d+)*)", re.IGNORECASE)
+
+
+def _align_citations(text: str, citations: list[Citation]) -> list[Citation]:
+    """«Основание» = статьи, реально упомянутые в ОТВЕТЕ и подтверждённые ретривом.
+
+    Чиним рассинхрон «Основание↔текст» (находка Роли 1): verify отдаёт весь
+    грунтованный набор в порядке ретрива, но показывать надо не топ-N по score, а то,
+    на что ответ реально опирается. Убирает подтянутые-но-неиспользованные статьи
+    (score-мусор) и поднимает использованные, что выпали из обрезки. Порядок ретрива
+    сохраняем. Проза БЕЗ номеров статей (обычный режим часто не проставляет их) ->
+    прежнее поведение: топ ретрива, обрезка MAX_CITATIONS. Ничего не совпало -> тоже
+    фолбэк. Негрунтованные номера из прозы (модель взяла из своих знаний) в «Основание»
+    не попадают by design — цитируем только подтверждённое ретривом.
+    """
+    nums = set(_ARTICLE_IN_PROSE.findall((text or "").lower()))
+    if not nums:
+        return citations[:MAX_CITATIONS]
+    used = [c for c in citations if c.article in nums]
+    return (used or citations)[:MAX_CITATIONS]
 
 # Маркер: модель вернула его, когда переданных статей не хватает для ответа.
 INSUFFICIENT_MARKER = "INSUFFICIENT"
@@ -84,7 +108,11 @@ async def compose_answer(state: AgentState, deps: Deps) -> dict:
                 "confidence": 0.0,
             }
         return {
-            "answer": Answer(text=stripped, citations=citations, refused=False),
+            "answer": Answer(
+                text=stripped,
+                citations=_align_citations(stripped, citations),
+                refused=False,
+            ),
             "draft_text": text,
             "confidence": confidence,
         }
@@ -109,7 +137,11 @@ async def compose_answer(state: AgentState, deps: Deps) -> dict:
 
     await _log_confidence(deps, state["question"], confidence)
     return {
-        "answer": Answer(text=stripped, citations=citations, refused=False),
+        "answer": Answer(
+            text=stripped,
+            citations=_align_citations(stripped, citations),
+            refused=False,
+        ),
         "draft_text": text,
         "confidence": confidence,
     }

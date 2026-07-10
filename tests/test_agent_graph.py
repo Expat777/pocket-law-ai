@@ -1046,3 +1046,43 @@ async def test_compose_doc_mode_uses_doc_head_and_keeps_citations():
     assert "ШАПКА ПИСЬМА" in seen["prompt"]  # упорядоченная голова в промпте
     assert "случайный похожий чанк" not in seen["prompt"]  # searched-чанки заменены головой
     assert "ТК РФ" in seen["prompt"]  # статьи закона остались
+
+
+def test_align_citations_matches_prose_to_grounded():
+    """Находка Роли 1: «Основание» = статьи, реально использованные в ответе И
+    подтверждённые ретривом. Подтянутую-но-неиспользованную (71) убираем, а
+    использованную, что выпала бы из обрезки (91), поднимаем."""
+    from agent.nodes.compose import _align_citations
+
+    c70 = Citation(act="ТК РФ", article="70", revision_date=date(2026, 1, 1))
+    c71 = Citation(act="ТК РФ", article="71", revision_date=date(2026, 1, 1))
+    c91 = Citation(act="ТК РФ", article="91", revision_date=date(2026, 1, 1))
+    grounded = [c70, c71, c91]  # порядок ретрива по score
+    prose = (
+        "Испытательный срок чрезмерен (статья 70 ТК РФ). "
+        "Рабочая неделя 60 часов превышает 40 часов (ст. 91 ТК РФ)."
+    )
+    out = _align_citations(prose, grounded)
+    assert [c.article for c in out] == ["70", "91"]  # 71 не использована -> убрана
+
+
+def test_align_citations_fallback_when_no_article_numbers():
+    """Проза без номеров статей (обычный режим часто их не проставляет) -> прежнее
+    поведение: топ ретрива с обрезкой MAX_CITATIONS, ничего не теряем."""
+    from agent.config import MAX_CITATIONS
+    from agent.nodes.compose import _align_citations
+
+    cits = [Citation(act="ТК РФ", article=str(100 + i), revision_date=date(2026, 1, 1)) for i in range(8)]
+    out = _align_citations("Ответ по существу без ссылок на номера статей.", cits)
+    assert out == cits[:MAX_CITATIONS]
+
+
+def test_align_citations_drops_ungrounded_prose_number():
+    """Anti-hallucination: номер из прозы, которого НЕТ в ретриве (модель взяла из
+    своих знаний), в «Основание» не попадает — цитируем только подтверждённое."""
+    from agent.nodes.compose import _align_citations
+
+    c58 = Citation(act="ТК РФ", article="58", revision_date=date(2026, 1, 1))
+    prose = "Право уволиться по ст. 80 ТК РФ; срочный договор по статье 58 ТК РФ."
+    out = _align_citations(prose, [c58])
+    assert [c.article for c in out] == ["58"]  # 80 негрунтованный -> отброшен
