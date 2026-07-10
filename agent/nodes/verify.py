@@ -7,7 +7,6 @@
 
 from datetime import date
 
-from agent.config import MAX_CITATIONS
 from agent.deps import Deps
 from agent.state import AgentState
 from shared.contracts import Citation, RetrievedChunk
@@ -51,7 +50,10 @@ async def verify(state: AgentState, deps: Deps) -> dict:
                 )
             )
 
-    return {"verified_chunks": verified, "citations": citations[:MAX_CITATIONS]}
+    # Обрезку MAX_CITATIONS и выбор ПОКАЗЫВАЕМЫХ цитат делает compose: «Основание»
+    # выравнивается по статьям, реально использованным в ответе (чиним рассинхрон
+    # Основание↔текст). Здесь отдаём ВЕСЬ грунтованный набор — из него compose и берёт.
+    return {"verified_chunks": verified, "citations": citations}
 
 
 def route_after_verify(state: AgentState) -> str:
