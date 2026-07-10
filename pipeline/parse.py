@@ -23,7 +23,11 @@ log = logging.getLogger(__name__)
 
 _RE_CHAPTER = re.compile(r"^ГЛАВА\s+([\d.]+)[.\s]*(.*)", re.IGNORECASE)
 _RE_ARTICLE = re.compile(r"^Статья\s+([\d.]+(?:-\d+)*)\.?\s*(.*)")  # дефисные номера: «348.11-1», двойные «201.15-2-1» (банкротство застройщиков)
-_RE_REPEALED = re.compile(r"утратил[аи]?\s+силу", re.IGNORECASE)
+_RE_REPEALED = re.compile(r"утратил[аио]?\s+силу", re.IGNORECASE)
+# скобочная пометка об утрате силы — может относиться к ОТДЕЛЬНОЙ ЧАСТИ статьи
+# («(Часть утратила силу — …)»), а не ко всей статье
+_RE_REPEAL_NOTE = re.compile(r"\([^()]*утратил[аио]?\s+силу[^()]*\)", re.IGNORECASE)
+_RE_WORD = re.compile(r"[А-Яа-я]{3,}")  # есть ли осмысленный русский текст
 # сноски «(В редакции федерального закона …)» повторяются сотнями и шумят в поиске
 _RE_FOOTNOTE = re.compile(r"\((?:В редакции|Наименование в редакции)[^()]*\)")
 
@@ -92,8 +96,13 @@ def _collect(paragraphs: list[tuple[str, str]], act: str, allow_body_headers: bo
         nonlocal current
         if current is not None:
             text = "\n".join(body)
-            # статус определяем ДО вычистки сносок: маркер «(Утратила силу — …)» — и есть сигнал
-            if _RE_REPEALED.search(current.title) or _RE_REPEALED.search(text[:200]):
+            # статус определяем ДО вычистки сносок. Отличаем «утратила силу ВСЯ статья» от
+            # «утратила силу отдельная ЧАСТЬ» (КоАП 12.9: ч.1 мертва, ч.2-7 действуют): если
+            # после удаления скобочных пометок «(… утратил… силу …)» остаётся осмысленный
+            # русский текст — статья ЖИВА; не остаётся — утратила силу целиком.
+            if _RE_REPEALED.search(current.title):
+                current.status = "repealed"
+            elif _RE_REPEALED.search(text) and not _RE_WORD.search(_RE_REPEAL_NOTE.sub("", text)):
                 current.status = "repealed"
             elif not text.strip() and not current.title.strip():
                 # голый стаб «Статья N.» без заголовка и тела — в ФЗ так помечают утратившие
