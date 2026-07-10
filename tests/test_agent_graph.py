@@ -74,6 +74,27 @@ async def test_refuse_when_no_law_found():
     assert ans.citations == []
 
 
+async def test_insufficient_marker_mid_text_still_refuses():
+    """Живой баг: модель пишет пояснение, а потом INSUFFICIENT в конце — маркер не в
+    начале строки. Ловим где угодно -> честный отказ БЕЗ утечки литерала и цитат."""
+    from agent.nodes.compose import REFUSE_TEXT, compose_answer
+
+    async def fake_verify(citation):
+        return CitationStatus(exists=True, active=True, current_revision=date(2026, 5, 15))
+
+    leaky = "В предоставленных статьях нет информации по этому вопросу.\n\nINSUFFICIENT"
+    cit = Citation(act="Закон о взыскании задолженности", article="19.1",
+                   revision_date=date(2026, 5, 15))
+    deps = Deps(llm=make_llm(answer_text=leaky), search_law=None, verify_citation=fake_verify)
+    state = {"question": "коллекторы бросают мусор", "verified_chunks": [TK_81], "citations": [cit]}
+    out = await compose_answer(state, deps)
+    ans = out["answer"]
+    assert ans.refused is True
+    assert ans.citations == []  # нерелевантные цитаты не утекают
+    assert "INSUFFICIENT" not in ans.text  # литерал не показываем
+    assert ans.text == REFUSE_TEXT
+
+
 async def test_offtopic_soft_refusal_when_not_legal():
     """Явно не-юр вопрос (непустой) -> мягкий отказ по области, а не переспрос."""
     from agent.nodes.compose import OFFTOPIC_TEXT
