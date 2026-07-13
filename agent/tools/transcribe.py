@@ -29,24 +29,50 @@ def _mime(filename: str) -> str:
     return _MIME.get(os.path.splitext(filename or "")[1].lower(), "application/octet-stream")
 
 
+# Ретраи транзиентных ошибок — как в openai_compat (Polza периодически отдаёт 503;
+# LLM-клиент их ретраил, а STT падал с первого — аудит зоны). 4xx летят сразу.
+_TRANSIENT_STATUS = {429, 500, 502, 503, 504}
+_MAX_ATTEMPTS = 3
+_BACKOFF = (0.6, 1.5)  # сек между попытками
+
+
 async def _default_post(audio_bytes: bytes, filename: str, model: str, language: str) -> str:
     """Боевой вызов STT-эндпоинта (ленивый httpx — как в openai_compat)."""
+    import asyncio
+
     import httpx
 
     base = os.getenv("LLM_BASE_URL", "https://api.polza.ai/api/v1").rstrip("/")
     key = os.getenv("LLM_API_KEY", "")
     files = {"file": (filename, audio_bytes, _mime(filename))}
     data = {"model": model, "language": language}
-    async with httpx.AsyncClient(timeout=STT_TIMEOUT) as client:
-        r = await client.post(
-            f"{base}/audio/transcriptions",
-            headers={"Authorization": f"Bearer {key}"},
-            files=files,
-            data=data,
-        )
-    r.raise_for_status()
-    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-    return (body or {}).get("text", "") if isinstance(body, dict) else ""
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            async with httpx.AsyncClient(timeout=STT_TIMEOUT) as client:
+                r = await client.post(
+                    f"{base}/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {key}"},
+                    files=files,
+                    data=data,
+                )
+            r.raise_for_status()
+            body = (
+                r.json()
+                if r.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
+            return (body or {}).get("text", "") if isinstance(body, dict) else ""
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code not in _TRANSIENT_STATUS:
+                raise
+            last_exc = e
+        except httpx.TransportError as e:  # обрыв сети/таймаут
+            last_exc = e
+        if attempt < _MAX_ATTEMPTS - 1:
+            await asyncio.sleep(_BACKOFF[attempt])
+    assert last_exc is not None
+    raise last_exc
 
 
 async def transcribe_audio(

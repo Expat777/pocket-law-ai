@@ -8,9 +8,19 @@ from agent.prompts import COMPOSE_DOC_SYSTEM, COMPOSE_SYSTEM, build_compose_prom
 from agent.state import AgentState
 from shared.contracts import Answer, Citation, RetrievedChunk
 
-# Номер статьи после «ст»/«статья» в тексте ОТВЕТА: «(статья 91 ТК РФ)», «ст. 133».
-# Триггер «ст…» обязателен, чтобы не хватать любые числа (суммы, даты, «14 дней»).
-_ARTICLE_IN_PROSE = re.compile(r"\bст(?:ать[ияею]|\.)?\s*№?\s*(\d+(?:\.\d+)*)", re.IGNORECASE)
+# Ссылки на статьи в тексте ОТВЕТА: «(статья 91 ТК РФ)», «ст. 133», включая
+# ПЕРЕЧИСЛЕНИЯ «ст. 115, 133 ТК» / «статьями 91 и 92» — модель часто пишет списком,
+# и старый регэксп (один номер после «ст…») терял хвост списка -> использованная
+# статья выпадала из «Основания» (аудит зоны). Словоформы: статья/статьи/статье/
+# статью/статьёй/статьями/статьях (стать+суффикс) и «статей»; НЕ «стат[а-яё]+» —
+# зацепил бы «статус 3»/«статистика 5». Триггер «ст…» обязателен, чтобы не хватать
+# любые числа (суммы, даты, «14 дней»).
+_ARTICLE_IN_PROSE = re.compile(
+    r"\b(?:стать[а-яё]+|статей|ст\.?)\s*№?\s*"
+    r"(\d+(?:\.\d+)*(?:\s*(?:,|и)\s*\d+(?:\.\d+)*)*)",
+    re.IGNORECASE,
+)
+_ARTICLE_NUM = re.compile(r"\d+(?:\.\d+)*")
 
 
 def _align_citations(text: str, citations: list[Citation]) -> list[Citation]:
@@ -25,9 +35,14 @@ def _align_citations(text: str, citations: list[Citation]) -> list[Citation]:
     фолбэк. Негрунтованные номера из прозы (модель взяла из своих знаний) в «Основание»
     не попадают by design — цитируем только подтверждённое ретривом.
     """
-    nums = set(_ARTICLE_IN_PROSE.findall((text or "").lower()))
+    nums: set[str] = set()
+    for m in _ARTICLE_IN_PROSE.finditer((text or "").lower()):
+        nums.update(_ARTICLE_NUM.findall(m.group(1)))
     if not nums:
         return citations[:MAX_CITATIONS]
+    # Матчим по номеру (без акта): проза называет акт нестрого («Трудового кодекса»).
+    # Коллизия номера между актами в грунтованном наборе даст лишний чип — но он
+    # проверен verify (не выдумка), а до фикса выравнивания в чипах были ВСЕ топ-5.
     used = [c for c in citations if c.article in nums]
     return (used or citations)[:MAX_CITATIONS]
 

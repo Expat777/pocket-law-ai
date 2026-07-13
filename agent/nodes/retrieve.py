@@ -43,9 +43,17 @@ def _anchor_refs(text: str) -> tuple[list[str], list[str]]:
             nos.append(art)
     return acts, nos
 
-# Номер статьи после «ст»/«статья»: 158, 20.20, 158.1. Требуем триггер «ст…», чтобы
-# не хватать любые числа («перевёл 200 тысяч»). Границы слова отсекают «стоимость».
-_ART_RE = re.compile(r"\bст(?:ать[ияею]|\.)?\s*№?\s*(\d+(?:\.\d+)*)", re.IGNORECASE)
+# Номер статьи после «ст»/«статья»: 158, 20.20, 158.1 — включая перечисления
+# «ст. 91 и 92 ТК» / «по статьям 115, 133» (без этого fast-path брал только первый
+# номер списка; аудит зоны). Требуем триггер «ст…», чтобы не хватать любые числа
+# («перевёл 200 тысяч»). Словоформы как в compose._ARTICLE_IN_PROSE; границы слова
+# отсекают «стоимость»/«статус».
+_ART_RE = re.compile(
+    r"\b(?:стать[а-яё]+|статей|ст\.?)\s*№?\s*"
+    r"(\d+(?:\.\d+)*(?:\s*(?:,|и)\s*\d+(?:\.\d+)*)*)",
+    re.IGNORECASE,
+)
+_ART_NUM_RE = re.compile(r"\d+(?:\.\d+)*")
 
 
 def _parse_article_refs(text: str) -> tuple[list[str], list[str]]:
@@ -55,7 +63,9 @@ def _parse_article_refs(text: str) -> tuple[list[str], list[str]]:
     не включаем, работает обычная семантика.
     """
     low = (text or "").lower()
-    nos = _ART_RE.findall(low)
+    nos: list[str] = []
+    for m in _ART_RE.finditer(low):
+        nos.extend(_ART_NUM_RE.findall(m.group(1)))
     if not nos:
         return [], []
     acts: list[str] = []

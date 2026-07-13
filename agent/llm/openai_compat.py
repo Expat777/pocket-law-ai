@@ -79,7 +79,9 @@ class OpenAICompatLLM:
                         resp = await client.post(url, json=payload, headers=headers)
                     resp.raise_for_status()
                     data = resp.json()
-                    out = data["choices"][0]["message"]["content"]
+                    # content может прийти null (фильтр/пустой ответ провайдера) —
+                    # отдаём "", а не None: выше по стеку зовут .strip() (аудит зоны).
+                    out = data["choices"][0]["message"]["content"] or ""
                     record(out)
                     return out
                 except httpx.HTTPStatusError as e:

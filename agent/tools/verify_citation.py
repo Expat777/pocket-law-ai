@@ -25,8 +25,8 @@ def _get_client() -> AsyncQdrantClient:
     return _client
 
 
-async def verify_citation(citation: Citation) -> CitationStatus:
-    client = _get_client()
+async def verify_citation(citation: Citation, *, client=None) -> CitationStatus:
+    client = client or _get_client()
     points, _ = await client.scroll(
         collection_name=LAW_COLLECTION,
         scroll_filter=Filter(
@@ -43,7 +43,11 @@ async def verify_citation(citation: Citation) -> CitationStatus:
 
     payload = points[0].payload or {}
     status = payload.get("status")
-    active = status in (None, "active")  # действующей считаем active или без метки
+    # Действующие: active, БЕЗ метки и amended (изменена, но В СИЛЕ — контракт 3.2
+    # допускает, у Роли 3 это фаза 2). Иначе в день, когда пайплайн начнёт эмитить
+    # amended, изменённые статьи молча пропали бы из цитат (класс бага КоАП 12.9:
+    # тихая потеря живой нормы). Мёртвая — только repealed.
+    active = status in (None, "active", "amended")
     return CitationStatus(
         exists=True, active=active, current_revision=payload.get("effective_date")
     )

@@ -91,16 +91,20 @@ async def answer_question(
 
 
 async def ingest_document(
-    user_id: int, file_bytes: bytes, mime: str
+    user_id: int, file_bytes: bytes, mime: str, filename: str | None = None
 ) -> IngestResult:
-    """Контракт 3.1: разбор загруженного документа в user_documents."""
+    """Контракт 3.1: разбор загруженного документа в user_documents.
+
+    filename — имя для списка документов (в контракте 3.1 есть; раньше модульная
+    обёртка его теряла, и совпадал только класс Agent — аудит зоны).
+    """
     from .ingest import ingest_document as _ingest
 
-    return await _ingest(user_id, file_bytes, mime)
+    return await _ingest(user_id, file_bytes, mime, filename=filename)
 
 
-async def ingest_url(user_id: int, url: str) -> IngestResult:
+async def ingest_url(user_id: int, url: str, filename: str | None = None) -> IngestResult:
     """Скачать документ по ссылке (SSRF-безопасно) и проиндексировать."""
     from .ingest import ingest_url as _ingest_url
 
-    return await _ingest_url(user_id, url)
+    return await _ingest_url(user_id, url, filename=filename)
