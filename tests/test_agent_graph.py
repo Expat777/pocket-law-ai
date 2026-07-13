@@ -65,6 +65,19 @@ async def test_answer_with_citation():
     assert ans.text
 
 
+async def test_intent_hyde_zero_temp_compose_default():
+    """Температура по узлам (разбор команды 07-13): intent/HyDE зовутся с 0.0
+    (детерминизм поисковой половины — candidate_acts/retrieval_query не плавают),
+    compose — БЕЗ оверрайда (дефолт клиента 0.2). НЕ то же, что глобальный A/B
+    07-10: тот крутил одну ручку на все узлы и ронял compose."""
+    deps = make_deps([TK_81], answer_text="Ответ (ст. 81 ТК РФ).")
+    await answer_question(1, "могут ли уволить в отпуске?", deps=deps)
+    temps = deps.llm.temperatures
+    assert len(temps) >= 2  # intent (+HyDE, если включён) + compose
+    assert temps[-1] is None  # compose — дефолт клиента
+    assert all(t == 0.0 for t in temps[:-1])  # поисковая половина — детерминизм
+
+
 async def test_refuse_when_no_law_found():
     """Юр. вопрос, но в базе ничего -> честный отказ (refused=True)."""
     deps = make_deps([], is_legal=True)
@@ -696,6 +709,9 @@ def test_parse_article_refs():
     assert _parse_article_refs("перевёл 200 тысяч мошенникам") == ([], [])
     # номер есть, акта нет — неоднозначно, не срабатывает
     assert _parse_article_refs("что там по статье 20") == ([], [])
+    # перечисления (аудит зоны): раньше терялся хвост списка
+    assert _parse_article_refs("сравни ст. 91 и 92 ТК") == (["ТК РФ"], ["91", "92"])
+    assert _parse_article_refs("по статьям 115, 133 тк") == (["ТК РФ"], ["115", "133"])
 
 
 def test_zozpp_branch_mapped():
@@ -751,6 +767,58 @@ async def test_ingest_stores_filename():
     )
     assert res.ok is True
     assert captured["filename"] == "Договор Альфа.pdf"
+
+
+async def test_graph_ingest_document_forwards_filename():
+    """Аудит зоны: модульная обёртка graph.ingest_document ТЕРЯЛА filename — контракт
+    3.1 его имеет; совпадал только класс Agent. Проверяем проброс до agent.ingest."""
+    import agent.graph as G
+    import agent.ingest as I
+    from shared.contracts import IngestResult
+
+    seen = {}
+
+    async def fake_ingest(user_id, file_bytes, mime, *, filename=None, **kw):
+        seen["filename"] = filename
+        return IngestResult(doc_id="d1", chunks=1, ok=True)
+
+    orig = I.ingest_document
+    I.ingest_document = fake_ingest
+    try:
+        res = await G.ingest_document(7, b"x", "application/pdf", filename="акт.pdf")
+    finally:
+        I.ingest_document = orig
+    assert res.ok is True
+    assert seen["filename"] == "акт.pdf"
+
+
+async def test_verify_citation_amended_is_active():
+    """Аудит зоны (латентная бомба класса КоАП 12.9): status='amended' по контракту
+    3.2 — изменённая, но ДЕЙСТВУЮЩАЯ статья. Дропать её из цитат нельзя; мёртвая —
+    только repealed."""
+    from agent.tools.verify_citation import verify_citation
+
+    cit = Citation(act="ТК РФ", article="81", revision_date=date(2026, 1, 1))
+    st = await verify_citation(
+        cit, client=_FakeQdrant([_pt(status="amended", effective_date="2026-01-01")])
+    )
+    assert st.exists is True and st.active is True
+
+    st2 = await verify_citation(cit, client=_FakeQdrant([_pt(status="repealed")]))
+    assert st2.exists is True and st2.active is False
+
+    st3 = await verify_citation(cit, client=_FakeQdrant([]))
+    assert st3.exists is False and st3.active is False
+
+
+def test_qdrant_clients_are_cached():
+    """Аудит зоны: lookup_articles/_upsert_user_docs создавали НОВЫЙ AsyncQdrantClient
+    на каждый вызов (якорь/fast-path — на каждом вопросе). Теперь кэш, как в documents."""
+    from agent.ingest import _qdrant_client
+    from agent.tools.lookup_article import _default_client
+
+    assert _default_client() is _default_client()
+    assert _qdrant_client() is _qdrant_client()
 
 
 async def test_list_user_documents_aggregates_by_doc_id():
@@ -1055,6 +1123,11 @@ def test_keyword_acts_unit():
     assert keyword_acts("как получить материнский капитал") == ["Закон о материнском капитале"]
     assert keyword_acts("коллекторы угрожают") == ["Закон о взыскании задолженности"]
     assert keyword_acts("коллекторское агентство названивает") == ["Закон о взыскании задолженности"]
+    # репро Роли 4: «покусала собака» — intent терял 498-ФЗ, серверный фильтр отрезал
+    assert keyword_acts("соседская собака покусала ребёнка") == ["Закон об обращении с животными"]
+    assert keyword_acts("сосед выгуливает собаку без поводка, выгул где разрешён") == [
+        "Закон об обращении с животными"
+    ]
     # омоним «коллектор» (сантехника): одиночная форма НЕ триггерит — предохранитель
     # обязан быть высокоточным (промах доберёт LLM-intent, ложный триггер хуже)
     assert keyword_acts("прорвало коллектор отопления, кто отвечает") == []
@@ -1277,3 +1350,25 @@ def test_align_citations_drops_ungrounded_prose_number():
     prose = "Право уволиться по ст. 80 ТК РФ; срочный договор по статье 58 ТК РФ."
     out = _align_citations(prose, [c58])
     assert [c.article for c in out] == ["58"]  # 80 негрунтованный -> отброшен
+
+
+def test_align_citations_handles_enumerations_and_case_forms():
+    """Аудит зоны: модель пишет статьи СПИСКОМ («ст. 115, 133 ТК», «статьями 91 и
+    92») — старый регэксп брал один номер после «ст…», хвост списка выпадал из
+    «Основания». Падежи «статьями/статей» тоже ловим; «статус 3» — не статья."""
+    from agent.nodes.compose import _align_citations
+
+    def cit(no):
+        return Citation(act="ТК РФ", article=no, revision_date=date(2026, 1, 1))
+
+    grounded = [cit("115"), cit("133"), cit("91"), cit("92"), cit("12"), cit("300")]
+    prose = (
+        "Отпуск оплачивается (ст. 115, 133 ТК РФ). Норма часов ограничена "
+        "статьями 91 и 92 ТК РФ, что следует из статей 12 и 13."
+    )
+    out = _align_citations(prose, grounded)
+    # 300 не упомянута -> убрана; 13 негрунтована -> не появилась (обрезка MAX=5)
+    assert [c.article for c in out] == ["115", "133", "91", "92", "12"]
+    # ложные «ст»-слова номером не считаются: фолбэк на топ ретрива
+    out2 = _align_citations("Его статус 3 группы подтверждён.", grounded[:2])
+    assert [c.article for c in out2] == ["115", "133"]

@@ -18,10 +18,19 @@ LAW_COLLECTION = os.getenv("QDRANT_LAW_COLLECTION", "law_articles")
 EXACT_MATCH_SCORE = 1.0
 
 
-def _default_client():
-    from qdrant_client import AsyncQdrantClient
+_client = None
 
-    return AsyncQdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+
+def _default_client():
+    # Кэш клиента (как в documents.py/verify_citation.py): lookup зовётся на каждом
+    # вопросе с явным «ст. N» или якорь-триггером — новый AsyncQdrantClient на вызов
+    # плодил бы соединения (аудит зоны; тот же антипаттерн чинился в documents.py Н5).
+    global _client
+    if _client is None:
+        from qdrant_client import AsyncQdrantClient
+
+        _client = AsyncQdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+    return _client
 
 
 async def lookup_articles(

@@ -54,7 +54,9 @@ class OpenAICompatLLM:
             os.getenv("LLM_MAX_TOKENS", str(DEFAULT_MAX_TOKENS))
         )
 
-    async def complete(self, system: str, user: str) -> str:
+    async def complete(
+        self, system: str, user: str, *, temperature: float | None = None
+    ) -> str:
         import httpx  # ленивый импорт: нужен только при реальной генерации
 
         from agent.tracing import llm_span
@@ -65,7 +67,8 @@ class OpenAICompatLLM:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "temperature": self.temperature,
+            # per-call оверрайд (температура по узлам: intent/HyDE 0.0) поверх дефолта
+            "temperature": temperature if temperature is not None else self.temperature,
             "max_tokens": self.max_tokens,  # потолок стоимости ответа
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}
@@ -79,7 +82,9 @@ class OpenAICompatLLM:
                         resp = await client.post(url, json=payload, headers=headers)
                     resp.raise_for_status()
                     data = resp.json()
-                    out = data["choices"][0]["message"]["content"]
+                    # content может прийти null (фильтр/пустой ответ провайдера) —
+                    # отдаём "", а не None: выше по стеку зовут .strip() (аудит зоны).
+                    out = data["choices"][0]["message"]["content"] or ""
                     record(out)
                     return out
                 except httpx.HTTPStatusError as e:

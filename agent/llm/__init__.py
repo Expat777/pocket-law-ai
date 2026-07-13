@@ -1,7 +1,9 @@
 """LLM-слой Роли 2: протокол + фабрика реального клиента.
 
-Реальный провайдер намеренно ещё не подключён — граф работает через протокол
-LLMClient, а конкретный клиент внедряется извне (agent/deps.py -> Deps.llm).
+Боевой провайдер — любой OpenAI-совместимый шлюз (сейчас Polza.ai, см.
+openai_compat.py): build_llm() поднимает его при заданном LLM_API_KEY, без ключа
+возвращает ленивую заглушку. Граф зависит только от протокола LLMClient, конкретный
+клиент внедряется извне (agent/deps.py -> Deps.llm), тесты — FakeLLMClient.
 """
 
 import os
@@ -18,7 +20,9 @@ class _UnconfiguredLLM:
     (узел compose). Так И1 (подключение бота) не требует ждать LLM.
     """
 
-    async def complete(self, system: str, user: str) -> str:
+    async def complete(
+        self, system: str, user: str, *, temperature: float | None = None
+    ) -> str:
         raise NotImplementedError(
             "Боевой LLM-клиент ещё не подключён. Передайте конкретный LLMClient "
             "через Deps (FakeLLMClient для тестов) или добавьте провайдера в "

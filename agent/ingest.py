@@ -53,11 +53,24 @@ def _chunk(text: str) -> list[str]:
     return chunks
 
 
+_qdrant = None
+
+
+def _qdrant_client():
+    # Кэш клиента (как в documents.py): новый AsyncQdrantClient на каждую загрузку
+    # плодил бы соединения (аудит зоны).
+    global _qdrant
+    if _qdrant is None:
+        from qdrant_client import AsyncQdrantClient
+
+        _qdrant = AsyncQdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+    return _qdrant
+
+
 async def _upsert_user_docs(user_id, doc_id, chunks, vectors, filename=None) -> None:
-    from qdrant_client import AsyncQdrantClient
     from qdrant_client.models import PointStruct
 
-    client = AsyncQdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+    client = _qdrant_client()
     now = datetime.now(timezone.utc).isoformat()
     points = [
         PointStruct(
