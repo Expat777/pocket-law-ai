@@ -45,6 +45,8 @@ def _fake_message(text, uid):
 def _fake_state():
     s = MagicMock()
     s.set_state = AsyncMock()
+    s.get_state = AsyncMock(return_value=None)
+    s.update_data = AsyncMock()
     return s
 
 

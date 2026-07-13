@@ -40,6 +40,8 @@ async def test_on_url_ingests_and_replies():
     msg = _fake_message("https://example.com/dogovor.pdf")
     state = MagicMock()
     state.set_state = AsyncMock()
+    state.get_state = AsyncMock(return_value=None)
+    state.update_data = AsyncMock()
 
     await on_url(msg, state, InMemoryRepository(), MockAgent())
 
@@ -66,6 +68,8 @@ async def test_on_url_question_scoped_to_new_doc_and_clears_sticky_scope():
     msg = _fake_message("https://example.com/tk.html сколько дней отпуска?")
     state = MagicMock()
     state.set_state = AsyncMock()
+    state.get_state = AsyncMock(return_value=None)
+    state.update_data = AsyncMock()
 
     await on_url(msg, state, InMemoryRepository(), agent)
 

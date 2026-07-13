@@ -24,6 +24,8 @@ def _fake_message(text: str):
 def _fake_state():
     state = MagicMock()
     state.set_state = AsyncMock()
+    state.get_state = AsyncMock(return_value=None)
+    state.update_data = AsyncMock()
     return state
 
 

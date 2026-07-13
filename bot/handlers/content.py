@@ -336,10 +336,18 @@ async def _answer_question(
         return
 
     # FSM: агент переспросил → ждём уточнение, иначе обычный режим (задача 4).
+    # Агент БЕЗСТЕЙТОВЫЙ (каждый answer_question — новый initial_state, историю не
+    # читает). Поэтому при уточнении ЗАПОМИНАЕМ исходный вопрос и сам переспрос: без
+    # этого следующая реплика («да» / «трудовой») ушла бы как новый вопрос и потеряла
+    # контекст (см. _with_clarification_context).
     if answer.clarifying_question:
         await state.set_state(Dialog.awaiting_clarification)
+        await state.update_data(
+            pending_question=text, pending_clarify=answer.clarifying_question
+        )
     else:
         await state.set_state(Dialog.normal_question)
+        await state.update_data(pending_question=None, pending_clarify=None)
 
     await repo.save_dialog(user_id, "assistant", answer.text, answer.citations)
     # Содержательный ответ (не уточнение/не отказ) можно сохранить в «памятку» —
@@ -355,6 +363,25 @@ async def _answer_question(
         await message.answer(_scope_footer(sticky_names))
 
 
+async def _with_clarification_context(state: FSMContext, reply: str) -> str:
+    """Если бот ждёт уточнение — склеивает исходный вопрос + переспрос агента + ответ.
+
+    Агент безстейтовый: без склейки короткое уточнение («да» / «трудовой») ушло бы как
+    самостоятельный вопрос и потеряло контекст. Возвращает reply как есть, если
+    уточнения не ждём или состояние потеряно (рестарт → MemoryStorage сбрасывается).
+    """
+    if await state.get_state() != Dialog.awaiting_clarification.state:
+        return reply
+    data = await state.get_data()
+    pending = data.get("pending_question")
+    if not pending:
+        return reply
+    clarify_q = data.get("pending_clarify")
+    if clarify_q:  # переспрос часто и несёт варианты («трудовой или ГПХ?») — сохраняем его
+        return f"{pending}\nУточнение (на вопрос «{clarify_q}»): {reply}"
+    return f"{pending} {reply}"
+
+
 @router.message(F.text & ~F.text.startswith("/"))
 async def on_question(
     message: Message,
@@ -366,7 +393,8 @@ async def on_question(
         await message.answer(_WAIT_INGEST)
         return
     await repo.ensure_user(message.from_user.id, message.from_user.username)
-    await _answer_question(message, state, repo, agent, message.text.strip())
+    text = await _with_clarification_context(state, message.text.strip())
+    await _answer_question(message, state, repo, agent, text)
 
 
 @router.edited_message(F.text & ~F.text.startswith("/"))
@@ -381,7 +409,8 @@ async def on_edited_question(
         await message.answer(_WAIT_INGEST)
         return
     await repo.ensure_user(message.from_user.id, message.from_user.username)
-    await _answer_question(message, state, repo, agent, message.text.strip())
+    text = await _with_clarification_context(state, message.text.strip())
+    await _answer_question(message, state, repo, agent, text)
 
 
 # --- Агрегация альбома (несколько файлов одним сообщением) -------------------

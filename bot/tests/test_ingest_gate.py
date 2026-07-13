@@ -21,6 +21,8 @@ from bot.repository import InMemoryRepository
 def _fake_state():
     state = MagicMock()
     state.set_state = AsyncMock()
+    state.get_state = AsyncMock(return_value=None)
+    state.update_data = AsyncMock()
     return state
 
 

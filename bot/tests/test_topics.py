@@ -43,6 +43,8 @@ def _cb(uid: int, data: str):
 def _state():
     s = MagicMock()
     s.set_state = AsyncMock()
+    s.get_state = AsyncMock(return_value=None)
+    s.update_data = AsyncMock()
     return s
 
 
