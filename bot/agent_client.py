@@ -30,3 +30,7 @@ class AgentClient(Protocol):
     async def delete_user_documents(
         self, user_id: int, doc_id: str | None = None
     ) -> None: ...
+
+    async def transcribe_voice(
+        self, user_id: int, audio_bytes: bytes, filename: str | None = None
+    ) -> str: ...
