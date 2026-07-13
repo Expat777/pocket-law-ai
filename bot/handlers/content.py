@@ -597,6 +597,71 @@ async def on_file(
         _ingest_end(user_id)
 
 
+# Голосовой ввод (STT). Поток: voice → скачать OGG → agent.transcribe_voice (Роль 2,
+# Whisper через Polza) → ПОКАЗАТЬ распознанное юзеру → обычный ответ по тексту.
+# Согласие и rate-limit навешаны мидлварями content_router (как для текста).
+_MAX_VOICE_SEC = 300  # ~5 мин: длиннее не пускаем (стоимость/латентность STT)
+
+
+@router.message(F.voice)
+async def on_voice(
+    message: Message,
+    state: FSMContext,
+    repo: Repository,
+    agent: AgentClient,
+    bot: Bot,
+    max_file_bytes: int,
+) -> None:
+    user_id = message.from_user.id
+    if _is_ingesting(user_id):  # документ ещё грузится — ответить рано
+        await message.answer(_WAIT_INGEST)
+        return
+    await repo.ensure_user(user_id, message.from_user.username)
+
+    voice = message.voice
+    if voice.duration and voice.duration > _MAX_VOICE_SEC:
+        await message.answer(
+            f"Голосовое слишком длинное (>{_MAX_VOICE_SEC // 60} мин). "
+            "Запишите короче или напишите вопрос текстом."
+        )
+        return
+    if (voice.file_size or 0) > max_file_bytes:
+        await message.answer("Голосовое слишком большое. Напишите вопрос текстом.")
+        return
+
+    buffer = io.BytesIO()
+    try:
+        await bot.download(voice.file_id, destination=buffer)
+    except Exception:  # noqa: BLE001
+        log.exception("voice download failed for user %s", user_id)
+        await message.answer("Не удалось скачать голосовое. Попробуйте ещё раз.")
+        return
+
+    await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
+    try:
+        text = await agent.transcribe_voice(user_id, buffer.getvalue(), filename="voice.ogg")
+    except Exception:  # noqa: BLE001 — деградируем к тексту, не роняем апдейт
+        log.exception("transcribe_voice failed for user %s", user_id)
+        await message.answer(
+            "Не получилось распознать голосовое. Попробуйте ещё раз или напишите текстом."
+        )
+        return
+
+    text = (text or "").strip()
+    if not text:
+        await message.answer(
+            "Не разобрал голосовое — тишина или неразборчиво. "
+            "Запишите чётче или напишите вопрос текстом."
+        )
+        return
+
+    # Показываем распознанное для контроля (обычный текст, без разметки).
+    await message.answer(f"🎙 Вы спросили: {text}")
+    # Дальше — как обычный вопрос (с учётом режима уточнения, если бот переспрашивал).
+    effective = await _with_clarification_context(state, text)
+    await _answer_question(message, state, repo, agent, effective)
+
+
 async def _refresh_picker(
     callback: CallbackQuery,
     agent: AgentClient,

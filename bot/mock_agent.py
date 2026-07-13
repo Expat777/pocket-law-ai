@@ -132,3 +132,12 @@ class MockAgent:
             self._docs[user_id] = [
                 d for d in self._docs.get(user_id, []) if d.doc_id != doc_id
             ]
+
+    async def transcribe_voice(
+        self, user_id: int, audio_bytes: bytes, filename: str | None = None
+    ) -> str:
+        # мок STT: реально не распознаёт — отдаёт фикстуру, чтобы поток голоса
+        # работал в тестах без Whisper. Пусто на пустой вход.
+        if not audio_bytes:
+            return ""
+        return "могут ли уволить в отпуске?"
