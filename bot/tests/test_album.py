@@ -103,6 +103,8 @@ async def test_on_file_album_buffers_not_immediate(monkeypatch):
     msg.answer = AsyncMock()
     state = MagicMock()
     state.set_state = AsyncMock()
+    state.get_state = AsyncMock(return_value=None)
+    state.update_data = AsyncMock()
     _album_buffers.pop("alb-9", None)
 
     await on_file(
