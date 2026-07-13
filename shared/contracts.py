@@ -16,6 +16,10 @@ class Citation(BaseModel):
     article: str  # "81"
     revision_date: date
     source_url: str | None = None
+    # Короткая дословная выдержка из статьи (из ретрива, не от LLM) — бот показывает
+    # её под «Основание», чтобы не гонять пользователя по ссылке на весь текст закона.
+    # Аддитивно и опционально: заполняет Роль 2 (verify), рендерит Роль 1.
+    text: str | None = None
 
 
 class Answer(BaseModel):

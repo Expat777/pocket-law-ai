@@ -7,9 +7,24 @@
 
 from datetime import date
 
+from agent.config import CITATION_TEXT_CHARS
 from agent.deps import Deps
 from agent.state import AgentState
 from shared.contracts import Citation, RetrievedChunk
+
+
+def _snippet(text: str) -> str | None:
+    """Короткая дословная выдержка из статьи для цитаты: обрезаем по границе
+    предложения в пределах лимита, иначе жёстко + «…». Пусто -> None (нечего цитировать)."""
+    t = " ".join((text or "").split())  # схлопываем переносы/пробелы для компактности
+    if not t:
+        return None
+    if len(t) <= CITATION_TEXT_CHARS:
+        return t
+    head = t[:CITATION_TEXT_CHARS]
+    cut = head.rfind(". ")  # предпочитаем конец предложения
+    head = head[: cut + 1] if cut >= CITATION_TEXT_CHARS // 2 else head.rstrip()
+    return head + "…"
 
 
 async def verify(state: AgentState, deps: Deps) -> dict:
@@ -47,6 +62,7 @@ async def verify(state: AgentState, deps: Deps) -> dict:
                     article=c.article,
                     revision_date=status.current_revision or candidate.revision_date,
                     source_url=c.source_url,
+                    text=_snippet(c.text),  # дословная выдержка (из ретрива, не от LLM)
                 )
             )
 

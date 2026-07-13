@@ -300,6 +300,30 @@ async def test_judge_answer_parses_scores_and_clamps():
     assert agg["n"] == 2 and agg["parse_errors"] == 1  # среднее только по распарсенным
 
 
+def test_citation_snippet_unit():
+    """Выдержка статьи: короткий текст — как есть; длинный — обрезка + «…»; пусто — None."""
+    from agent.nodes.verify import _snippet
+
+    assert _snippet("") is None
+    assert _snippet("Короткий текст статьи.") == "Короткий текст статьи."
+    s = _snippet("Первое предложение нормы. " + "x" * 1000)
+    assert s.endswith("…") and len(s) <= 460
+
+
+async def test_verify_attaches_article_text_to_citation():
+    """2б: цитата несёт дословную выдержку из статьи (из ретрива, не от LLM)."""
+    from agent.nodes.verify import verify
+
+    async def ok_verify(cit):
+        return CitationStatus(exists=True, active=True, current_revision=date(2026, 5, 15))
+
+    deps = Deps(llm=None, search_law=None, verify_citation=ok_verify)
+    out = await verify({"chunks": [TK_81]}, deps)
+    cits = out["citations"]
+    assert len(cits) == 1
+    assert cits[0].text and cits[0].text.startswith("Расторжение трудового договора")
+
+
 async def test_empty_question_clarifies_without_calling_llm():
     """Empty/whitespace input -> clarify, LLM ne vyzyvaetsya (guard, bez 400)."""
 

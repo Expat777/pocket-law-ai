@@ -29,6 +29,10 @@ MAX_QUESTION_CHARS = int(os.getenv("AGENT_MAX_QUESTION_CHARS", "4000"))
 # присланному документу (fetch_document_text): голова документа по порядку чанков.
 DOC_CONTEXT_CHARS = int(os.getenv("AGENT_DOC_CONTEXT_CHARS", "3000"))
 
+# Длина дословной выдержки статьи в цитате (Citation.text): короткий фрагмент под
+# «Основание», чтобы не слать пользователя скроллить весь текст закона по ссылке.
+CITATION_TEXT_CHARS = int(os.getenv("AGENT_CITATION_TEXT_CHARS", "450"))
+
 # HyDE: генерировать гипотетический «текст статьи» и искать по вопрос+HyDE вместе.
 # Замер на 35 житейских: recall@ретрив 83%->94% (лечит лексический разрыв dense —
 # НК-вычет, ГПК-иск/апелляция и т.п.). Цена — +1 вызов LLM, но он идёт ПАРАЛЛЕЛЬНО
