@@ -369,6 +369,18 @@ def test_transcribe_mime_by_extension():
     assert _mime("weird.xyz") == "application/octet-stream"
 
 
+def test_anchor_refs_fires_on_keyword_only():
+    """Якорь фундамент-статьи: триггерится на своём сценарии, молчит на прочем."""
+    from agent.nodes.retrieve import _anchor_refs
+
+    acts, nos = _anchor_refs("соседи сверху затопили квартиру, как отсудить ремонт")
+    assert ("ГК РФ", "1064") == (acts[0], nos[0])
+    acts2, nos2 = _anchor_refs("меня сбила машина, у виновника нет осаго")
+    assert "ГК РФ" in acts2 and "1079" in nos2
+    # обычный трудовой вопрос — якорь молчит (нет ложного триггера)
+    assert _anchor_refs("за сколько дней предупреждать об увольнении") == ([], [])
+
+
 def test_llm_temperature_explicit_beats_env():
     """Температура: явный аргумент приоритетнее env; иначе LLM_TEMPERATURE (деф. 0.2)."""
     import os
