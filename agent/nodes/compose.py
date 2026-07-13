@@ -64,6 +64,13 @@ REFUSE_TEXT = (
     "вопрос или обратитесь к юристу."
 )
 
+# Тема целиком вне базы (uncovered-гейт): честно говорим ПОЧЕМУ отказ — тема не
+# покрыта, а не «плохо искали» (реальный eval: уверенный мимо-ответ хуже отказа).
+UNCOVERED_TEXT = (
+    "Эта тема пока не покрыта моей базой законов, поэтому не буду отвечать "
+    "наугад — по такому вопросу лучше обратиться к профильному юристу."
+)
+
 # Вопрос явно вне права (погода, рецепты, болтовня): мягко обозначаем область
 # работы, а не переспрашиваем «какая сфера права» (это сбивало — заметка Роли 1).
 OFFTOPIC_TEXT = (
@@ -174,7 +181,8 @@ async def make_refuse(state: AgentState, deps: Deps) -> dict:
     # Юр-вопрос, но проверяемых цитат нет. Логируем ретрив-уверенность сырых
     # фрагментов: отличает «ничего не нашли» от «нашли, но не подтвердилось».
     await _log_confidence(deps, state.get("question", ""), _confidence(state.get("chunks", [])))
-    return {"answer": Answer(text=REFUSE_TEXT, citations=[], refused=True)}
+    text = UNCOVERED_TEXT if state.get("uncovered_topic") else REFUSE_TEXT
+    return {"answer": Answer(text=text, citations=[], refused=True)}
 
 
 async def make_offtopic(state: AgentState) -> dict:

@@ -87,6 +87,10 @@ def route_after_verify(state: AgentState) -> str:
         # есть ввод (вопрос или документ) но он не про право -> offtopic; совсем пусто -> clarify
         has_input = state.get("question", "").strip() or state.get("doc_context")
         return "offtopic" if has_input else "clarify"
+    # Юр-тема ЦЕЛИКОМ вне базы (uncovered-гейт): честный отказ вместо уверенного
+    # ответа по семантическим соседям (реальный eval: мимо-ответ опаснее отказа).
+    if state.get("uncovered_topic"):
+        return "refuse"
     # Консультация по присланному документу: разбираем его, даже если проверенных
     # law-цитат нет (пользователь ждёт разбор письма, а не отказ «нет норм»).
     if state.get("doc_context") and state.get("verified_chunks"):
