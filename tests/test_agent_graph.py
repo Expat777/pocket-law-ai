@@ -233,6 +233,47 @@ async def test_ingest_rejects_empty_text():
     assert res.error
 
 
+def test_has_meaningful_text_unit():
+    """Гейт качества OCR: мусор из знаков/1-2 букв — не текст; реальный документ — текст."""
+    from agent.ingest import _has_meaningful_text
+
+    assert _has_meaningful_text('"\n\n—\n|\n|\n\n— —\nГА') is False  # ровно OCR-мусор со скрина
+    assert _has_meaningful_text("|| -- 12 ...") is False
+    assert _has_meaningful_text("") is False
+    assert _has_meaningful_text(
+        "Оплатите задолженность 500 рублей по договору аренды до 15 января."
+    ) is True
+
+
+async def test_ingest_rejects_garbage_ocr():
+    """Скудный OCR фото (used_ocr=True) не индексируется — иначе doc-режим сочинит
+    несуществующий документ по шуму. Текстовый слой PDF (used_ocr=False) не режем."""
+    from agent.ingest import ingest_document
+    from shared.contracts import ParsedDoc
+
+    def garbage_ocr(fb, mime):
+        return ParsedDoc(text='"\n\n—\n|\n|\n\n— —\nГА', pages=1, used_ocr=True)
+
+    res = await ingest_document(1, b"img", "image/png", parse=garbage_ocr)
+    assert res.ok is False
+    assert res.error
+
+    # реальный распознанный текст с фото — проходит
+    def good_ocr(fb, mime):
+        return ParsedDoc(text="Требование банка погасить задолженность 87450 рублей.", pages=1, used_ocr=True)
+
+    res2 = await ingest_document(
+        1, b"img", "image/png",
+        parse=good_ocr, embed=lambda ch: [[0.1, 0.2, 0.3] for _ in ch],
+        upsert=lambda *a, **k: _noop(),
+    )
+    assert res2.ok is True
+
+
+async def _noop():
+    return None
+
+
 async def test_empty_question_clarifies_without_calling_llm():
     """Empty/whitespace input -> clarify, LLM ne vyzyvaetsya (guard, bez 400)."""
 

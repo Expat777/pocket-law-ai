@@ -11,6 +11,27 @@ PyMuPDF (fitz) — извлечение текстового слоя; если 
 from shared.contracts import ParsedDoc
 
 OCR_LANG = "rus+eng"
+# Ниже этой стороны изображение мелкое для OCR — апскейлим (телефонные фото/кропы).
+OCR_MIN_SIDE = 1600
+
+
+def _preprocess(img):
+    """Подготовка фото к OCR: ориентация по EXIF, грейскейл, автоконтраст, апскейл.
+
+    Телефонные фото идут под углом/тускло/мелко — без этого tesseract даёт шум,
+    который потом достраивается моделью в несуществующий документ. Дешёвые шаги
+    заметно поднимают распознавание реальных снимков и снижают мусор на плохих.
+    """
+    from PIL import Image, ImageOps
+
+    img = ImageOps.exif_transpose(img)  # развернуть по метаданным камеры
+    img = img.convert("L")              # грейскейл
+    img = ImageOps.autocontrast(img)
+    w, h = img.size
+    if max(w, h) < OCR_MIN_SIDE:
+        scale = OCR_MIN_SIDE / max(w, h)
+        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+    return img
 
 
 def _ocr_image_bytes(image_bytes: bytes) -> str:
@@ -19,7 +40,7 @@ def _ocr_image_bytes(image_bytes: bytes) -> str:
     import pytesseract
     from PIL import Image
 
-    img = Image.open(io.BytesIO(image_bytes))
+    img = _preprocess(Image.open(io.BytesIO(image_bytes)))
     return pytesseract.image_to_string(img, lang=OCR_LANG).strip()
 
 
@@ -33,7 +54,7 @@ def _ocr_pdf(doc) -> str:
     out = []
     for page in doc:
         pix = page.get_pixmap(dpi=200)
-        img = Image.open(io.BytesIO(pix.tobytes("png")))
+        img = _preprocess(Image.open(io.BytesIO(pix.tobytes("png"))))
         out.append(pytesseract.image_to_string(img, lang=OCR_LANG))
     return "\n".join(out).strip()
 

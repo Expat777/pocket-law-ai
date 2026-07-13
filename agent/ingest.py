@@ -6,6 +6,7 @@ embed/upsert) внедряются — так поток тестируется 
 """
 
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -13,6 +14,24 @@ from shared.contracts import IngestResult
 
 USER_DOCS_COLLECTION = "user_documents"
 MAX_CHUNK_CHARS = int(os.getenv("USER_DOC_CHUNK_CHARS", "1500"))
+
+# Гейт качества OCR: сколько «словоподобных» токенов (≥3 букв) минимум должно быть,
+# чтобы считать распознанное настоящим текстом документа. Мусорный OCR фото
+# (несколько знаков пунктуации, «— | | ГА») иначе проходил бы пустой-check и уходил
+# в doc-режим, где модель ДОСТРАИВАЕТ несуществующий документ (живой баг: фото
+# каракулей → «свидетельство о регистрации акта… ст. 8 Закона об АГС», всё выдумано).
+OCR_MIN_WORDS = int(os.getenv("OCR_MIN_WORDS", "4"))
+_WORD_RE = re.compile(r"[а-яёa-z]{3,}", re.IGNORECASE)
+
+
+def _has_meaningful_text(text: str) -> bool:
+    """Похоже ли распознанное на реальный текст, а не на OCR-мусор.
+
+    Считаем словоподобные токены (последовательности ≥3 букв кириллицы/латиницы):
+    у настоящего документа их много, у шумовой картинки — почти нет. Порог низкий,
+    чтобы не отсечь короткие реальные документы (квитанция, уведомление).
+    """
+    return len(_WORD_RE.findall(text or "")) >= OCR_MIN_WORDS
 
 
 def _chunk(text: str) -> list[str]:
@@ -86,6 +105,15 @@ async def ingest_document(
         return IngestResult(
             doc_id="", chunks=0, ok=False,
             error="не удалось извлечь текст (пустой документ или нераспознанный скан)",
+        )
+
+    # Гейт качества OCR: скудный/мусорный результат распознавания фото НЕ пускаем
+    # дальше — иначе doc-режим сочинит несуществующий документ по нескольким шумовым
+    # символам. Текстовый слой PDF (used_ocr=False) считаем надёжным и не режем.
+    if parsed.used_ocr and not _has_meaningful_text(parsed.text):
+        return IngestResult(
+            doc_id="", chunks=0, ok=False,
+            error="не удалось разобрать текст на изображении — пришлите более чёткое фото или файл PDF",
         )
 
     chunks = _chunk(parsed.text)
