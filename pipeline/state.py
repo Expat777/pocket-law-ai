@@ -38,6 +38,37 @@ def diff_changed(articles: list[Article], known: dict[str, str]) -> list[Article
     return changed
 
 
+# --- редакции: дешёвый ярус автообновления (pipeline.watch) -------------------
+# Хэши статей (выше) требуют СКАЧАТЬ и распарсить документ целиком (до 9 МБ у НК ч.2).
+# Для ночной проверки «а не вышло ли чего» это расточительно: ИПС отдаёт номер и дату
+# последней редакции с лёгкой карточки документа. Храним увиденную редакцию — если она
+# не изменилась, документ не качаем вообще.
+
+_RED_FILE = _STATE_DIR / "redactions.json"
+
+
+def _redaction_marker(rdk: int, revision_date: date | None) -> str:
+    return f"{rdk}:{revision_date.isoformat() if revision_date else '?'}"
+
+
+def load_redactions() -> dict[str, str]:
+    """{act_code: "rdk:YYYY-MM-DD"} последних залитых редакций."""
+    if _RED_FILE.exists():
+        return json.loads(_RED_FILE.read_text())
+    return {}
+
+
+def save_raw_redaction(act_code: str, marker: str) -> None:
+    _STATE_DIR.mkdir(exist_ok=True)
+    data = load_redactions()
+    data[act_code] = marker
+    _RED_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=0, sort_keys=True))
+
+
+def save_redaction(act_code: str, rdk: int, revision_date: date | None) -> None:
+    save_raw_redaction(act_code, _redaction_marker(rdk, revision_date))
+
+
 def record_versions_pg(dsn: str, changed: list[Article], revision_date: date | None) -> None:
     """Best-effort запись в law_versions; отсутствие таблицы/БД не валит пайплайн."""
     if not dsn or not changed:
