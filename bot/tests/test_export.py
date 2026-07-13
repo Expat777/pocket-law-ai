@@ -50,13 +50,16 @@ def _fake_state():
     return s
 
 
-def _fake_callback(uid, data="export:md"):
+def _fake_callback(uid, data="export:md", message_id=555):
     cb = MagicMock()
     cb.from_user = MagicMock(id=uid, username="u")
     cb.data = data
     cb.answer = AsyncMock()
     cb.message = MagicMock()
+    cb.message.chat = MagicMock(id=uid)
+    cb.message.message_id = message_id
     cb.message.answer_document = AsyncMock()
+    cb.message.edit_reply_markup = AsyncMock()
     return cb
 
 
@@ -143,3 +146,41 @@ async def test_on_export_without_answer():
     await on_export(cb)
     cb.message.answer_document.assert_not_awaited()
     assert "нечего" in cb.answer.await_args.args[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_export_button_not_spammable():
+    """Повторный тап той же кнопки НЕ шлёт дубликат файла (жалоба с теста)."""
+    uid = 705
+    _set_last_answer(uid, "уволить в отпуске?", _ANSWER)
+    cb = _fake_callback(uid)
+
+    await on_export(cb)  # 1-й тап — файл ушёл, кнопка снята
+    await on_export(cb)  # 2-й тап того же сообщения — дубликата быть не должно
+
+    cb.message.answer_document.assert_awaited_once()  # ровно один файл
+    cb.message.edit_reply_markup.assert_awaited_once()  # кнопку убрали после первого
+    # второй тап ответил тостом «уже отправлена», а не новым файлом
+    assert any(
+        "уже" in (c.args[0].lower() if c.args else "")
+        for c in cb.answer.await_args_list
+    )
+    _clear_last_answer(uid)
+
+
+@pytest.mark.asyncio
+async def test_export_retry_allowed_after_send_failure():
+    """Если отправка упала — резерв снимается, повтор разрешён (не залипает)."""
+    uid = 706
+    _set_last_answer(uid, "вопрос?", _ANSWER)
+    cb = _fake_callback(uid, message_id=777)
+    cb.message.answer_document = AsyncMock(side_effect=RuntimeError("network"))
+
+    await on_export(cb)  # упало
+    assert (uid, 777) not in __import__("bot.handlers.content", fromlist=["_exported_msgs"])._exported_msgs
+
+    # вторая попытка проходит
+    cb.message.answer_document = AsyncMock()
+    await on_export(cb)
+    cb.message.answer_document.assert_awaited_once()
+    _clear_last_answer(uid)
