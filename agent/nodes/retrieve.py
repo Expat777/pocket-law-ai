@@ -7,12 +7,41 @@
 """
 
 import asyncio
+import os
 import re
 
 from agent.config import ACT_ALIASES, MAX_QUOTA_ACTS, MIN_LAW_SCORE, PER_CODE_QUOTA, TOP_K
 from agent.deps import Deps
 from agent.state import AgentState
 from shared.contracts import RetrievedChunk
+
+# Якорь фундамент-статьи: некоторые опорные статьи семантика не достаёт («залив» не
+# близко к «генеральный деликт ст.1064») -> keyword в сыром вопросе принудительно
+# вкладывает нужную статью по номеру (детерминизм поверх dense, как keyword-net).
+# Карта КУРИРУЕМАЯ и каждый пункт ВАЛИДИРОВАН судьёй (A/B baseline vs anchor): держим
+# только сценарии, где фундамент-статью ретрив НЕ достаёт сам и якорь даёт рост
+# (залив 5.0->8.0, собака 4.0->5.0, ДТП 7.0->7.5). Отброшены клевета/оскорбление/
+# моральный вред — там статья и так в выдаче, якорь избыточен. Расширять — только с
+# проверкой судьёй (agent/eval). Kill-switch: AGENT_ANCHOR_ARTICLES=0.
+ANCHOR_ARTICLES: dict[str, tuple[str, str]] = {
+    r"залив|затоп|потоп|соседи сверху": ("ГК РФ", "1064"),          # генеральный деликт
+    r"собак\w*.{0,20}(укус|покус|напа)|(укус|покус)\w*.{0,20}собак": ("ГК РФ", "1064"),
+    r"сбил\w*.{0,20}машин|машин\w*.{0,15}сбил|сбила машина|под машину": ("ГК РФ", "1079"),  # источник повыш. опасности
+}
+
+
+def _anchor_refs(text: str) -> tuple[list[str], list[str]]:
+    """Фундамент-статьи по keyword в сыром вопросе. Пусто, если нет совпадений или
+    выключено (AGENT_ANCHOR_ARTICLES=0)."""
+    if os.getenv("AGENT_ANCHOR_ARTICLES", "1") == "0":
+        return [], []
+    low = (text or "").lower()
+    acts, nos = [], []
+    for pat, (act, art) in ANCHOR_ARTICLES.items():
+        if re.search(pat, low):
+            acts.append(act)
+            nos.append(art)
+    return acts, nos
 
 # Номер статьи после «ст»/«статья»: 158, 20.20, 158.1. Требуем триггер «ст…», чтобы
 # не хватать любые числа («перевёл 200 тысяч»). Границы слова отсекают «стоимость».
@@ -129,6 +158,10 @@ async def retrieve(state: AgentState, deps: Deps) -> dict:
         ref_acts, ref_nos = _parse_article_refs(state.get("question", ""))
         if ref_acts and ref_nos:
             exact = await deps.lookup_articles(ref_acts, ref_nos)
+        # Якорь фундамент-статьи (эксперимент, env-gated): каждый в СВОЁМ акте.
+        a_acts, a_nos = _anchor_refs(state.get("question", ""))
+        for act, art in zip(a_acts, a_nos):
+            exact = exact + await deps.lookup_articles([act], [art])
 
     with tool_span(
         "search_law",
