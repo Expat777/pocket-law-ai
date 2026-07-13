@@ -25,6 +25,9 @@ class AgentState(TypedDict, total=False):
     # канонические акты-кандидаты для фильтра retrieve (пусто = искать по всем кодексам)
     candidate_acts: list[str]
     is_legal: bool
+    # юр-вопрос ЦЕЛИКОМ по теме вне базы (intent назвал только uncovered-ветки) ->
+    # честный отказ вместо уверенного ответа по семантическим соседям
+    uncovered_topic: bool
     # к вопросу приложен документ (скоуп doc_ids): compose даёт консультацию по нему,
     # а не law-only ответ; документ ведёт классификацию/запрос на шаге intent
     doc_context: bool

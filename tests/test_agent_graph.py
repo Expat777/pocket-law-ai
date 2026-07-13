@@ -65,6 +65,43 @@ async def test_answer_with_citation():
     assert ans.text
 
 
+async def test_uncovered_topic_refuses_honestly():
+    """Uncovered-гейт (реальный eval, корень (б)): intent назвал ТОЛЬКО тему вне базы
+    (таможня) -> честный отказ «тема не покрыта», даже если семантика нашла соседние
+    статьи. Смесь с покрытой веткой гейт не триггерит."""
+    from agent.nodes.compose import UNCOVERED_TEXT
+
+    def handler(system, user):
+        if "is_legal" in system:
+            return json.dumps({"is_legal": True, "branches": ["таможенное право"],
+                               "normalized": "возврат утилизационного сбора"})
+        return "Ответ по соседним статьям."
+
+    async def fake_search(query, user_id, acts=None, doc_ids=None):
+        return [TK_81]  # семантический сосед нашёлся — гейт всё равно должен отказать
+
+    async def fake_verify(citation):
+        return CitationStatus(exists=True, active=True, current_revision=date(2026, 5, 15))
+
+    deps = Deps(llm=FakeLLMClient(handler), search_law=fake_search, verify_citation=fake_verify)
+    ans = await answer_question(1, "вернут ли утильсбор за авто из Германии?", deps=deps)
+    assert ans.refused is True
+    assert ans.citations == []
+    assert ans.text == UNCOVERED_TEXT
+
+    # смесь покрытой и непокрытой ветки -> обычный путь (не отказ)
+    def handler2(system, user):
+        if "is_legal" in system:
+            return json.dumps({"is_legal": True,
+                               "branches": ["таможенное право", "защита прав потребителей"],
+                               "normalized": "возврат товара"})
+        return "Ответ по существу (ст. 81 ТК РФ)."
+
+    deps2 = Deps(llm=FakeLLMClient(handler2), search_law=fake_search, verify_citation=fake_verify)
+    ans2 = await answer_question(1, "таможня и возврат товара", deps=deps2)
+    assert ans2.refused is False
+
+
 async def test_intent_hyde_zero_temp_compose_default():
     """Температура по узлам (разбор команды 07-13): intent/HyDE зовутся с 0.0
     (детерминизм поисковой половины — candidate_acts/retrieval_query не плавают),
@@ -1061,9 +1098,10 @@ def test_demand_side_fz_branches_mapped():
     })
     for branch, act in pairs.items():
         assert acts_for_branches([branch]) == [act], branch
-    # всего отраслей в карте: 15 (коды/ранее) + 20 (волны 1-2) + 18 (волна 3) = 53
+    # 15 (коды/ранее) + 20 (волны 1-2) + 18 (волна 3) + 1 (военная служба) = 54
     from agent.config import BRANCH_TO_ACTS
-    assert len(BRANCH_TO_ACTS) == 53
+    assert len(BRANCH_TO_ACTS) == 54
+    assert acts_for_branches(["военная служба"]) == ["Закон о воинской обязанности"]
 
 
 def test_act_aliases_cover_zk_kas():
@@ -1128,6 +1166,12 @@ def test_keyword_acts_unit():
     assert keyword_acts("сосед выгуливает собаку без поводка, выгул где разрешён") == [
         "Закон об обращении с животными"
     ]
+    # реальный eval: военная тема уходила в «охрану здоровья» вместо 53-ФЗ
+    assert keyword_acts("мужа забрали на СВО, как вернуть по здоровью") == [
+        "Закон о воинской обязанности"
+    ]
+    assert keyword_acts("военнослужащему не платят обещанное") == ["Закон о воинской обязанности"]
+    assert keyword_acts("свободная касса") == []  # «сво» только отдельным словом
     # омоним «коллектор» (сантехника): одиночная форма НЕ триггерит — предохранитель
     # обязан быть высокоточным (промах доберёт LLM-intent, ложный триггер хуже)
     assert keyword_acts("прорвало коллектор отопления, кто отвечает") == []

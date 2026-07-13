@@ -12,6 +12,7 @@ from agent.config import (
     HYDE_ENABLED,
     HYDE_TEMPERATURE,
     INTENT_TEMPERATURE,
+    UNCOVERED_BRANCHES,
     acts_for_branches,
     keyword_acts,
 )
@@ -45,6 +46,17 @@ def _acts_from_parsed(parsed: dict, keyword_src: str) -> tuple[list[str], list[s
     if kw:
         acts = list(dict.fromkeys(kw + acts))
     return branches, acts, parsed.get("normalized") or ""
+
+
+def _only_uncovered(branches: list[str], acts: list[str]) -> bool:
+    """Юр-вопрос ЦЕЛИКОМ по теме вне базы (напр. таможня): intent назвал только
+    uncovered-ветки, покрытых актов нет (и предохранители молчат) -> честный отказ
+    вместо уверенного ответа по семантическим соседям (реальный eval, корень (б)).
+    Смесь с покрытой веткой гейт не триггерит."""
+    if acts or not branches:
+        return False
+    low = [(b or "").strip().lower() for b in branches]
+    return all(b in UNCOVERED_BRANCHES for b in low)
 
 
 async def intent_classifier(state: AgentState, deps: Deps) -> dict:
@@ -87,6 +99,7 @@ async def intent_classifier(state: AgentState, deps: Deps) -> dict:
             "branch_of_law": branches[0] if branches else None,
             "candidate_acts": acts,
             "is_legal": bool(parsed.get("is_legal", True)),
+            "uncovered_topic": _only_uncovered(branches, acts),
             "doc_context": True,
             # упорядоченная голова документа для compose: разбор идёт по ней, а не по
             # top-K похожих чанков (многочанковое письмо иначе разбиралось бы частично)
@@ -120,5 +133,6 @@ async def intent_classifier(state: AgentState, deps: Deps) -> dict:
         "candidate_acts": acts,
         # при неразборчивом ответе считаем вопрос юридическим — пусть решает retrieve
         "is_legal": bool(parsed.get("is_legal", True)),
+        "uncovered_topic": _only_uncovered(branches, acts),
         "doc_context": False,
     }
