@@ -34,6 +34,16 @@ class Agent:
 
         return await _ingest(user_id, file_bytes, mime, filename=filename)
 
+    async def transcribe_voice(
+        self, user_id: int, audio_bytes: bytes, filename: str | None = None
+    ) -> str:
+        """Голосовое сообщение -> текст (STT). Бот (Роль 1): скачать voice ->
+        transcribe_voice -> ПОКАЗАТЬ распознанное юзеру -> answer_question(текст).
+        user_id — под будущую телеметрию/лимиты. Контракт 3.1 (доп. метод)."""
+        from .tools.transcribe import transcribe_audio
+
+        return await transcribe_audio(audio_bytes, filename or "voice.ogg")
+
     async def ingest_url(
         self, user_id: int, url: str, filename: str | None = None
     ) -> IngestResult:
