@@ -274,6 +274,32 @@ async def _noop():
     return None
 
 
+async def test_judge_answer_parses_scores_and_clamps():
+    """LLM-судья: парсит JSON, считает total, зажимает дичь в 0..2, ловит parse_error."""
+    from agent.eval.judge import aggregate, judge_answer
+
+    good = FakeLLMClient(
+        lambda s, u: '{"grounded":2,"correct":2,"citations_match":1,"complete":2,"verdict":"good","issues":""}'
+    )
+    r = await judge_answer("сколько дней отпуска", "28 дней (ст.115)", citations=["ТК РФ ст.115"], llm=good)
+    assert r["total"] == 7 and r["verdict"] == "good"
+
+    # судья вернул дичь (5) — зажимаем в 2
+    clamp = FakeLLMClient(
+        lambda s, u: '{"grounded":5,"correct":2,"citations_match":2,"complete":2}'
+    )
+    rc = await judge_answer("q", "a", llm=clamp)
+    assert rc["grounded"] == 2 and rc["total"] == 8
+
+    # не-JSON -> parse_error, total=None (не путать с нулём)
+    bad = FakeLLMClient(lambda s, u: "извините, не могу оценить")
+    rb = await judge_answer("q", "a", llm=bad)
+    assert rb["total"] is None and rb["verdict"] == "parse_error"
+
+    agg = aggregate([r, rc, rb])
+    assert agg["n"] == 2 and agg["parse_errors"] == 1  # среднее только по распарсенным
+
+
 async def test_empty_question_clarifies_without_calling_llm():
     """Empty/whitespace input -> clarify, LLM ne vyzyvaetsya (guard, bez 400)."""
 
