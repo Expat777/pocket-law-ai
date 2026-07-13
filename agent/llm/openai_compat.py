@@ -36,14 +36,20 @@ class OpenAICompatLLM:
         api_key: str | None = None,
         model: str | None = None,
         timeout: float = 60.0,
-        temperature: float = 0.2,  # низкая: юр. ответы, меньше галлюцинаций
+        temperature: float | None = None,  # None -> LLM_TEMPERATURE (по умолч. 0.2)
         max_tokens: int | None = None,
     ) -> None:
         self.base_url = (base_url or os.getenv("LLM_BASE_URL", DEFAULT_BASE_URL)).rstrip("/")
         self.api_key = api_key or os.getenv("LLM_API_KEY", "")
         self.model = model or os.getenv("LLM_MODEL", DEFAULT_MODEL)
         self.timeout = timeout
-        self.temperature = temperature
+        # Низкая температура: юр. ответы, меньше галлюцинаций/вариативности. Настраиваемо
+        # env (LLM_TEMPERATURE), чтобы A/B-ить стабильность композиции судьёй. Явный
+        # аргумент (напр. судья temperature=0.0) имеет приоритет над env.
+        self.temperature = (
+            temperature if temperature is not None
+            else float(os.getenv("LLM_TEMPERATURE", "0.2"))
+        )
         self.max_tokens = max_tokens or int(
             os.getenv("LLM_MAX_TOKENS", str(DEFAULT_MAX_TOKENS))
         )
