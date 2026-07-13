@@ -20,7 +20,9 @@ class _UnconfiguredLLM:
     (узел compose). Так И1 (подключение бота) не требует ждать LLM.
     """
 
-    async def complete(self, system: str, user: str) -> str:
+    async def complete(
+        self, system: str, user: str, *, temperature: float | None = None
+    ) -> str:
         raise NotImplementedError(
             "Боевой LLM-клиент ещё не подключён. Передайте конкретный LLMClient "
             "через Deps (FakeLLMClient для тестов) или добавьте провайдера в "

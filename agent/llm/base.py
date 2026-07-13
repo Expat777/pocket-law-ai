@@ -10,6 +10,12 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class LLMClient(Protocol):
-    async def complete(self, system: str, user: str) -> str:
-        """Один вызов LLM: системная инструкция + сообщение пользователя -> текст."""
+    async def complete(
+        self, system: str, user: str, *, temperature: float | None = None
+    ) -> str:
+        """Один вызов LLM: системная инструкция + сообщение пользователя -> текст.
+
+        temperature — необязательный per-call оверрайд (температура по узлам:
+        intent/HyDE детерминированные, compose — дефолт клиента). None = дефолт.
+        """
         ...

@@ -65,6 +65,19 @@ async def test_answer_with_citation():
     assert ans.text
 
 
+async def test_intent_hyde_zero_temp_compose_default():
+    """Температура по узлам (разбор команды 07-13): intent/HyDE зовутся с 0.0
+    (детерминизм поисковой половины — candidate_acts/retrieval_query не плавают),
+    compose — БЕЗ оверрайда (дефолт клиента 0.2). НЕ то же, что глобальный A/B
+    07-10: тот крутил одну ручку на все узлы и ронял compose."""
+    deps = make_deps([TK_81], answer_text="Ответ (ст. 81 ТК РФ).")
+    await answer_question(1, "могут ли уволить в отпуске?", deps=deps)
+    temps = deps.llm.temperatures
+    assert len(temps) >= 2  # intent (+HyDE, если включён) + compose
+    assert temps[-1] is None  # compose — дефолт клиента
+    assert all(t == 0.0 for t in temps[:-1])  # поисковая половина — детерминизм
+
+
 async def test_refuse_when_no_law_found():
     """Юр. вопрос, но в базе ничего -> честный отказ (refused=True)."""
     deps = make_deps([], is_legal=True)
@@ -1110,6 +1123,11 @@ def test_keyword_acts_unit():
     assert keyword_acts("как получить материнский капитал") == ["Закон о материнском капитале"]
     assert keyword_acts("коллекторы угрожают") == ["Закон о взыскании задолженности"]
     assert keyword_acts("коллекторское агентство названивает") == ["Закон о взыскании задолженности"]
+    # репро Роли 4: «покусала собака» — intent терял 498-ФЗ, серверный фильтр отрезал
+    assert keyword_acts("соседская собака покусала ребёнка") == ["Закон об обращении с животными"]
+    assert keyword_acts("сосед выгуливает собаку без поводка, выгул где разрешён") == [
+        "Закон об обращении с животными"
+    ]
     # омоним «коллектор» (сантехника): одиночная форма НЕ триггерит — предохранитель
     # обязан быть высокоточным (промах доберёт LLM-intent, ложный триггер хуже)
     assert keyword_acts("прорвало коллектор отопления, кто отвечает") == []
