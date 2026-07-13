@@ -369,6 +369,24 @@ def test_transcribe_mime_by_extension():
     assert _mime("weird.xyz") == "application/octet-stream"
 
 
+def test_llm_temperature_explicit_beats_env():
+    """Температура: явный аргумент приоритетнее env; иначе LLM_TEMPERATURE (деф. 0.2)."""
+    import os
+
+    from agent.llm.openai_compat import OpenAICompatLLM
+
+    assert OpenAICompatLLM(temperature=0.0).temperature == 0.0  # явный приоритет
+    old = os.environ.get("LLM_TEMPERATURE")
+    os.environ["LLM_TEMPERATURE"] = "0.05"
+    try:
+        assert OpenAICompatLLM().temperature == 0.05  # из env
+    finally:
+        if old is None:
+            os.environ.pop("LLM_TEMPERATURE", None)
+        else:
+            os.environ["LLM_TEMPERATURE"] = old
+
+
 async def test_empty_question_clarifies_without_calling_llm():
     """Empty/whitespace input -> clarify, LLM ne vyzyvaetsya (guard, bez 400)."""
 
