@@ -124,6 +124,9 @@ _EXPORT_KB = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="📄 Скачать с источниками", callback_data="export:md")]
     ]
 )
+# Сообщения, для которых памятка уже выгружена — защита от спама кнопкой (Telegram
+# позволяет жать повторно). Ключ — (chat_id, message_id) сообщения с кнопкой.
+_exported_msgs: set[tuple[int, int]] = set()
 
 
 def _set_last_answer(user_id: int, question: str, answer: Answer) -> None:
@@ -686,10 +689,24 @@ async def on_export(callback: CallbackQuery) -> None:
     PDF рендерим через PyMuPDF; если что-то пошло не так — откатываемся на .txt.
     """
     user_id = callback.from_user.id
+    msg = callback.message
+    key = (msg.chat.id, msg.message_id) if msg is not None else None
+
+    # Уже выгружали для этого сообщения → не плодим дубликаты файла (спам кнопкой).
+    if key is not None and key in _exported_msgs:
+        await callback.answer("Памятка уже отправлена ⬆️")
+        return
+
     last = _get_last_answer(user_id)
     if last is None:
         await callback.answer("Нечего сохранять — сначала задайте вопрос.")
         return
+
+    # Резервируем ключ ДО отправки — гасит быстрый двойной тап (оба апдейта успели
+    # прийти до снятия кнопки). На ошибке снимаем резерв, чтобы можно было повторить.
+    if key is not None:
+        _exported_msgs.add(key)
+
     question, answer = last
     when = datetime.now().strftime("%d.%m.%Y %H:%M")
     try:
@@ -700,8 +717,8 @@ async def on_export(callback: CallbackQuery) -> None:
         filename = "pocket-law-otvet.txt"
     file = BufferedInputFile(data, filename=filename)
     try:
-        if callback.message is not None:
-            await callback.message.answer_document(
+        if msg is not None:
+            await msg.answer_document(
                 file, caption="📄 Справочно. Не является юридической консультацией."
             )
         else:  # сообщение недоступно (старое) — шлём напрямую в чат
@@ -711,8 +728,18 @@ async def on_export(callback: CallbackQuery) -> None:
             )
     except Exception:  # noqa: BLE001
         log.exception("export failed for user %s", user_id)
+        if key is not None:
+            _exported_msgs.discard(key)  # отправка не удалась — разрешаем повтор
         await callback.answer("Не получилось сформировать файл, попробуйте позже.")
         return
+
+    # Убираем кнопку с сообщения — больше не спамится (best-effort: старое сообщение
+    # или уже без кнопки → TelegramBadRequest, не критично).
+    if msg is not None:
+        try:
+            await msg.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest:
+            pass
     await callback.answer("Готово — файл отправлен")
 
 
