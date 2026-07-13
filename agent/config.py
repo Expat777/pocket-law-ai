@@ -33,6 +33,15 @@ DOC_CONTEXT_CHARS = int(os.getenv("AGENT_DOC_CONTEXT_CHARS", "3000"))
 # «Основание», чтобы не слать пользователя скроллить весь текст закона по ссылке.
 CITATION_TEXT_CHARS = int(os.getenv("AGENT_CITATION_TEXT_CHARS", "450"))
 
+# --- Распознавание речи (STT): пользователь наговаривает вопрос голосом ---
+# Канал — OpenAI-совместимый /audio/transcriptions нашего LLM-провайдера (Polza):
+# тот же ключ/база, что и LLM (LLM_BASE_URL/LLM_API_KEY) — отдельная инфра не нужна,
+# граница доверия ПДн не расширяется (мы и так шлём текст вопроса в Polza).
+STT_MODEL = os.getenv("STT_MODEL", "openai/whisper-large-v3")
+STT_LANGUAGE = os.getenv("STT_LANGUAGE", "ru")  # русский по умолчанию (наши юзеры)
+STT_MAX_BYTES = int(os.getenv("STT_MAX_BYTES", str(25 * 1024 * 1024)))  # лимит OpenAI 25 МБ
+STT_TIMEOUT = float(os.getenv("STT_TIMEOUT", "90"))
+
 # HyDE: генерировать гипотетический «текст статьи» и искать по вопрос+HyDE вместе.
 # Замер на 35 житейских: recall@ретрив 83%->94% (лечит лексический разрыв dense —
 # НК-вычет, ГПК-иск/апелляция и т.п.). Цена — +1 вызов LLM, но он идёт ПАРАЛЛЕЛЬНО

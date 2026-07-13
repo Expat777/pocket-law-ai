@@ -324,6 +324,51 @@ async def test_verify_attaches_article_text_to_citation():
     assert cits[0].text and cits[0].text.startswith("Расторжение трудового договора")
 
 
+async def test_transcribe_empty_returns_empty():
+    """Пустое аудио -> пустой текст, без вызова STT."""
+    from agent.tools.transcribe import transcribe_audio
+
+    assert await transcribe_audio(b"") == ""
+
+
+async def test_transcribe_strips_and_uses_injected_post():
+    """STT: инъектим post (без сети), результат обрезается по краям."""
+    from agent.tools.transcribe import transcribe_audio
+
+    captured = {}
+
+    async def fake_post(audio, filename, model, language):
+        captured["model"] = model
+        captured["language"] = language
+        return "  за сколько дней предупреждать об увольнении?  "
+
+    out = await transcribe_audio(b"OggS-fake", "voice.ogg", post=fake_post)
+    assert out == "за сколько дней предупреждать об увольнении?"
+    assert captured["language"] == "ru"  # дефолт для наших юзеров
+
+
+async def test_transcribe_rejects_oversize():
+    """Слишком большое аудио -> ValueError (лимит провайдера/бюджет)."""
+    from agent.config import STT_MAX_BYTES
+    from agent.tools.transcribe import transcribe_audio
+
+    raised = False
+    try:
+        await transcribe_audio(b"x" * (STT_MAX_BYTES + 1))
+    except ValueError:
+        raised = True
+    assert raised
+
+
+def test_transcribe_mime_by_extension():
+    """Telegram voice = OGG; неизвестное расширение -> octet-stream."""
+    from agent.tools.transcribe import _mime
+
+    assert _mime("voice.ogg") == "audio/ogg"
+    assert _mime("q.mp3") == "audio/mpeg"
+    assert _mime("weird.xyz") == "application/octet-stream"
+
+
 async def test_empty_question_clarifies_without_calling_llm():
     """Empty/whitespace input -> clarify, LLM ne vyzyvaetsya (guard, bez 400)."""
 
