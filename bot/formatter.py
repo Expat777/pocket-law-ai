@@ -27,6 +27,23 @@ def escape_md(text: str) -> str:
     return text.translate(_TRANSLATION)
 
 
+# Длина дословной выдержки из статьи (`Citation.text`): в Telegram коротко, чтобы не
+# раздувать сообщение; в памятке .txt/PDF — полнее (документ можно прочитать целиком).
+_EXCERPT_TG_LIMIT = 220
+_EXCERPT_DOC_LIMIT = 500
+
+
+def _shorten(text: str, limit: int) -> str:
+    """Схлопывает пробелы/переносы и обрезает по словам с «…» (без разрыва слова)."""
+    collapsed = " ".join(text.split())
+    if len(collapsed) <= limit:
+        return collapsed
+    cut = collapsed[:limit]
+    if " " in cut:
+        cut = cut[: cut.rfind(" ")]
+    return cut.rstrip(" ,.;:—-") + "…"
+
+
 def _format_citation(c: Citation) -> str:
     # «ст. 81 ТК РФ (ред. от 01.11.2024)» + опциональная ссылка
     rev = c.revision_date.strftime("%d.%m.%Y")
@@ -38,13 +55,29 @@ def _format_citation(c: Citation) -> str:
     return line
 
 
+def _citation_excerpt_md(c: Citation) -> str:
+    """Дословная выдержка из статьи под цитатой (курсив), если Роль 2 её прислала."""
+    if not c.text or not c.text.strip():
+        return ""
+    return f"_«{escape_md(_shorten(c.text, _EXCERPT_TG_LIMIT))}»_"
+
+
 def _basis_block(citations: list[Citation]) -> str:
     if not citations:
         return ""
     if len(citations) == 1:
-        return f"*Основание:* {_format_citation(citations[0])}"
-    items = "\n".join(f"• {_format_citation(c)}" for c in citations)
-    return f"*Основание:*\n{items}"
+        c = citations[0]
+        line = f"*Основание:* {_format_citation(c)}"
+        excerpt = _citation_excerpt_md(c)
+        return f"{line}\n{excerpt}" if excerpt else line
+    items = []
+    for c in citations:
+        item = f"• {_format_citation(c)}"
+        excerpt = _citation_excerpt_md(c)
+        if excerpt:
+            item += f"\n  {excerpt}"
+        items.append(item)
+    return "*Основание:*\n" + "\n".join(items)
 
 
 def _disclaimer_line() -> str:
@@ -168,6 +201,8 @@ def format_export_text(question: str, answer: Answer, when: str) -> str:
         for c in answer.citations:
             rev = c.revision_date.strftime("%d.%m.%Y")
             lines.append(f"• ст. {c.article} {c.act} (ред. от {rev})")
+            if c.text and c.text.strip():
+                lines.append(f"  «{_shorten(c.text, _EXCERPT_DOC_LIMIT)}»")
             if c.source_url:
                 lines.append(f"  {c.source_url}")
         lines.append("")
