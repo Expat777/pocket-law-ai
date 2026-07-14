@@ -256,6 +256,44 @@
     <div class="foot"><span class="mono">03</span> · intent → retrieve → verify → compose</div>
   </section>
 
+  <!-- 4b · СКОУП ВВОДА -->
+  <section class="slide" data-title="Скоуп ввода">
+    <div class="slide-inner">
+      <div class="eyebrow">Возможности ввода · зона Агента</div>
+      <h2 class="serif">Понимает не только текст — документы и голос</h2>
+      <p class="lead">Один и тот же проверяемый ответ со ссылкой на статью — с какого бы входа ни пришёл вопрос.
+      Под каждым типом входа своя обработка и своя защита от выдумки.</p>
+      <div class="grid g4" style="margin-top:1.5rem">
+        <div class="card">
+          <span class="ic">💬</span><h3>Текст</h3>
+          <p>Сразу в граф: понять тему → найти → проверить → собрать ответ.</p>
+          <span class="eng">обычный поток</span>
+        </div>
+        <div class="card">
+          <span class="ic">📄</span><h3>PDF с текстом</h3>
+          <p>Читаем текстовый слой напрямую — точно и мгновенно, без ошибок распознавания.</p>
+          <span class="eng">PyMuPDF</span>
+        </div>
+        <div class="card">
+          <span class="ic">📷</span><h3>Скан / фото</h3>
+          <p>Распознаём картинку (OCR) с предобработкой. Мусорный результат отсекает гейт — не сочиняем документ.</p>
+          <span class="eng">Tesseract · rus+eng</span>
+        </div>
+        <div class="card">
+          <span class="ic">🎙️</span><h3>Голос</h3>
+          <p>Речь → текст, затем показываем расшифровку на подтверждение: ошибка распознавания меняет весь ответ.</p>
+          <span class="eng">Whisper large-v3</span>
+        </div>
+      </div>
+      <div class="guard">
+        <b>Защита от выдумки на каждом уровне:</b> OCR-гейт отбрасывает нечитаемое фото · эхо-расшифровка ловит
+        ошибку голоса · в ответе цитируются только реально найденные действующие статьи. А отметив файл, можно
+        искать ответ <b>строго внутри своего документа</b>.
+      </div>
+    </div>
+    <div class="foot"><span class="mono">04b</span> · текст · PDF · скан/фото · голос — единый проверяемый ответ</div>
+  </section>
+
   <!-- 5 · SYSTEM MAP · RUNTIME -->
   <section class="slide" data-title="Схема · рантайм">
     <div class="slide-inner">
@@ -302,9 +340,10 @@
           <text class="btc" x="742" y="217">verify</text>
           <rect class="bx nd" x="572" y="188" width="140" height="48" rx="9"/>
           <text class="btc" x="586" y="217">compose</text>
-          <rect class="bx" x="572" y="272" width="296" height="52" rx="9"/>
-          <text class="bt" x="586" y="294">Ingest · разбор файла</text>
-          <text class="bs" x="586" y="313">PDF/фото &#8594; OCR · голос &#8594; STT</text>
+          <rect class="bx" x="572" y="270" width="296" height="66" rx="9"/>
+          <text class="bt" x="586" y="290">Ingest · разбор файла</text>
+          <text class="bs" x="586" y="309">PDF &#8594; текст-слой · скан/фото &#8594; OCR (Tesseract)</text>
+          <text class="bs" x="586" y="326">голос &#8594; STT (Whisper)</text>
           <path class="ln" d="M712,136 H726" marker-end="url(#ah)"/>
           <path class="ln" d="M798,160 V186" marker-end="url(#ah)"/>
           <path class="ln" d="M728,212 H714" marker-end="url(#ah)"/>
@@ -462,6 +501,35 @@
       </div>
     </div>
     <div class="foot"><span class="mono">08</span> · боевой стек · валидация на проде</div>
+  </section>
+
+  <!-- 8b · КАК МЫ МЕРЯЕМ КАЧЕСТВО -->
+  <section class="slide" data-title="Качество ответа">
+    <div class="slide-inner">
+      <div class="eyebrow">Как мы измеряем качество</div>
+      <h2 class="serif">Проверяли не «нашлась ли статья», а сам ответ</h2>
+      <p class="lead">Recall доказывает, что ретрив находит норму. Но обещание продукта — «не выдумывает» — это про <b>финальный ответ</b>. Поэтому мы собрали <b>40 живых вопросов с юрфорума</b> и оценили ответы агента независимым LLM-судьёй по рубрике 0–8: грунтовка · корректность · соответствие цитат · полнота.</p>
+      <div class="grid g4" style="margin-top:1.4rem">
+        <div class="stat"><div class="v good">4.39&thinsp;→&thinsp;6.12</div><div class="l">качество ответа /8 на реальных вопросах (медиана 4→7)</div></div>
+        <div class="stat"><div class="v acc">40</div><div class="l">живых вопросов с юрфорума, 18 рубрик права</div></div>
+        <div class="stat"><div class="v br">4</div><div class="l">правдоподобных «улучшения» судья отклонил как плацебо</div></div>
+        <div class="stat"><div class="v good">0</div><div class="l">плацебо-фиксов уехало в прод</div></div>
+      </div>
+      <div class="grid g2" style="margin-top:1.3rem; align-items:start">
+        <div class="card">
+          <span class="num">Механизм</span>
+          <h3>Цитата не может быть выдумана</h3>
+          <p>Блок «Основание» = статьи, названные в тексте ответа <b>∩</b> реально найденные в базе. Что не подтверждено ретривом — не цитируется. <span class="mono">verify_citation</span> пропускает только существующую <b>и действующую</b> редакцию.</p>
+        </div>
+        <div class="card">
+          <span class="num">Дисциплина</span>
+          <h3>Гейт против самообмана</h3>
+          <p>Каждый фикс проходил судью на корпусе до мержа. Чеклист договора, лимит цитат, глобальная температура, guard правил площадок — <b>отклонены</b>: пользы 0 или регресс. В прод — только измеренный выигрыш.</p>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:1.2rem; font-size:.9rem">Судья — отдельный прогон при <span class="mono">temperature=0</span> по фиксированной рубрике; эталон в промпт судьи не подаётся. Метрика офлайн, воспроизводима, используется как гейт A/B.</p>
+    </div>
+    <div class="foot"><span class="mono">08b</span> · end-to-end качество · LLM-as-Judge на реальных вопросах</div>
   </section>
 
   <!-- 8 · BOT FEATURES -->
