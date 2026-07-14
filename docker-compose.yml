@@ -30,7 +30,10 @@ services:
     environment:
       QDRANT_URL: http://qdrant:6333
       POSTGRES_HOST: postgres
+    volumes:
+      - pipeline_state:/app/pipeline/.state
 
 volumes:
   qdrant_storage:
   postgres_data:
+  pipeline_state:
