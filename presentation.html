@@ -282,7 +282,7 @@
         <div class="card">
           <span class="ic">🎙️</span><h3>Голос</h3>
           <p>Речь → текст, затем показываем расшифровку на подтверждение: ошибка распознавания меняет весь ответ.</p>
-          <span class="eng">Whisper large-v3</span>
+          <span class="eng">openai/whisper-large-v3</span>
         </div>
       </div>
       <div class="guard">
@@ -442,7 +442,7 @@
       <h2 class="serif">Четыре слоя, чёткие границы</h2>
       <div class="layers" style="margin-top:1.2rem">
         <div class="layer"><div class="who">Бот <small>Роль 1 · bot/</small></div><div class="what">aiogram 3 · FSM, согласие 152-ФЗ, лимиты, форматирование, документы, голос</div></div>
-        <div class="layer"><div class="who">Агент <small>Роль 2 · agent/</small></div><div class="what">LangGraph-граф, промпты, anti-hallucination, STT · <span class="mono">Polza.ai · gemini-2.5-flash-lite</span></div></div>
+        <div class="layer"><div class="who">Агент <small>Роль 2 · agent/</small></div><div class="what">LangGraph-граф, промпты, anti-hallucination · STT <span class="mono">openai/whisper-large-v3</span> · LLM <span class="mono">Polza.ai · gemini-2.5-flash-lite</span></div></div>
         <div class="layer"><div class="who">Данные <small>Роль 3 · pipeline/</small></div><div class="what">fetch → parse → chunk → embed → upsert · <span class="mono">bge-m3 · 1024d</span> · Qdrant</div></div>
         <div class="layer"><div class="who">Инфра <small>Роль 4 · infra/</small></div><div class="what">docker-compose · схема PostgreSQL/Qdrant · <span class="mono">search_law()</span> · верифицированный деплой · сервер (Selectel) · контракты <span class="mono">shared/</span></div></div>
       </div>
