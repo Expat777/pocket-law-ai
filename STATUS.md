@@ -24,6 +24,9 @@
 | Роль 2 | Отложено по согласованию: recall МРОТ ст.133/136 в doc-аудите; качество прозы «номер-к-нарушению» |
 | ~~Роль 4~~ | ~~**Автообновление НПА — шаги А→Б→В**~~ **✅ задеплоено 07-14:** volume `pipeline_state` в docker-compose (без пересборки, 0 рестартов) → `--seed` 57/57 актов получили базовую линию → cron хоста `0 4 * * *` (`docker compose exec -T bot python -m pipeline.watch`, лог `~/pocket-law-ai/law_watch.log` — `/var/log` под `dev4` не пишется) |
 | Роль 4 | Branch protection на `main`; постоянное egress-решение вместо личного VPN |
+| Роль 4 | **`.env.example` отстал от кода на 11 ручек** (аудит Роли 3, 07-14): `LLM_TEMPERATURE`, `AGENT_HYDE` (ваш же рычаг при лимитах Polza!), `AGENT_INTENT/HYDE_TEMPERATURE`, `AGENT_ANCHOR_ARTICLES`, `STT_MODEL/LANGUAGE/MAX_BYTES`, `AGENT_CITATION_TEXT_CHARS`, `AGENT_DOC_CONTEXT_CHARS`, `JUDGE_MODEL`; комментарий «LLM API (только генерация ответов)» устарел — теперь intent+compose+HyDE+STT. Прод не задет (там свой `.env`), но новый разработчик ручек не увидит |
+| Роль 4 | **`Agent.transcribe_voice` не ратифицирован в `shared/contracts.py`** — фича в проде end-to-end (бот вызывает), Роль 2 просила ×4-ратификацию; по вашему же правилу контракт меняется только через PR ×4 — сейчас реализация опережает контракт |
+| Роль 4 | **`make fixtures` бит:** цель зовёт `agent.fixtures.load_fixtures`, каталога `agent/fixtures/` больше нет — а `make fixtures` входит в quick-start `CLAUDE.md`/README. Убрать цель или поправить доку (новичок по инструкции упрётся в ошибку) |
 | Владелец ключа | Лимит трат на аккаунте Polza |
 | Фаза 2 | Тезаурус/граф статей; `law_versions` по-статейно; полноценный «режим аудита договора»; идеи Роли 1 (проверка документа на противоречия закону, вывод confidence юзеру — требуют строки в контракте `Answer`) |
 
