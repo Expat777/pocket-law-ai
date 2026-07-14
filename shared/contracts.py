@@ -67,6 +67,15 @@ async def delete_user_documents(user_id: int, doc_id: str | None = None) -> None
     ...
 
 
+async def transcribe_voice(
+    user_id: int, audio_bytes: bytes, filename: str | None = None
+) -> str:
+    """Голосовое сообщение -> распознанный текст (STT). Бот (Роль 1): скачать voice ->
+    transcribe_voice -> ПОКАЗАТЬ распознанное пользователю (Whisper галлюцинирует на
+    не-речи) -> answer_question(текст). user_id — под будущую телеметрию/лимиты."""
+    ...
+
+
 # --- 3.2 Оркестратор <-> Хранилища (потребитель: Роль 2, поставщики: Роли 3 и 4) ---
 
 
