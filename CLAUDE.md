@@ -27,6 +27,6 @@
 cp .env.example .env   # заполнить токены/ключи
 make up                # docker-compose up (qdrant + postgres + bot)
 make migrate            # применить миграции Postgres
-make fixtures           # загрузить фикстуры законов (Роль 2)
+docker compose exec -T bot python -m pipeline.run --act tk_rf   # залить кодекс для локального теста (реестр: pipeline/acts.py)
 make test
 ```

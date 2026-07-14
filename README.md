@@ -27,7 +27,7 @@ cp .env.example .env      # заполнить BOT_TOKEN, LLM_API_KEY и т.д.
 pip install -e ".[dev]"
 make up                   # поднять qdrant + postgres + bot
 make migrate               # применить миграции Postgres и создать коллекции Qdrant
-make fixtures               # загрузить тестовые статьи законов (Роль 2)
+docker compose exec -T bot python -m pipeline.run --act tk_rf   # залить один кодекс для локального теста (реестр: pipeline/acts.py)
 make test
 ```
 

@@ -215,7 +215,6 @@ pocket-law-ai/
 cp .env.example .env    # вписать токены/ключи (BOT_TOKEN, LLM_API_KEY …)
 make up                 # docker-compose up (qdrant + postgres + bot)
 make migrate            # применить миграции Postgres
-make fixtures           # загрузить фикстуры законов
 make test               # прогнать тесты
 ```
 
