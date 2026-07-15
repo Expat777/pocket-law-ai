@@ -744,7 +744,7 @@
       </div>
       <div class="feat">
         <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h7"/></svg></div>
-        <div><b>Ответ можно забрать с собой</b><span>PDF-памятка по любой консультации</span></div>
+        <div><b>Ответ можно забрать с собой</b><span>PDF-памятка по любому ответу</span></div>
       </div>
       <div class="feat">
         <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
@@ -780,25 +780,25 @@
       <text x="266" y="119" font-size="12" fill="#64748B">rate-limit · согласие на ПД (152-ФЗ)</text>
       <rect x="252" y="152" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
       <text x="266" y="175" font-size="14" font-weight="800" fill="#0F172A">Команды · /start</text>
-      <text x="266" y="193" font-size="12" fill="#64748B">онбординг, помощь, сброс диалога</text>
+      <text x="266" y="193" font-size="12" fill="#64748B">онбординг · /delete — удаление всех ПД</text>
       <rect x="252" y="218" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
       <text x="266" y="241" font-size="14" font-weight="800" fill="#0F172A">Текст</text>
       <text x="266" y="259" font-size="12" fill="#64748B">вопрос уходит агенту как есть</text>
       <rect x="252" y="284" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
       <text x="266" y="307" font-size="14" font-weight="800" fill="#0F172A">Голос</text>
-      <text x="266" y="325" font-size="12" fill="#64748B">OGG → Whisper large-v3 → текст</text>
+      <text x="266" y="325" font-size="12" fill="#64748B">скачивает OGG → transcribe_voice()</text>
       <rect x="252" y="350" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
       <text x="266" y="373" font-size="14" font-weight="800" fill="#0F172A">Документ</text>
-      <text x="266" y="391" font-size="12" fill="#64748B">magic bytes · ≤ 25 МБ · PyMuPDF/OCR</text>
+      <text x="266" y="391" font-size="12" fill="#64748B">magic bytes · ≤ 20 МБ → ingest_document</text>
 
       <path d="M562 234h44" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
       <path d="M600 228l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       <rect x="614" y="164" width="196" height="140" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
       <text x="632" y="192" font-size="15" font-weight="800" fill="#0F172A">Контракт shared/</text>
       <text x="632" y="214" font-size="12.5" fill="#64748B">answer_question()</text>
-      <text x="632" y="232" font-size="12.5" fill="#64748B">ingest_document()</text>
-      <text x="632" y="254" font-size="12.5" fill="#64748B">возвращают Answer:</text>
-      <text x="632" y="272" font-size="12.5" fill="#64748B">text + citations[]</text>
+      <text x="632" y="232" font-size="12.5" fill="#64748B">ingest_document · PDF/OCR</text>
+      <text x="632" y="254" font-size="12.5" fill="#64748B">transcribe_voice · Whisper</text>
+      <text x="632" y="272" font-size="12.5" fill="#64748B">→ Answer: text + citations[]</text>
 
       <path d="M810 214h40" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
       <path d="M844 208l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -808,15 +808,16 @@
       <text x="876" y="190" font-size="12.5" fill="#64748B">«Основание — ст. N» + выдержка</text>
       <text x="876" y="210" font-size="12.5" fill="#64748B">дисклеймер в каждом ответе</text>
       <text x="876" y="230" font-size="12.5" fill="#64748B">PDF-памятка по кнопке</text>
-      <text x="876" y="254" font-size="12" font-weight="700" fill="#6D5CFF">ответ выглядит как консультация</text>
+      <text x="876" y="254" font-size="12" font-weight="700" fill="#6D5CFF">оформлен как справка со ссылками</text>
 
       <rect x="858" y="300" width="244" height="118" rx="14" fill="#E9F0FE" stroke="#BCD0F7" stroke-width="1.6"/>
       <text x="876" y="328" font-size="15" font-weight="800" fill="#0F172A">Хранилище</text>
       <text x="876" y="350" font-size="12.5" fill="#64748B">PostgreSQL: история диалога,</text>
       <text x="876" y="368" font-size="12.5" fill="#64748B">согласия, лимиты запросов</text>
       <text x="876" y="390" font-size="12.5" fill="#64748B">переживает рестарт бота</text>
-      <path d="M810 280 L 852 330" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6"/>
-      <path d="M842 320l10 10-14 1" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M562 332 C 690 356, 790 360, 850 360" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6" fill="none"/>
+      <path d="M844 354l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <text x="600" y="346" font-size="11" font-weight="700" fill="#8A93A8">запись из бота</text>
     </svg>
   </div>
 </section>
