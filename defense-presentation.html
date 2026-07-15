@@ -168,6 +168,12 @@
   .qslide{align-items:center; justify-content:center; text-align:center}
   .qslide h1{font-size:104px; max-width:none}
   .qrow{display:flex; align-items:center; gap:36px}
+  .qrcard{display:flex; flex-direction:column; align-items:center; gap:9px;
+    background:#fff; border:1.5px solid var(--line); border-radius:20px;
+    padding:18px 18px 15px; box-shadow:0 12px 32px rgba(15,23,42,.07)}
+  .qrcard svg{width:150px; height:150px; display:block; border-radius:6px}
+  .qrcard b{font-size:16px; color:#0F172A}
+  .qrcard .h{font-size:13px; color:var(--mut); letter-spacing:.2px}
   .stats{display:flex; gap:14px; margin-top:42px; justify-content:center}
   .stat{background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:14px 24px}
   .stat b{font-size:26px; display:block; background:var(--grad);
@@ -758,7 +764,7 @@
         <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="step">
           <div class="disc2"><span class="n">3</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></div>
-          <b>Фильтры</b><span>файл: тип и размер</span>
+          <b>Фильтры</b><span>текст · голос · файл</span>
         </div>
         <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="step">
@@ -790,13 +796,13 @@
   <div class="kicker">Роль 1 · архитектура — Дорджи Годаев</div>
   <h1>Как устроен бот: <span class="hl">от сообщения до ответа</span></h1>
   <div class="arch">
-    <svg viewBox="0 0 1112 452" fill="none" font-family="sans-serif">
+    <svg viewBox="0 0 1112 470" fill="none" font-family="sans-serif">
       <path d="M980 112 C 720 -16, 230 16, 102 168" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" fill="none"/>
       <path d="M112 158l-10 12 15 2" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       <text x="640" y="22" font-size="13" font-weight="700" fill="#64748B">ответ пользователю</text>
 
       <rect x="10" y="176" width="176" height="100" rx="16" fill="#E8F4FD" stroke="#A9D8F5" stroke-width="1.6"/>
-      <path d="M64 212l40-16-13 34-8-11-14 8z" fill="#2AABEE" transform="translate(14,-6)"/>
+      <path transform="translate(83,182) scale(1.3)" fill="#26A5E4" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
       <text x="98" y="248" font-size="16" font-weight="800" fill="#0F172A" text-anchor="middle">Telegram Bot API</text>
       <text x="98" y="266" font-size="12" fill="#64748B" text-anchor="middle">polling · через прокси</text>
       <path d="M186 226h38" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
@@ -813,7 +819,7 @@
       <text x="266" y="193" font-size="12" fill="#64748B">онбординг · /delete — удаление всех ПД</text>
       <rect x="252" y="218" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
       <text x="266" y="241" font-size="14" font-weight="800" fill="#0F172A">Текст</text>
-      <text x="266" y="259" font-size="12" fill="#64748B">вопрос уходит агенту как есть</text>
+      <text x="266" y="259" font-size="12" fill="#64748B">вопрос → агенту · уточнения в FSM</text>
       <rect x="252" y="284" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
       <text x="266" y="307" font-size="14" font-weight="800" fill="#0F172A">Голос</text>
       <text x="266" y="325" font-size="12" fill="#64748B">скачивает OGG → transcribe_voice()</text>
@@ -823,17 +829,19 @@
 
       <path d="M562 234h44" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
       <path d="M600 228l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="614" y="164" width="196" height="140" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
-      <text x="632" y="192" font-size="15" font-weight="800" fill="#0F172A">Контракт shared/</text>
-      <text x="632" y="214" font-size="12.5" fill="#64748B">answer_question()</text>
-      <text x="632" y="232" font-size="12.5" fill="#64748B">ingest_document · PDF/OCR</text>
-      <text x="632" y="254" font-size="12.5" fill="#64748B">transcribe_voice · Whisper</text>
-      <text x="632" y="272" font-size="12.5" fill="#64748B">→ Answer: text + citations[]</text>
+      <rect x="614" y="158" width="196" height="160" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
+      <text x="632" y="184" font-size="15" font-weight="800" fill="#0F172A">Контракт shared/</text>
+      <text x="632" y="206" font-size="12.5" fill="#64748B">answer_question()</text>
+      <text x="632" y="226" font-size="12.5" fill="#64748B">ingest_document · PDF/OCR</text>
+      <text x="632" y="246" font-size="12.5" fill="#64748B">transcribe_voice · Whisper</text>
+      <text x="632" y="266" font-size="12.5" fill="#64748B">ingest_url · по ссылке</text>
+      <text x="632" y="290" font-size="12.5" font-weight="700" fill="#0F172A">→ Answer: text + citations[]</text>
 
       <path d="M810 214h40" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
       <path d="M844 208l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="858" y="118" width="244" height="150" rx="14" fill="#fff" stroke="#E7E8F2" stroke-width="1.6"/>
+      <rect x="858" y="118" width="244" height="150" rx="14" fill="#F7F6FF" stroke="#D9D3FA" stroke-width="1.6"/>
       <text x="876" y="146" font-size="15" font-weight="800" fill="#0F172A">Response Formatter</text>
+      <text x="1058" y="146" font-size="12" font-weight="600" fill="#8A93A8">bot/</text>
       <text x="876" y="170" font-size="12.5" fill="#64748B">MarkdownV2 + экранирование</text>
       <text x="876" y="190" font-size="12.5" fill="#64748B">«Основание — ст. N» + выдержка</text>
       <text x="876" y="210" font-size="12.5" fill="#64748B">дисклеймер в каждом ответе</text>
@@ -847,7 +855,22 @@
       <text x="876" y="390" font-size="12.5" fill="#64748B">переживает рестарт бота</text>
       <path d="M562 332 C 690 356, 790 360, 850 360" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6" fill="none"/>
       <path d="M844 354l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <text x="600" y="346" font-size="11" font-weight="700" fill="#8A93A8">запись из бота</text>
+      <text x="676" y="342" font-size="11" font-weight="700" fill="#8A93A8">запись из бота</text>
+
+      <!-- FSM: состояние диалога держит бот (Роль 1); агент — без состояния -->
+      <path d="M232 250 H206 V360 H188" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6" fill="none"/>
+      <path d="M194 354l-8 6 8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="10" y="306" width="176" height="110" rx="14" fill="#F7F6FF" stroke="#D9D3FA" stroke-width="1.6"/>
+      <text x="24" y="332" font-size="14" font-weight="800" fill="#0F172A">FSM · фаза диалога</text>
+      <text x="24" y="356" font-size="12" fill="#64748B">awaiting_clarification</text>
+      <text x="24" y="376" font-size="12" fill="#64748B">склеивает уточнение</text>
+      <text x="24" y="396" font-size="11.5" fill="#64748B">в памяти · агент stateless</text>
+
+      <!-- легенда: цвет = владелец -->
+      <rect x="330" y="449" width="15" height="15" rx="3" fill="#F7F6FF" stroke="#D9D3FA" stroke-width="1.4"/>
+      <text x="353" y="461" font-size="12.5" font-weight="600" fill="#64748B">bot/ · Роль 1 — интейк, FSM, форматтер ответа</text>
+      <rect x="742" y="449" width="15" height="15" rx="3" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.4"/>
+      <text x="765" y="461" font-size="12.5" font-weight="600" fill="#64748B">контракт shared/ → агент (Роль 2)</text>
     </svg>
   </div>
 </section>
@@ -1232,8 +1255,7 @@
         <text x="248" y="144" font-size="12" fill="#64748B" font-family="sans-serif">aiogram + агент</text>
         <text x="196" y="176" font-size="12" font-weight="600" fill="#8A93A8" font-family="sans-serif">контейнер №1</text>
         <rect x="404" y="86" width="196" height="76" rx="14" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.6"/>
-        <path d="M436 102l14 8v16l-14 8-14-8v-16z" fill="none" stroke="#DC244C" stroke-width="2.4"/>
-        <circle cx="436" cy="118" r="3.4" fill="#DC244C"/>
+        <g transform="translate(421,103) scale(1.25)"><path fill="#DC244C" d="m12 16.5 3.897-2.25v-4.5L12 7.5 8.103 9.75v4.5zM1.607 18 12 24l3.897-2.25v-4.5L12 19.5l-6.495-3.75v-7.5L12 4.5l6.495 3.75v15L22.393 21V6L12 0 1.607 6Z"/></g>
         <text x="462" y="118" font-size="15" font-weight="800" fill="#0F172A" font-family="sans-serif">Qdrant</text>
         <text x="462" y="136" font-size="12" fill="#64748B" font-family="sans-serif">векторы статей</text>
         <rect x="404" y="180" width="196" height="76" rx="14" fill="#E9F0FE" stroke="#BCD0F7" stroke-width="1.6"/>
@@ -1355,6 +1377,110 @@
   </div>
 </section>
 
+<!-- ═══ 6e · Общая архитектура ═══ -->
+<section class="slide">
+  <div class="kicker">Общая архитектура · как всё складывается</div>
+  <h1>Всё вместе: <span class="hl">четыре роли — одна система</span></h1>
+  <div class="arch">
+    <svg viewBox="0 0 1160 480" fill="none" font-family="sans-serif">
+      <!-- рамка сервера (Роль 4) -->
+      <rect x="214" y="44" width="922" height="400" rx="20" fill="none" stroke="#C9CFDE" stroke-width="2"/>
+      <text x="360" y="70" font-size="15.5" font-weight="800" fill="#0F172A">Selectel VPS · docker compose · автозапуск</text>
+
+      <!-- внешний мир -->
+      <rect x="10" y="94" width="186" height="298" rx="16" fill="#F6F8FC" stroke="#DCE2EC" stroke-width="1.6"/>
+      <g transform="translate(28,107) scale(0.62)" stroke="#64748B" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c3.5 3 3.5 15 0 18"/><path d="M12 3c-3.5 3-3.5 15 0 18"/></g>
+      <text x="52" y="121" font-size="13.5" font-weight="800" fill="#0F172A">Внешний мир</text>
+
+      <rect x="28" y="138" width="150" height="66" rx="10" fill="#E8F4FD" stroke="#A9D8F5" stroke-width="1.4"/>
+      <g transform="translate(40,153) scale(0.78)" fill="#26A5E4"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></g>
+      <text x="72" y="166" font-size="12.5" font-weight="700" fill="#0F172A">Telegram</text>
+      <text x="72" y="185" font-size="11.5" fill="#64748B">пользователи</text>
+
+      <rect x="28" y="216" width="150" height="68" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <g transform="translate(40,232) scale(0.8)" stroke="#6D5CFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></g>
+      <text x="72" y="245" font-size="12.5" font-weight="700" fill="#0F172A">Polza.ai · LLM</text>
+      <text x="72" y="264" font-size="11.5" fill="#64748B">Gemini + Whisper</text>
+
+      <rect x="28" y="296" width="150" height="66" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <g transform="translate(40,310) scale(0.72)" stroke="#64748B" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 13h6M10 17h4"/></g>
+      <text x="72" y="323" font-size="12.5" font-weight="700" fill="#0F172A">pravo.gov.ru</text>
+      <text x="72" y="342" font-size="11.5" fill="#64748B">тексты законов</text>
+
+      <!-- xray egress (Роль 4) -->
+      <rect x="230" y="214" width="104" height="96" rx="14" fill="#EEF3FE" stroke="#BCD0F7" stroke-width="1.6"/>
+      <g transform="translate(270,224) scale(0.62)" stroke="#4169E1" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></g>
+      <text x="282" y="272" font-size="13.5" font-weight="800" fill="#0F172A" text-anchor="middle">xray-прокси</text>
+      <text x="282" y="290" font-size="11.5" fill="#64748B" text-anchor="middle">egress РФ</text>
+      <path d="M196 262 H228" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M222 256l6 6-6 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <!-- контейнер bot: один образ, три слоя-роли -->
+      <rect x="370" y="86" width="322" height="340" rx="16" fill="#FCFCFE" stroke="#E1E4F0" stroke-width="1.6"/>
+      <text x="388" y="112" font-size="13" font-weight="800" fill="#0F172A">контейнер bot · один образ</text>
+
+      <rect x="388" y="128" width="286" height="84" rx="11" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.6"/>
+      <g transform="translate(404,150) scale(0.9)" stroke="#6D5CFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4"/><circle cx="12" cy="3.4" r="1.3"/><circle cx="9.6" cy="13" r="1.3"/><circle cx="14.4" cy="13" r="1.3"/></g>
+      <text x="436" y="162" font-size="14.5" font-weight="800" fill="#0F172A">Бот</text>
+      <text x="660" y="150" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">bot/</text>
+      <text x="436" y="186" font-size="12" fill="#64748B">диалог · голос · файлы → ответ</text>
+
+      <rect x="388" y="224" width="286" height="84" rx="11" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
+      <g transform="translate(404,246) scale(0.9)" stroke="#00B8D9" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="9" r="2"/><circle cx="10" cy="17" r="2"/><path d="M8 7.6l8 1M7 8.7l2.4 6.6M16 10.6l-5 5.4"/></g>
+      <text x="436" y="258" font-size="14.5" font-weight="800" fill="#0F172A">Агент</text>
+      <text x="660" y="246" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">agent/</text>
+      <text x="436" y="282" font-size="12" fill="#64748B">граф LangGraph → ответ + citations[]</text>
+
+      <rect x="388" y="320" width="286" height="84" rx="11" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.6"/>
+      <g transform="translate(404,342) scale(0.9)" stroke="#DC244C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"/><path d="M12 8l4 4-4 4"/><circle cx="20" cy="12" r="1.6"/></g>
+      <text x="436" y="354" font-size="14.5" font-weight="800" fill="#0F172A">Пайплайн</text>
+      <text x="660" y="342" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">pipeline/</text>
+      <text x="436" y="378" font-size="12" fill="#64748B">закон → векторы · ночной watch</text>
+
+      <path d="M334 262 H368" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M362 256l6 6-6 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <!-- хранилища (Роль 4): Postgres сверху (рядом с ботом), Qdrant снизу (рядом с агентом/пайплайном) -->
+      <rect x="736" y="128" width="300" height="104" rx="14" fill="#EEF3FE" stroke="#BCD0F7" stroke-width="1.6"/>
+      <g transform="translate(752,150) scale(0.85)" stroke="#4169E1" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.6 3.1 3 7 3s7-1.4 7-3V6"/><path d="M5 12c0 1.6 3.1 3 7 3s7-1.4 7-3"/></g>
+      <text x="788" y="162" font-size="15" font-weight="800" fill="#0F172A">PostgreSQL · контейнер</text>
+      <text x="754" y="192" font-size="12" fill="#64748B">история · согласия (152-ФЗ)</text>
+
+      <rect x="736" y="300" width="300" height="104" rx="14" fill="#FFF5F7" stroke="#F4B9C6" stroke-width="1.6"/>
+      <g transform="translate(752,322) scale(0.85)"><path fill="#DC244C" d="m12 16.5 3.897-2.25v-4.5L12 7.5 8.103 9.75v4.5zM1.607 18 12 24l3.897-2.25v-4.5L12 19.5l-6.495-3.75v-7.5L12 4.5l6.495 3.75v15L22.393 21V6L12 0 1.607 6Z"/></g>
+      <text x="788" y="334" font-size="15" font-weight="800" fill="#0F172A">Qdrant · контейнер</text>
+      <text x="754" y="364" font-size="12" fill="#64748B">15 809 статей-векторов</text>
+
+      <!-- Бот → Postgres (запись, вверху) -->
+      <path d="M674 172 C 700 175, 716 178, 734 180" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <path d="M728 174l6 6-6 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <!-- Агент → Qdrant (поиск) -->
+      <path d="M674 268 C 708 288, 716 318, 734 334" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <path d="M728 328l6 6-6 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <!-- Пайплайн → Qdrant (upsert, ночью) -->
+      <path d="M674 362 C 700 362, 716 361, 734 360" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6" fill="none"/>
+      <path d="M728 354l6 6-6 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <!-- возврат ответа пользователю -->
+      <path d="M370 128 C 250 56, 140 66, 104 140" stroke="#B9C6E4" stroke-width="2" stroke-dasharray="6 6" stroke-linecap="round" fill="none"/>
+      <path d="M98 134l6 6 7-5" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <text x="168" y="80" font-size="11.5" font-weight="700" fill="#64748B">ответ</text>
+
+      <!-- легенда: цвет = роль -->
+      <rect x="272" y="459" width="13" height="13" rx="3" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.3"/>
+      <text x="291" y="470" font-size="12" font-weight="600" fill="#64748B">Бот</text>
+      <rect x="356" y="459" width="13" height="13" rx="3" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.3"/>
+      <text x="375" y="470" font-size="12" font-weight="600" fill="#64748B">Агент</text>
+      <rect x="456" y="459" width="13" height="13" rx="3" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.3"/>
+      <text x="475" y="470" font-size="12" font-weight="600" fill="#64748B">Пайплайн</text>
+      <rect x="600" y="459" width="13" height="13" rx="3" fill="#EEF3FE" stroke="#BCD0F7" stroke-width="1.3"/>
+      <text x="619" y="470" font-size="12" font-weight="600" fill="#64748B">Инфра · VPS, xray, БД</text>
+    </svg>
+  </div>
+</section>
+
 <!-- ═══ 7 · Развитие ═══ -->
 <section class="slide">
   <div class="kicker">Дальнейшее развитие</div>
@@ -1371,9 +1497,9 @@
       <span>к статье закона добавим позиции судов по похожим делам — ответ становится аргументом</span>
     </div>
     <div class="ncard">
-      <div class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></div>
-      <b>Метрика уверенности</b>
-      <span>бот сам понимает, когда контекста мало, — и честно предлагает живого юриста</span>
+      <div class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 0 1 2-2h5v15H6a2 2 0 0 0-2 2z"/><path d="M11 4h5a2 2 0 0 1 2 2v6"/><path d="M11 19h4"/><path d="M18.5 15v7M15 18.5h7"/></svg></div>
+      <b>Расширение базы законов</b>
+      <span>постановления, региональные и подзаконные акты — пайплайн готов: новый акт = одна строка в реестре</span>
     </div>
   </div>
 </section>
@@ -1397,6 +1523,11 @@
         stroke="#00B8D9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
     <h1>Вопросы<span class="hl">?</span></h1>
+    <div class="qrcard">
+      <svg viewBox="-4 -4 37 37" role="img" aria-label="QR-код на Telegram-бота t.me/pocket_law_ai_bot"><rect x="-4" y="-4" width="37" height="37" fill="#fff"/><path fill="#0F172A" d="M0 0h7v1h-7zM12 0h2v1h-2zM16 0h3v1h-3zM22 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h6v1h-6zM16 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h2v1h-2zM12 2h2v1h-2zM15 2h1v1h-1zM17 2h4v1h-4zM22 2h1v1h-1zM24 2h3v1h-3zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM10 3h1v1h-1zM12 3h1v1h-1zM15 3h1v1h-1zM18 3h2v1h-2zM22 3h1v1h-1zM24 3h3v1h-3zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h2v1h-2zM12 4h2v1h-2zM15 4h2v1h-2zM18 4h1v1h-1zM22 4h1v1h-1zM24 4h3v1h-3zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h2v1h-2zM12 5h3v1h-3zM16 5h5v1h-5zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h7v1h-7zM9 7h1v1h-1zM11 7h4v1h-4zM17 7h1v1h-1zM19 7h2v1h-2zM1 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h2v1h-2zM21 8h1v1h-1zM23 8h2v1h-2zM26 8h1v1h-1zM2 9h4v1h-4zM7 9h1v1h-1zM10 9h2v1h-2zM13 9h1v1h-1zM16 9h1v1h-1zM18 9h2v1h-2zM21 9h4v1h-4zM26 9h3v1h-3zM1 10h3v1h-3zM6 10h3v1h-3zM10 10h2v1h-2zM13 10h2v1h-2zM17 10h2v1h-2zM20 10h2v1h-2zM25 10h1v1h-1zM28 10h1v1h-1zM0 11h1v1h-1zM2 11h4v1h-4zM7 11h1v1h-1zM9 11h1v1h-1zM13 11h1v1h-1zM16 11h3v1h-3zM21 11h1v1h-1zM23 11h1v1h-1zM25 11h1v1h-1zM27 11h2v1h-2zM0 12h1v1h-1zM6 12h1v1h-1zM8 12h3v1h-3zM12 12h2v1h-2zM17 12h2v1h-2zM20 12h1v1h-1zM23 12h1v1h-1zM28 12h1v1h-1zM1 13h2v1h-2zM4 13h2v1h-2zM7 13h1v1h-1zM9 13h3v1h-3zM14 13h1v1h-1zM17 13h2v1h-2zM20 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM26 13h1v1h-1zM28 13h1v1h-1zM0 14h1v1h-1zM4 14h1v1h-1zM6 14h2v1h-2zM9 14h1v1h-1zM11 14h1v1h-1zM13 14h2v1h-2zM16 14h1v1h-1zM18 14h1v1h-1zM22 14h1v1h-1zM24 14h1v1h-1zM28 14h1v1h-1zM1 15h1v1h-1zM3 15h3v1h-3zM8 15h5v1h-5zM15 15h1v1h-1zM17 15h2v1h-2zM20 15h1v1h-1zM23 15h1v1h-1zM25 15h1v1h-1zM0 16h1v1h-1zM4 16h1v1h-1zM6 16h6v1h-6zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h3v1h-3zM28 16h1v1h-1zM0 17h2v1h-2zM3 17h3v1h-3zM7 17h1v1h-1zM9 17h1v1h-1zM11 17h1v1h-1zM13 17h2v1h-2zM16 17h2v1h-2zM21 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h1v1h-1zM3 18h9v1h-9zM14 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM23 18h1v1h-1zM28 18h1v1h-1zM2 19h3v1h-3zM7 19h6v1h-6zM14 19h1v1h-1zM17 19h2v1h-2zM24 19h2v1h-2zM27 19h1v1h-1zM0 20h7v1h-7zM8 20h2v1h-2zM15 20h1v1h-1zM17 20h1v1h-1zM19 20h6v1h-6zM26 20h3v1h-3zM8 21h3v1h-3zM12 21h2v1h-2zM15 21h2v1h-2zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM28 21h1v1h-1zM0 22h7v1h-7zM9 22h3v1h-3zM13 22h1v1h-1zM15 22h1v1h-1zM17 22h4v1h-4zM22 22h1v1h-1zM24 22h1v1h-1zM28 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM10 23h3v1h-3zM14 23h1v1h-1zM17 23h1v1h-1zM19 23h2v1h-2zM24 23h2v1h-2zM0 24h1v1h-1zM2 24h3v1h-3zM6 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM13 24h1v1h-1zM15 24h1v1h-1zM18 24h7v1h-7zM0 25h1v1h-1zM2 25h3v1h-3zM6 25h1v1h-1zM9 25h1v1h-1zM18 25h1v1h-1zM23 25h1v1h-1zM27 25h1v1h-1zM0 26h1v1h-1zM2 26h3v1h-3zM6 26h1v1h-1zM9 26h9v1h-9zM19 26h3v1h-3zM25 26h4v1h-4zM0 27h1v1h-1zM6 27h1v1h-1zM8 27h1v1h-1zM10 27h3v1h-3zM14 27h4v1h-4zM20 27h1v1h-1zM23 27h1v1h-1zM25 27h1v1h-1zM27 27h2v1h-2zM0 28h7v1h-7zM17 28h1v1h-1zM20 28h3v1h-3zM24 28h2v1h-2zM27 28h1v1h-1z"/></svg>
+      <b>Живое демо</b>
+      <div class="h">@pocket_law_ai_bot</div>
+    </div>
   </div>
   <div class="stats">
     <div class="stat"><b>15 809</b><span>фрагментов статей</span></div>
@@ -1432,7 +1563,6 @@
     else if(e.key==='End')show(slides.length-1);
     else if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}
   });
-  addEventListener('click',e=>{ if(e.clientX>innerWidth*0.25)show(cur+1); else show(cur-1) });
   fit(); show((parseInt(location.hash.slice(1),10)||1)-1);
 </script>
 </body>
