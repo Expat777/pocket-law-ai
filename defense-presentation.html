@@ -168,6 +168,12 @@
   .qslide{align-items:center; justify-content:center; text-align:center}
   .qslide h1{font-size:104px; max-width:none}
   .qrow{display:flex; align-items:center; gap:36px}
+  .qrcard{display:flex; flex-direction:column; align-items:center; gap:9px;
+    background:#fff; border:1.5px solid var(--line); border-radius:20px;
+    padding:18px 18px 15px; box-shadow:0 12px 32px rgba(15,23,42,.07)}
+  .qrcard svg{width:150px; height:150px; display:block; border-radius:6px}
+  .qrcard b{font-size:16px; color:#0F172A}
+  .qrcard .h{font-size:13px; color:var(--mut); letter-spacing:.2px}
   .stats{display:flex; gap:14px; margin-top:42px; justify-content:center}
   .stat{background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:14px 24px}
   .stat b{font-size:26px; display:block; background:var(--grad);
@@ -766,7 +772,7 @@
       <text x="640" y="22" font-size="13" font-weight="700" fill="#64748B">ответ пользователю</text>
 
       <rect x="10" y="176" width="176" height="100" rx="16" fill="#E8F4FD" stroke="#A9D8F5" stroke-width="1.6"/>
-      <path d="M64 212l40-16-13 34-8-11-14 8z" fill="#2AABEE" transform="translate(14,-6)"/>
+      <path transform="translate(83,182) scale(1.3)" fill="#26A5E4" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
       <text x="98" y="248" font-size="16" font-weight="800" fill="#0F172A" text-anchor="middle">Telegram Bot API</text>
       <text x="98" y="266" font-size="12" fill="#64748B" text-anchor="middle">polling · через прокси</text>
       <path d="M186 226h38" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
@@ -1322,6 +1328,11 @@
         stroke="#00B8D9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
     <h1>Вопросы<span class="hl">?</span></h1>
+    <div class="qrcard">
+      <svg viewBox="-4 -4 37 37" role="img" aria-label="QR-код на Telegram-бота t.me/pocket_law_ai_bot"><rect x="-4" y="-4" width="37" height="37" fill="#fff"/><path fill="#0F172A" d="M0 0h7v1h-7zM12 0h2v1h-2zM16 0h3v1h-3zM22 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h6v1h-6zM16 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h2v1h-2zM12 2h2v1h-2zM15 2h1v1h-1zM17 2h4v1h-4zM22 2h1v1h-1zM24 2h3v1h-3zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM10 3h1v1h-1zM12 3h1v1h-1zM15 3h1v1h-1zM18 3h2v1h-2zM22 3h1v1h-1zM24 3h3v1h-3zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h2v1h-2zM12 4h2v1h-2zM15 4h2v1h-2zM18 4h1v1h-1zM22 4h1v1h-1zM24 4h3v1h-3zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h2v1h-2zM12 5h3v1h-3zM16 5h5v1h-5zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h7v1h-7zM9 7h1v1h-1zM11 7h4v1h-4zM17 7h1v1h-1zM19 7h2v1h-2zM1 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h2v1h-2zM21 8h1v1h-1zM23 8h2v1h-2zM26 8h1v1h-1zM2 9h4v1h-4zM7 9h1v1h-1zM10 9h2v1h-2zM13 9h1v1h-1zM16 9h1v1h-1zM18 9h2v1h-2zM21 9h4v1h-4zM26 9h3v1h-3zM1 10h3v1h-3zM6 10h3v1h-3zM10 10h2v1h-2zM13 10h2v1h-2zM17 10h2v1h-2zM20 10h2v1h-2zM25 10h1v1h-1zM28 10h1v1h-1zM0 11h1v1h-1zM2 11h4v1h-4zM7 11h1v1h-1zM9 11h1v1h-1zM13 11h1v1h-1zM16 11h3v1h-3zM21 11h1v1h-1zM23 11h1v1h-1zM25 11h1v1h-1zM27 11h2v1h-2zM0 12h1v1h-1zM6 12h1v1h-1zM8 12h3v1h-3zM12 12h2v1h-2zM17 12h2v1h-2zM20 12h1v1h-1zM23 12h1v1h-1zM28 12h1v1h-1zM1 13h2v1h-2zM4 13h2v1h-2zM7 13h1v1h-1zM9 13h3v1h-3zM14 13h1v1h-1zM17 13h2v1h-2zM20 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM26 13h1v1h-1zM28 13h1v1h-1zM0 14h1v1h-1zM4 14h1v1h-1zM6 14h2v1h-2zM9 14h1v1h-1zM11 14h1v1h-1zM13 14h2v1h-2zM16 14h1v1h-1zM18 14h1v1h-1zM22 14h1v1h-1zM24 14h1v1h-1zM28 14h1v1h-1zM1 15h1v1h-1zM3 15h3v1h-3zM8 15h5v1h-5zM15 15h1v1h-1zM17 15h2v1h-2zM20 15h1v1h-1zM23 15h1v1h-1zM25 15h1v1h-1zM0 16h1v1h-1zM4 16h1v1h-1zM6 16h6v1h-6zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h3v1h-3zM28 16h1v1h-1zM0 17h2v1h-2zM3 17h3v1h-3zM7 17h1v1h-1zM9 17h1v1h-1zM11 17h1v1h-1zM13 17h2v1h-2zM16 17h2v1h-2zM21 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h1v1h-1zM3 18h9v1h-9zM14 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM23 18h1v1h-1zM28 18h1v1h-1zM2 19h3v1h-3zM7 19h6v1h-6zM14 19h1v1h-1zM17 19h2v1h-2zM24 19h2v1h-2zM27 19h1v1h-1zM0 20h7v1h-7zM8 20h2v1h-2zM15 20h1v1h-1zM17 20h1v1h-1zM19 20h6v1h-6zM26 20h3v1h-3zM8 21h3v1h-3zM12 21h2v1h-2zM15 21h2v1h-2zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM28 21h1v1h-1zM0 22h7v1h-7zM9 22h3v1h-3zM13 22h1v1h-1zM15 22h1v1h-1zM17 22h4v1h-4zM22 22h1v1h-1zM24 22h1v1h-1zM28 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM10 23h3v1h-3zM14 23h1v1h-1zM17 23h1v1h-1zM19 23h2v1h-2zM24 23h2v1h-2zM0 24h1v1h-1zM2 24h3v1h-3zM6 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM13 24h1v1h-1zM15 24h1v1h-1zM18 24h7v1h-7zM0 25h1v1h-1zM2 25h3v1h-3zM6 25h1v1h-1zM9 25h1v1h-1zM18 25h1v1h-1zM23 25h1v1h-1zM27 25h1v1h-1zM0 26h1v1h-1zM2 26h3v1h-3zM6 26h1v1h-1zM9 26h9v1h-9zM19 26h3v1h-3zM25 26h4v1h-4zM0 27h1v1h-1zM6 27h1v1h-1zM8 27h1v1h-1zM10 27h3v1h-3zM14 27h4v1h-4zM20 27h1v1h-1zM23 27h1v1h-1zM25 27h1v1h-1zM27 27h2v1h-2zM0 28h7v1h-7zM17 28h1v1h-1zM20 28h3v1h-3zM24 28h2v1h-2zM27 28h1v1h-1z"/></svg>
+      <b>Живое демо</b>
+      <div class="h">@pocket_law_ai_bot</div>
+    </div>
   </div>
   <div class="stats">
     <div class="stat"><b>15 809</b><span>фрагментов статей</span></div>
