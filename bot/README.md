@@ -12,14 +12,16 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"                          # общие зависимости из pyproject
 export BOT_TOKEN=123456:ABC...                   # токен от @BotFather (в проде — из .env)
 export LLM_BASE_URL=https://api.polza.ai/api/v1
-export LLM_MODEL=anthropic/claude-sonnet-5
+export LLM_MODEL=google/gemini-2.5-flash-lite
 export LLM_API_KEY=...                            # ключ Polza.ai
 python -m bot.main
 ```
 
 Реальный агент требует доступного **Qdrant** (наполненного `law_articles_dev`) и
-**LLM-ключа** — на сервере они есть. Для загрузки документов нужны также
-`pymupdf`/`pytesseract`/`pillow` + системный `tesseract-ocr` (в процессе у Роли 4).
+**LLM-ключа** — на сервере они есть. `pymupdf`/`pytesseract`/`pillow` уже в
+`pyproject`; для OCR фото/сканов на хосте нужен системный `tesseract-ocr` (с
+`rus`+`eng`). Голосовой ввод дополнительных пакетов на стороне бота не требует —
+STT выполняет агент (`transcribe_voice`), бот лишь скачивает OGG.
 
 Опциональные переменные: `RATE_LIMIT_PER_HOUR` (20), `MAX_FILE_BYTES` (20 МБ),
 `STORAGE_BACKEND` (`memory` по умолчанию; `postgres` — после подключения
@@ -37,14 +39,14 @@ python -m pytest bot/tests -q     # asyncio_mode=auto берётся из кор
 |---|---|
 | `main.py` | точка входа: DI, middlewares, роутеры, polling |
 | `config.py` | конфиг из окружения |
-| `agent_client.py` | `Protocol` агента, который потребляет бот (модели — из `shared.contracts`) |
-| `mock_agent.py` | фикстуры трёх веток (ответ+цитата / отказ / уточнение) |
-| `formatter.py` | MarkdownV2, экранирование, формат 3.5 |
+| `agent_client.py` | `Protocol` агента (6 методов), который потребляет бот (модели — из `shared.contracts`) |
+| `mock_agent.py` | фикстуры веток: ответ+цитата / отказ / уточнение / STT (`transcribe_voice`) |
+| `formatter.py` | MarkdownV2, экранирование, формат 3.5 + дословная выдержка `Citation.text` |
 | `states.py` | FSM: normal / awaiting_clarification / uploading_file |
 | `repository.py` | users, согласие, `dialog_history`, rate-limit (in-memory; Postgres — TODO) |
 | `middlewares.py` | гейт согласия 152-ФЗ + rate-limit |
 | `handlers/commands.py` | `/start` (согласие), `/help`, `/delete` |
-| `handlers/content.py` | текстовые вопросы + файлы (валидация до обработки) + ссылки (`ingest_url`) |
+| `handlers/content.py` | текст + файлы/фото (`F.document \| F.photo` → `ingest_document`) + ссылки (`ingest_url`) + голос (`F.voice` → `transcribe_voice`); контекст уточнения переносится в переспрос |
 
 ## Границы (из TEAM_PLAN раздел 4)
 
