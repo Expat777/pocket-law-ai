@@ -277,11 +277,13 @@
 <main class="deck" id="deck">
 
   <!-- 1 · TITLE -->
+
+
   <section class="slide" data-title="Титул">
     <div class="slide-inner">
       <div class="topbar">
         <div class="brand"><span class="seal">§</span> pocket-law-ai</div>
-        <span class="speaker">вступление · <b>Роль 1</b></span>
+        <span class="speaker">ведущий · <b>Роль 3</b></span>
       </div>
       <div class="eyebrow" style="margin-top:1.6rem">Дипломный проект · команда из 4 ролей · 2026 · визуальная версия</div>
       <h1 class="title serif">Карманный юрист,<br>который не выдумывает</h1>
@@ -315,12 +317,11 @@
     <div class="foot"><span class="mono">@pocket_law_ai_bot</span> · живой в Telegram</div>
   </section>
 
-  <!-- 2 · ПРОБЛЕМА → РЕШЕНИЕ -->
   <section class="slide" data-title="Проблема → Решение">
     <div class="slide-inner">
       <div class="topbar">
         <div class="eyebrow">Зачем отдельный юр-ассистент</div>
-        <span class="speaker">Роль <b>1</b></span>
+        <span class="speaker">Роль <b>3</b></span>
       </div>
       <h2 class="serif">Обычному ИИ в праве доверять нельзя</h2>
       <div class="vs">
@@ -345,422 +346,11 @@
     <div class="foot"><span class="mono">01</span> · было → стало</div>
   </section>
 
-  <!-- 3 · MAIN SYSTEM MAP -->
-  <section class="slide" data-title="Общая схема">
-    <div class="slide-inner">
-      <div class="topbar">
-        <div class="eyebrow">Как это всё связано</div>
-        <span class="speaker">Роль <b>4</b> · интеграция</span>
-      </div>
-      <h2 class="serif" style="margin-bottom:.6rem">Полная схема системы</h2>
-      <div class="diagram">
-        <svg class="arch full" viewBox="0 0 1220 760" role="img" aria-label="Полная схема системы pocket-law-ai">
-          <rect class="zone" x="230" y="72" width="240" height="440" rx="12"/>
-          <text class="zl" x="242" y="94">РОЛЬ 1 · БОТ</text>
-          <rect class="zone" x="560" y="72" width="315" height="278" rx="12"/>
-          <text class="zl" x="572" y="94">РОЛЬ 2 · АГЕНТ</text>
-          <rect class="zone" x="930" y="72" width="260" height="360" rx="12"/>
-          <text class="zl" x="942" y="94">ХРАНИЛИЩА · LLM</text>
-          <rect class="zone" x="20" y="556" width="1180" height="150" rx="12"/>
-          <text class="zl" x="32" y="578">РОЛЬ 3 · ОФЛАЙН-КОНВЕЙЕР (наполнение базы)</text>
-
-          <rect class="bx" x="20" y="205" width="150" height="96" rx="10"/>
-          <text class="bt" x="34" y="238">Пользователь</text>
-          <text class="bs" x="34" y="260">Telegram-чат</text>
-          <text class="bs" x="34" y="280">текст · голос · файл</text>
-
-          <rect class="bx" x="242" y="112" width="216" height="54" rx="9"/>
-          <text class="bt" x="256" y="137">Хендлеры</text>
-          <text class="bs" x="256" y="156">текст · файл · голос</text>
-          <rect class="bx" x="242" y="182" width="216" height="54" rx="9"/>
-          <text class="bt" x="256" y="207">FSM · согласие 152-ФЗ</text>
-          <text class="bs" x="256" y="226">лимиты запросов</text>
-          <rect class="bx" x="242" y="252" width="216" height="54" rx="9"/>
-          <text class="bt" x="256" y="277">Форматтер</text>
-          <text class="bs" x="256" y="296">ответ + экспорт-памятка</text>
-          <rect class="bx st" x="242" y="430" width="216" height="60" rx="9"/>
-          <text class="bt" x="256" y="456">PostgreSQL</text>
-          <text class="bs" x="256" y="475">согласие · история</text>
-
-          <rect class="bx nd" x="572" y="112" width="140" height="48" rx="9"/>
-          <text class="btc" x="586" y="141">intent</text>
-          <rect class="bx nd" x="728" y="112" width="140" height="48" rx="9"/>
-          <text class="btc" x="742" y="141">retrieve</text>
-          <rect class="bx nd" x="728" y="188" width="140" height="48" rx="9"/>
-          <text class="btc" x="742" y="217">verify</text>
-          <rect class="bx nd" x="572" y="188" width="140" height="48" rx="9"/>
-          <text class="btc" x="586" y="217">compose</text>
-          <rect class="bx" x="572" y="270" width="296" height="66" rx="9"/>
-          <text class="bt" x="586" y="290">Ingest · разбор файла</text>
-          <text class="bs" x="586" y="309">PDF &#8594; текст-слой · скан/фото &#8594; OCR (Tesseract)</text>
-          <text class="bs" x="586" y="326">голос &#8594; STT (openai/whisper-large-v3)</text>
-          <path class="ln" d="M712,136 H726" marker-end="url(#ah)"/>
-          <path class="ln" d="M798,160 V186" marker-end="url(#ah)"/>
-          <path class="ln" d="M728,212 H714" marker-end="url(#ah)"/>
-
-          <rect class="bx" x="942" y="112" width="236" height="132" rx="10"/>
-          <text class="bt" x="958" y="137">Qdrant · векторная БД</text>
-          <text class="bs" x="958" y="163">law_articles &#8212; законы</text>
-          <text class="bs" x="958" y="185">user_documents &#8212; файлы</text>
-          <text class="bs" x="958" y="207">bge-m3 · 1024d</text>
-          <rect class="bx" x="942" y="286" width="236" height="132" rx="10"/>
-          <text class="bt" x="958" y="311">Polza.ai · LLM-шлюз</text>
-          <text class="bs" x="958" y="337">gemini-2.5-flash-lite</text>
-          <text class="bs" x="958" y="359">openai/whisper-large-v3 &#8212; речь</text>
-          <text class="bs" x="958" y="381">bge-m3 &#8212; эмбеддинги</text>
-
-          <path class="ln" d="M170,236 H228" marker-end="url(#ah)"/>
-          <text class="cl" x="176" y="228">запрос</text>
-          <path class="lnr" d="M228,272 H172" marker-end="url(#ahb)"/>
-          <text class="cl" x="176" y="290">ответ</text>
-
-          <path class="ln" d="M350,166 V180" marker-end="url(#ah)"/>
-          <path class="ln" d="M350,236 V250" marker-end="url(#ah)"/>
-          <path class="ln" d="M350,306 V428" marker-end="url(#ah)"/>
-          <text class="cl" x="358" y="372">согласие · история</text>
-
-          <path class="ln" d="M470,136 H570" marker-end="url(#ah)"/>
-          <text class="cl" x="468" y="128">answer_question</text>
-          <path class="lnr" d="M570,212 H470" marker-end="url(#ahb)"/>
-          <text class="cl" x="476" y="230">Answer</text>
-
-          <path class="ln" d="M868,136 H940" marker-end="url(#ah)"/>
-          <text class="cl" x="866" y="128">search_law</text>
-          <path class="ln" d="M868,298 C906,298 904,352 940,352" marker-end="url(#ah)"/>
-          <text class="cl" x="878" y="332">LLM · STT</text>
-
-          <rect class="bx" x="40" y="604" width="158" height="72" rx="9"/>
-          <text class="bt" x="54" y="636">ИПС pravo.gov.ru</text>
-          <text class="bs" x="54" y="656">действующая редакция</text>
-          <rect class="bx" x="238" y="604" width="150" height="72" rx="9"/>
-          <text class="bt" x="252" y="636">fetch · parse</text>
-          <text class="bs" x="252" y="656">статьи + редакция</text>
-          <rect class="bx" x="428" y="604" width="130" height="72" rx="9"/>
-          <text class="bt" x="442" y="636">chunk</text>
-          <text class="bs" x="442" y="656">чанк = статья</text>
-          <rect class="bx" x="598" y="604" width="150" height="72" rx="9"/>
-          <text class="bt" x="612" y="636">embed · bge-m3</text>
-          <text class="bs" x="612" y="656">1024d, passage</text>
-          <rect class="bx" x="788" y="604" width="150" height="72" rx="9"/>
-          <text class="bt" x="802" y="636">upsert</text>
-          <text class="bs" x="802" y="656">идемпотентно</text>
-          <path class="ln" d="M198,640 H236" marker-end="url(#ah)"/>
-          <path class="ln" d="M388,640 H426" marker-end="url(#ah)"/>
-          <path class="ln" d="M558,640 H596" marker-end="url(#ah)"/>
-          <path class="ln" d="M748,640 H786" marker-end="url(#ah)"/>
-          <path class="ln" d="M938,632 H1202 V180 H1180" marker-end="url(#ah)"/>
-          <text class="cl" x="956" y="598">&#8594; в Qdrant · law_articles</text>
-
-          <line class="ln" x1="240" y1="738" x2="272" y2="738"/>
-          <text class="leg" x="280" y="742">запрос / запись</text>
-          <line class="lnr" x1="430" y1="738" x2="462" y2="738"/>
-          <text class="leg" x="470" y="742">ответ</text>
-        </svg>
-      </div>
-      <p class="sub" style="margin-top:.7rem; max-width:none; font-size:.9rem"><b style="color:var(--brass)">Инфраструктура (Роль 4):</b> всё в Docker — <span class="mono">bot</span> · <span class="mono">qdrant</span> · <span class="mono">postgres</span> + egress-прокси; границы зон — Pydantic-контракты в <span class="mono">shared/</span>. Дальше — каждая роль отдельной схемой.</p>
-    </div>
-    <div class="foot"><span class="mono">02</span> · рантайм: запрос → грунтованный ответ</div>
-  </section>
-
-  <!-- 4 · РОЛЬ 1 · BOT -->
-  <section class="slide" data-title="Роль 1 · Бот">
-    <div class="slide-inner">
-      <div class="topbar">
-        <div class="eyebrow">Роль 1 · Bot Layer · <span class="mono">bot/</span></div>
-        <span class="speaker">Роль <b>1</b></span>
-      </div>
-      <h2 class="serif" style="margin-bottom:.5rem">Путь сообщения от Telegram до ответа</h2>
-      <div class="diagram">
-        <svg class="arch role" viewBox="0 0 1060 430" role="img" aria-label="Схема слоя бота">
-          <rect class="bx" x="20" y="172" width="150" height="82" rx="10"/>
-          <text class="bt" x="34" y="205">Telegram</text>
-          <text class="bs" x="34" y="226">update</text>
-          <text class="bs" x="34" y="244">текст·файл·голос</text>
-
-          <rect class="bx nd" x="205" y="162" width="180" height="102" rx="10"/>
-          <text class="bt" x="220" y="192">Middlewares</text>
-          <text class="bs" x="220" y="214">согласие 152-ФЗ</text>
-          <text class="bs" x="220" y="234">rate-limit</text>
-          <text class="bs" x="220" y="254">(до хендлера)</text>
-
-          <rect class="bx" x="420" y="172" width="140" height="82" rx="10"/>
-          <text class="bt" x="434" y="205">Router</text>
-          <text class="bs" x="434" y="226">magic-фильтры F</text>
-          <text class="bs" x="434" y="244">выбор хендлера</text>
-
-          <rect class="bx" x="595" y="162" width="185" height="102" rx="10"/>
-          <text class="bt" x="609" y="192">Handlers</text>
-          <text class="bs" x="609" y="214">text · file · voice</text>
-          <text class="bs" x="609" y="234">callback · edited</text>
-          <text class="bs" x="609" y="254">валидация · FSM</text>
-
-          <rect class="bx nd" x="810" y="58" width="230" height="88" rx="10"/>
-          <text class="btc" x="824" y="86">AgentClient · Protocol</text>
-          <text class="bs" x="824" y="108">answer_question</text>
-          <text class="bs" x="824" y="128">ingest · transcribe_voice</text>
-
-          <rect class="bx" x="810" y="270" width="230" height="88" rx="10"/>
-          <text class="bt" x="824" y="298">Форматтер</text>
-          <text class="bs" x="824" y="320">MarkdownV2 · цитаты</text>
-          <text class="bs" x="824" y="340">экспорт PDF-памятки</text>
-
-          <rect class="bx st" x="420" y="312" width="185" height="80" rx="10"/>
-          <text class="bt" x="434" y="344">PostgreSQL</text>
-          <text class="bs" x="434" y="366">согласие · история</text>
-          <text class="bs" x="434" y="384">rate-limit</text>
-
-          <path class="ln" d="M170,213 H203" marker-end="url(#ah)"/>
-          <path class="ln" d="M385,213 H418" marker-end="url(#ah)"/>
-          <path class="ln" d="M560,213 H593" marker-end="url(#ah)"/>
-          <path class="ln" d="M782,190 C806,190 800,104 808,104" marker-end="url(#aha)"/>
-          <text class="cl" x="792" y="150">вызов</text>
-          <path class="lnr" d="M925,146 V268" marker-end="url(#ahb)"/>
-          <text class="cl" x="932" y="212">Answer</text>
-          <path class="lnr" d="M810,330 H612 M512,330 V392 M512,392 H95 V254" marker-end="url(#ahb)"/>
-          <text class="cl" x="120" y="384">ответ пользователю</text>
-          <path class="ln" d="M292,264 V310" marker-end="url(#ah)"/>
-          <text class="cl" x="300" y="292">проверка/запись</text>
-          <path class="ln" d="M660,264 C640,286 600,300 585,310" marker-end="url(#ah)"/>
-
-          <text class="cl" x="826" y="164">&#8595; граница с Ролью 2 (Агент)</text>
-        </svg>
-      </div>
-      <div class="chips" style="margin-top:.7rem">
-        <span class="tag k">aiogram 3</span><span class="tag k">FSM</span><span class="tag k">middlewares</span>
-        <span class="tag k">PyMuPDF · экспорт</span><span class="tag k">Protocol → мок в тестах</span><span class="tag k">72 теста</span>
-      </div>
-    </div>
-    <div class="foot"><span class="mono">03</span> · тонкий транспорт: подготовь вход → зови агента → оформи выход</div>
-  </section>
-
-  <!-- 5 · РОЛЬ 2 · AGENT -->
-  <section class="slide" data-title="Роль 2 · Агент">
-    <div class="slide-inner">
-      <div class="topbar">
-        <div class="eyebrow">Роль 2 · Agent · <span class="mono">agent/</span></div>
-        <span class="speaker">Роль <b>2</b></span>
-      </div>
-      <h2 class="serif" style="margin-bottom:.5rem">LangGraph-граф: найти, проверить, собрать</h2>
-      <div class="diagram">
-        <svg class="arch role" viewBox="0 0 1060 440" role="img" aria-label="Схема агента на LangGraph">
-          <rect class="bx" x="18" y="176" width="150" height="76" rx="10"/>
-          <text class="bt" x="32" y="206">answer_question</text>
-          <text class="bs" x="32" y="228">text · doc_ids</text>
-
-          <rect class="bx" x="200" y="86" width="130" height="52" rx="9"/>
-          <text class="bt" x="214" y="112">HyDE</text>
-          <text class="bs" x="214" y="130">гипотет. ответ</text>
-
-          <rect class="bx nd" x="200" y="180" width="130" height="66" rx="9"/>
-          <text class="btc" x="214" y="210">intent</text>
-          <text class="bs" x="214" y="230">отрасль → акты</text>
-
-          <rect class="bx nd" x="360" y="180" width="130" height="66" rx="9"/>
-          <text class="btc" x="374" y="210">retrieve</text>
-          <text class="bs" x="374" y="230">bge-m3 · top-K</text>
-
-          <rect class="bx nd" x="520" y="180" width="130" height="66" rx="9"/>
-          <text class="btc" x="534" y="210">verify</text>
-          <text class="bs" x="534" y="230">есть + действует</text>
-
-          <rect class="bx" x="680" y="180" width="120" height="66" rx="9"/>
-          <text class="bt" x="694" y="210">маршрут</text>
-          <text class="bs" x="694" y="230">ветвление</text>
-
-          <rect class="bx nd" x="838" y="86" width="204" height="46" rx="9"/>
-          <text class="btc" x="852" y="114">compose · ответ+цитаты</text>
-          <rect class="bx" x="838" y="146" width="204" height="42" rx="9"/>
-          <text class="bt" x="852" y="172">clarify · уточнение</text>
-          <rect class="bx" x="838" y="202" width="204" height="42" rx="9"/>
-          <text class="bt" x="852" y="228">refuse · честный отказ</text>
-          <rect class="bx" x="838" y="258" width="204" height="42" rx="9"/>
-          <text class="bt" x="852" y="284">offtopic · не право</text>
-
-          <rect class="bx st" x="200" y="330" width="190" height="80" rx="10"/>
-          <text class="bt" x="214" y="362">Qdrant</text>
-          <text class="bs" x="214" y="384">search_law(acts, doc_ids)</text>
-          <text class="bs" x="214" y="402">law_articles · user_docs</text>
-
-          <rect class="bx st" x="430" y="330" width="210" height="80" rx="10"/>
-          <text class="bt" x="444" y="362">Polza.ai · Gemini 2.5</text>
-          <text class="bs" x="444" y="384">LLM (compose/intent)</text>
-          <text class="bs" x="444" y="402">Whisper &#8212; речь→текст</text>
-
-          <rect class="bx" x="18" y="330" width="160" height="80" rx="10"/>
-          <text class="bt" x="32" y="360">ingest · STT</text>
-          <text class="bs" x="32" y="382">PDF/OCR разбор</text>
-          <text class="bs" x="32" y="400">transcribe_voice</text>
-
-          <path class="ln" d="M168,214 H198" marker-end="url(#ah)"/>
-          <path class="ln" d="M330,213 H358" marker-end="url(#ah)"/>
-          <path class="ln" d="M490,213 H518" marker-end="url(#ah)"/>
-          <path class="ln" d="M650,213 H678" marker-end="url(#ah)"/>
-          <path class="lnr" d="M265,138 V178" marker-end="url(#ahb)"/>
-          <text class="cl" x="270" y="164">параллельно</text>
-          <path class="ln" d="M800,205 C820,150 824,112 836,110" marker-end="url(#ah)"/>
-          <path class="ln" d="M800,210 C820,190 824,170 836,167" marker-end="url(#ah)"/>
-          <path class="ln" d="M800,216 C820,222 824,224 836,223" marker-end="url(#ah)"/>
-          <path class="ln" d="M800,222 C820,262 824,278 836,279" marker-end="url(#ah)"/>
-          <path class="ln" d="M425,246 V328" marker-end="url(#ah)"/>
-          <text class="cl" x="432" y="300">search_law</text>
-          <path class="lnr" d="M535,328 V248" marker-end="url(#ahb)"/>
-          <path class="ln" d="M98,330 C98,300 120,258 198,220" marker-end="url(#ah)"/>
-          <path class="lnr" d="M940,132 C960,150 980,300 660,375 " marker-end="url(#ahb)"/>
-          <text class="cl" x="905" y="330">LLM</text>
-
-          <path class="lnr" d="M838,109 C700,60 300,40 92,176" marker-end="url(#ahb)"/>
-          <text class="cl" x="470" y="52">&#8594; Answer к боту (Роль 1)</text>
-        </svg>
-      </div>
-      <div class="chips" style="margin-top:.7rem">
-        <span class="tag k">LangGraph</span><span class="tag k">HyDE-фьюжн</span><span class="tag k">verify → anti-hallucination</span>
-        <span class="tag k">роутинг по актам</span><span class="tag k">doc-разбор по чанкам</span>
-      </div>
-    </div>
-    <div class="foot"><span class="mono">04</span> · цитата · уточнение · честный отказ — ветка выбирается сама</div>
-  </section>
-
-  <!-- 6 · РОЛЬ 3 · PIPELINE -->
-  <section class="slide" data-title="Роль 3 · Данные">
-    <div class="slide-inner">
-      <div class="topbar">
-        <div class="eyebrow">Роль 3 · Data Pipeline · <span class="mono">pipeline/</span></div>
-        <span class="speaker">Роль <b>3</b></span>
-      </div>
-      <h2 class="serif" style="margin-bottom:.5rem">Как закон попадает в векторный индекс</h2>
-      <div class="diagram">
-        <svg class="arch role" viewBox="0 0 1060 340" role="img" aria-label="Схема конвейера данных">
-          <rect class="bx" x="18" y="110" width="150" height="86" rx="10"/>
-          <text class="bt" x="32" y="142">ИПС</text>
-          <text class="bt" x="32" y="160">pravo.gov.ru</text>
-          <text class="bs" x="32" y="182">действ. редакция</text>
-
-          <rect class="bx" x="196" y="110" width="132" height="86" rx="10"/>
-          <text class="bt" x="210" y="142">fetch</text>
-          <text class="bs" x="210" y="164">скачать НПА</text>
-          <text class="bs" x="210" y="182">макс. дата</text>
-
-          <rect class="bx" x="356" y="110" width="132" height="86" rx="10"/>
-          <text class="bt" x="370" y="142">parse</text>
-          <text class="bs" x="370" y="164">разбор статей</text>
-          <text class="bs" x="370" y="182">HTML/PDF</text>
-
-          <rect class="bx" x="516" y="110" width="132" height="86" rx="10"/>
-          <text class="bt" x="530" y="142">chunk</text>
-          <text class="bs" x="530" y="164">чанк = статья</text>
-          <text class="bs" x="530" y="182">заголовок в чанк</text>
-
-          <rect class="bx nd" x="676" y="110" width="132" height="86" rx="10"/>
-          <text class="btc" x="690" y="142">embed</text>
-          <text class="bs" x="690" y="164">bge-m3 · 1024d</text>
-          <text class="bs" x="690" y="182">passage</text>
-
-          <rect class="bx" x="836" y="110" width="132" height="86" rx="10"/>
-          <text class="bt" x="850" y="142">upsert</text>
-          <text class="bs" x="850" y="164">версии по hash</text>
-          <text class="bs" x="850" y="182">идемпотентно</text>
-
-          <rect class="bx st" x="836" y="234" width="180" height="70" rx="10"/>
-          <text class="bt" x="850" y="264">Qdrant</text>
-          <text class="bs" x="850" y="286">law_articles · 53 акта</text>
-
-          <rect class="bx" x="196" y="234" width="452" height="70" rx="10"/>
-          <text class="bt" x="210" y="264">watch · cron 04:00</text>
-          <text class="bs" x="210" y="286">новая редакция закона &#8594; переупсерт сам (Airflow DAG готов)</text>
-
-          <path class="ln" d="M168,153 H194" marker-end="url(#ah)"/>
-          <path class="ln" d="M328,153 H354" marker-end="url(#ah)"/>
-          <path class="ln" d="M488,153 H514" marker-end="url(#ah)"/>
-          <path class="ln" d="M648,153 H674" marker-end="url(#ah)"/>
-          <path class="ln" d="M808,153 H834" marker-end="url(#ah)"/>
-          <path class="ln" d="M902,196 V232" marker-end="url(#ah)"/>
-          <text class="cl" x="910" y="222">в индекс</text>
-          <path class="lnr" d="M640,262 C700,262 780,240 830,200" marker-end="url(#ahb)"/>
-          <text class="cl" x="470" y="228">петля авто-обновления</text>
-        </svg>
-      </div>
-      <div class="chips" style="margin-top:.7rem">
-        <span class="tag k">ИПС pravo.gov.ru</span><span class="tag k">bge-m3</span><span class="tag k">Qdrant</span>
-        <span class="tag k">delete-by-filter + upsert</span><span class="tag k">53 акта · ~15,8 тыс. чанков</span>
-      </div>
-    </div>
-    <div class="foot"><span class="mono">05</span> · CLI <span class="mono">python -m pipeline.run --act &lt;code&gt;</span></div>
-  </section>
-
-  <!-- 7 · РОЛЬ 4 · INFRA -->
-  <section class="slide" data-title="Роль 4 · Инфра">
-    <div class="slide-inner">
-      <div class="topbar">
-        <div class="eyebrow">Роль 4 · Infra + Shared · <span class="mono">infra/ shared/</span></div>
-        <span class="speaker">Роль <b>4</b></span>
-      </div>
-      <h2 class="serif" style="margin-bottom:.5rem">Docker, контракты и обход блокировки</h2>
-      <div class="diagram">
-        <svg class="arch role" viewBox="0 0 1060 400" role="img" aria-label="Схема инфраструктуры">
-          <rect class="zone" x="18" y="66" width="770" height="308" rx="12"/>
-          <text class="zl" x="30" y="88">DOCKER COMPOSE · СЕРВЕР (Selectel VPS)</text>
-
-          <rect class="bx nd" x="46" y="112" width="200" height="86" rx="10"/>
-          <text class="btc" x="60" y="144">bot</text>
-          <text class="bs" x="60" y="166">aiogram + агент</text>
-          <text class="bs" x="60" y="184">один процесс</text>
-
-          <rect class="bx" x="286" y="112" width="200" height="86" rx="10"/>
-          <text class="bt" x="300" y="144">xray-proxy</text>
-          <text class="bs" x="300" y="166">egress до Telegram</text>
-          <text class="bs" x="300" y="184">хостер режет TG</text>
-
-          <rect class="bx st" x="46" y="240" width="200" height="86" rx="10"/>
-          <text class="bt" x="60" y="272">qdrant</text>
-          <text class="bs" x="60" y="294">векторная БД</text>
-
-          <rect class="bx st" x="286" y="240" width="200" height="86" rx="10"/>
-          <text class="bt" x="300" y="272">postgres:16</text>
-          <text class="bs" x="300" y="294">согласие · история</text>
-
-          <rect class="bx" x="536" y="112" width="228" height="86" rx="10"/>
-          <text class="bt" x="550" y="144">shared/ · contracts</text>
-          <text class="bs" x="550" y="166">Pydantic-границы</text>
-          <text class="bs" x="550" y="184">PR всех четверых</text>
-
-          <rect class="bx" x="536" y="240" width="228" height="86" rx="10"/>
-          <text class="bt" x="550" y="272">search_law()</text>
-          <text class="bs" x="550" y="294">серверные Qdrant-фильтры</text>
-          <text class="bs" x="550" y="312">MatchAny: акт · документ</text>
-
-          <rect class="bx" x="836" y="112" width="200" height="86" rx="10"/>
-          <text class="bt" x="850" y="144">api.telegram.org</text>
-          <text class="bs" x="850" y="166">пользователи</text>
-
-          <rect class="bx" x="836" y="240" width="200" height="86" rx="10"/>
-          <text class="bt" x="850" y="272">Polza.ai</text>
-          <text class="bs" x="850" y="294">LLM · Whisper</text>
-
-          <path class="ln" d="M246,150 H284" marker-end="url(#ah)"/>
-          <path class="lnr" d="M386,112 V90 H936 V110" marker-end="url(#ahb)"/>
-          <text class="cl" x="548" y="84">обход блокировки &#8594; Telegram</text>
-          <path class="ln" d="M146,198 V238" marker-end="url(#ah)"/>
-          <path class="ln" d="M246,180 C300,210 300,220 300,238" marker-end="url(#ah)"/>
-          <path class="ln" d="M246,155 C400,90 420,155 534,200" marker-end="url(#ah)"/>
-          <path class="ln" d="M246,170 C420,270 480,282 534,282" marker-end="url(#ah)"/>
-          <path class="ln" d="M764,282 H834" marker-end="url(#ah)"/>
-          <text class="cl" x="60" y="360">верифицированный деплой: маркеры фичи в собранном образе до передеплоя</text>
-        </svg>
-      </div>
-      <div class="chips" style="margin-top:.7rem">
-        <span class="tag k">Docker Compose</span><span class="tag k">Selectel VPS</span><span class="tag k">миграции</span>
-        <span class="tag k">xray-proxy</span><span class="tag k">shared/contracts</span><span class="tag k">0 рестартов в проде</span>
-      </div>
-    </div>
-    <div class="foot"><span class="mono">06</span> · четыре зоны, чёткие границы по контрактам</div>
-  </section>
-
-  <!-- 8 · TECH STACK · ICONS -->
   <section class="slide" data-title="Стек">
     <div class="slide-inner">
       <div class="topbar">
         <div class="eyebrow">Инструменты и библиотеки</div>
-        <span class="speaker">Роль <b>4</b> · обзор стека</span>
+        <span class="speaker">Роль <b>3</b> · обзор стека</span>
       </div>
       <h2 class="serif" style="margin-bottom:.2rem">На чём собран проект</h2>
       <div class="logowall">
@@ -876,10 +466,414 @@
       </div>
       <p class="sub" style="margin-top:1rem; font-size:.86rem">Всё поднято на одном сервере в Docker Compose; секреты — только в серверном <span class="mono">.env</span>, не в репозитории.</p>
     </div>
-    <div class="foot"><span class="mono">07</span> · self-hosted стек · один VPS</div>
+    <div class="foot"><span class="mono">02</span> · self-hosted стек · один VPS</div>
   </section>
 
-  <!-- 9 · METRICS -->
+  <section class="slide" data-title="Общая схема">
+    <div class="slide-inner">
+      <div class="topbar">
+        <div class="eyebrow">Как это всё связано</div>
+        <span class="speaker">Роль <b>3</b> · обзор</span>
+      </div>
+      <h2 class="serif" style="margin-bottom:.6rem">Полная схема системы</h2>
+      <div class="diagram">
+        <svg class="arch full" viewBox="0 0 1220 760" role="img" aria-label="Полная схема системы pocket-law-ai">
+          <rect class="zone" x="230" y="72" width="240" height="440" rx="12"/>
+          <text class="zl" x="242" y="94">РОЛЬ 1 · БОТ</text>
+          <rect class="zone" x="560" y="72" width="315" height="278" rx="12"/>
+          <text class="zl" x="572" y="94">РОЛЬ 2 · АГЕНТ</text>
+          <rect class="zone" x="930" y="72" width="260" height="360" rx="12"/>
+          <text class="zl" x="942" y="94">ХРАНИЛИЩА · LLM</text>
+          <rect class="zone" x="20" y="556" width="1180" height="150" rx="12"/>
+          <text class="zl" x="32" y="578">РОЛЬ 3 · ОФЛАЙН-КОНВЕЙЕР (наполнение базы)</text>
+
+          <rect class="bx" x="20" y="205" width="150" height="96" rx="10"/>
+          <text class="bt" x="34" y="238">Пользователь</text>
+          <text class="bs" x="34" y="260">Telegram-чат</text>
+          <text class="bs" x="34" y="280">текст · голос · файл</text>
+
+          <rect class="bx" x="242" y="112" width="216" height="54" rx="9"/>
+          <text class="bt" x="256" y="137">Хендлеры</text>
+          <text class="bs" x="256" y="156">текст · файл · голос</text>
+          <rect class="bx" x="242" y="182" width="216" height="54" rx="9"/>
+          <text class="bt" x="256" y="207">FSM · согласие 152-ФЗ</text>
+          <text class="bs" x="256" y="226">лимиты запросов</text>
+          <rect class="bx" x="242" y="252" width="216" height="54" rx="9"/>
+          <text class="bt" x="256" y="277">Форматтер</text>
+          <text class="bs" x="256" y="296">ответ + экспорт-памятка</text>
+          <rect class="bx st" x="242" y="430" width="216" height="60" rx="9"/>
+          <text class="bt" x="256" y="456">PostgreSQL</text>
+          <text class="bs" x="256" y="475">согласие · история</text>
+
+          <rect class="bx nd" x="572" y="112" width="140" height="48" rx="9"/>
+          <text class="btc" x="586" y="141">intent</text>
+          <rect class="bx nd" x="728" y="112" width="140" height="48" rx="9"/>
+          <text class="btc" x="742" y="141">retrieve</text>
+          <rect class="bx nd" x="728" y="188" width="140" height="48" rx="9"/>
+          <text class="btc" x="742" y="217">verify</text>
+          <rect class="bx nd" x="572" y="188" width="140" height="48" rx="9"/>
+          <text class="btc" x="586" y="217">compose</text>
+          <rect class="bx" x="572" y="270" width="296" height="66" rx="9"/>
+          <text class="bt" x="586" y="290">Ingest · разбор файла</text>
+          <text class="bs" x="586" y="309">PDF &#8594; текст-слой · скан/фото &#8594; OCR (Tesseract)</text>
+          <text class="bs" x="586" y="326">голос &#8594; STT (openai/whisper-large-v3)</text>
+          <path class="ln" d="M712,136 H726" marker-end="url(#ah)"/>
+          <path class="ln" d="M798,160 V186" marker-end="url(#ah)"/>
+          <path class="ln" d="M728,212 H714" marker-end="url(#ah)"/>
+
+          <rect class="bx" x="942" y="112" width="236" height="132" rx="10"/>
+          <text class="bt" x="958" y="137">Qdrant · векторная БД</text>
+          <text class="bs" x="958" y="163">law_articles &#8212; законы</text>
+          <text class="bs" x="958" y="185">user_documents &#8212; файлы</text>
+          <text class="bs" x="958" y="207">bge-m3 · 1024d</text>
+          <rect class="bx" x="942" y="286" width="236" height="132" rx="10"/>
+          <text class="bt" x="958" y="311">Polza.ai · LLM-шлюз</text>
+          <text class="bs" x="958" y="337">gemini-2.5-flash-lite</text>
+          <text class="bs" x="958" y="359">openai/whisper-large-v3 &#8212; речь</text>
+          <text class="bs" x="958" y="381">bge-m3 &#8212; эмбеддинги</text>
+
+          <path class="ln" d="M170,236 H228" marker-end="url(#ah)"/>
+          <text class="cl" x="176" y="228">запрос</text>
+          <path class="lnr" d="M228,272 H172" marker-end="url(#ahb)"/>
+          <text class="cl" x="176" y="290">ответ</text>
+
+          <path class="ln" d="M350,166 V180" marker-end="url(#ah)"/>
+          <path class="ln" d="M350,236 V250" marker-end="url(#ah)"/>
+          <path class="ln" d="M350,306 V428" marker-end="url(#ah)"/>
+          <text class="cl" x="358" y="372">согласие · история</text>
+
+          <path class="ln" d="M470,136 H570" marker-end="url(#ah)"/>
+          <text class="cl" x="468" y="128">answer_question</text>
+          <path class="lnr" d="M570,212 H470" marker-end="url(#ahb)"/>
+          <text class="cl" x="476" y="230">Answer</text>
+
+          <path class="ln" d="M868,136 H940" marker-end="url(#ah)"/>
+          <text class="cl" x="866" y="128">search_law</text>
+          <path class="ln" d="M868,298 C906,298 904,352 940,352" marker-end="url(#ah)"/>
+          <text class="cl" x="878" y="332">LLM · STT</text>
+
+          <rect class="bx" x="40" y="604" width="158" height="72" rx="9"/>
+          <text class="bt" x="54" y="636">ИПС pravo.gov.ru</text>
+          <text class="bs" x="54" y="656">действующая редакция</text>
+          <rect class="bx" x="238" y="604" width="150" height="72" rx="9"/>
+          <text class="bt" x="252" y="636">fetch · parse</text>
+          <text class="bs" x="252" y="656">статьи + редакция</text>
+          <rect class="bx" x="428" y="604" width="130" height="72" rx="9"/>
+          <text class="bt" x="442" y="636">chunk</text>
+          <text class="bs" x="442" y="656">чанк = статья</text>
+          <rect class="bx" x="598" y="604" width="150" height="72" rx="9"/>
+          <text class="bt" x="612" y="636">embed · bge-m3</text>
+          <text class="bs" x="612" y="656">1024d, passage</text>
+          <rect class="bx" x="788" y="604" width="150" height="72" rx="9"/>
+          <text class="bt" x="802" y="636">upsert</text>
+          <text class="bs" x="802" y="656">идемпотентно</text>
+          <path class="ln" d="M198,640 H236" marker-end="url(#ah)"/>
+          <path class="ln" d="M388,640 H426" marker-end="url(#ah)"/>
+          <path class="ln" d="M558,640 H596" marker-end="url(#ah)"/>
+          <path class="ln" d="M748,640 H786" marker-end="url(#ah)"/>
+          <path class="ln" d="M938,632 H1202 V180 H1180" marker-end="url(#ah)"/>
+          <text class="cl" x="956" y="598">&#8594; в Qdrant · law_articles</text>
+
+          <line class="ln" x1="240" y1="738" x2="272" y2="738"/>
+          <text class="leg" x="280" y="742">запрос / запись</text>
+          <line class="lnr" x1="430" y1="738" x2="462" y2="738"/>
+          <text class="leg" x="470" y="742">ответ</text>
+        </svg>
+      </div>
+      <p class="sub" style="margin-top:.7rem; max-width:none; font-size:.9rem"><b style="color:var(--brass)">Инфраструктура (Роль 4):</b> всё в Docker — <span class="mono">bot</span> · <span class="mono">qdrant</span> · <span class="mono">postgres</span> + egress-прокси; границы зон — Pydantic-контракты в <span class="mono">shared/</span>. Дальше — каждая роль отдельной схемой.</p>
+    </div>
+    <div class="foot"><span class="mono">03</span> · рантайм: запрос → грунтованный ответ</div>
+  </section>
+
+  <section class="slide" data-title="Роль 1 · Бот">
+    <div class="slide-inner">
+      <div class="topbar">
+        <div class="eyebrow">Роль 1 · Bot Layer · <span class="mono">bot/</span></div>
+        <span class="speaker">Роль <b>1</b></span>
+      </div>
+      <h2 class="serif" style="margin-bottom:.5rem">Путь сообщения от Telegram до ответа</h2>
+      <div class="diagram">
+        <svg class="arch role" viewBox="0 0 1060 430" role="img" aria-label="Схема слоя бота">
+          <rect class="bx" x="20" y="172" width="150" height="82" rx="10"/>
+          <text class="bt" x="34" y="205">Telegram</text>
+          <text class="bs" x="34" y="226">update</text>
+          <text class="bs" x="34" y="244">текст·файл·голос</text>
+
+          <rect class="bx nd" x="205" y="162" width="180" height="102" rx="10"/>
+          <text class="bt" x="220" y="192">Middlewares</text>
+          <text class="bs" x="220" y="214">согласие 152-ФЗ</text>
+          <text class="bs" x="220" y="234">rate-limit</text>
+          <text class="bs" x="220" y="254">(до хендлера)</text>
+
+          <rect class="bx" x="420" y="172" width="140" height="82" rx="10"/>
+          <text class="bt" x="434" y="205">Router</text>
+          <text class="bs" x="434" y="226">magic-фильтры F</text>
+          <text class="bs" x="434" y="244">выбор хендлера</text>
+
+          <rect class="bx" x="595" y="162" width="185" height="102" rx="10"/>
+          <text class="bt" x="609" y="192">Handlers</text>
+          <text class="bs" x="609" y="214">text · file · voice</text>
+          <text class="bs" x="609" y="234">callback · edited</text>
+          <text class="bs" x="609" y="254">валидация · FSM</text>
+
+          <rect class="bx nd" x="810" y="58" width="230" height="88" rx="10"/>
+          <text class="btc" x="824" y="86">AgentClient · Protocol</text>
+          <text class="bs" x="824" y="108">answer_question</text>
+          <text class="bs" x="824" y="128">ingest · transcribe_voice</text>
+
+          <rect class="bx" x="810" y="270" width="230" height="88" rx="10"/>
+          <text class="bt" x="824" y="298">Форматтер</text>
+          <text class="bs" x="824" y="320">MarkdownV2 · цитаты</text>
+          <text class="bs" x="824" y="340">экспорт PDF-памятки</text>
+
+          <rect class="bx st" x="420" y="312" width="185" height="80" rx="10"/>
+          <text class="bt" x="434" y="344">PostgreSQL</text>
+          <text class="bs" x="434" y="366">согласие · история</text>
+          <text class="bs" x="434" y="384">rate-limit</text>
+
+          <path class="ln" d="M170,213 H203" marker-end="url(#ah)"/>
+          <path class="ln" d="M385,213 H418" marker-end="url(#ah)"/>
+          <path class="ln" d="M560,213 H593" marker-end="url(#ah)"/>
+          <path class="ln" d="M782,190 C806,190 800,104 808,104" marker-end="url(#aha)"/>
+          <text class="cl" x="792" y="150">вызов</text>
+          <path class="lnr" d="M925,146 V268" marker-end="url(#ahb)"/>
+          <text class="cl" x="932" y="212">Answer</text>
+          <path class="lnr" d="M925,358 V410 H95 V254" marker-end="url(#ahb)"/>
+          <text class="cl" x="360" y="404">ответ пользователю</text>
+          <path class="ln" d="M292,264 V310" marker-end="url(#ah)"/>
+          <text class="cl" x="300" y="292">проверка/запись</text>
+          <path class="ln" d="M660,264 C640,286 600,300 585,310" marker-end="url(#ah)"/>
+
+          <text class="cl" x="826" y="164">&#8595; граница с Ролью 2 (Агент)</text>
+        </svg>
+      </div>
+      <div class="chips" style="margin-top:.7rem">
+        <span class="tag k">aiogram 3</span><span class="tag k">FSM</span><span class="tag k">middlewares</span>
+        <span class="tag k">PyMuPDF · экспорт</span><span class="tag k">Protocol → мок в тестах</span><span class="tag k">72 теста</span>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">04</span> · тонкий транспорт: подготовь вход → зови агента → оформи выход</div>
+  </section>
+
+  <section class="slide" data-title="Роль 2 · Агент">
+    <div class="slide-inner">
+      <div class="topbar">
+        <div class="eyebrow">Роль 2 · Agent · <span class="mono">agent/</span></div>
+        <span class="speaker">Роль <b>2</b></span>
+      </div>
+      <h2 class="serif" style="margin-bottom:.5rem">LangGraph-граф: найти, проверить, собрать</h2>
+      <div class="diagram">
+        <svg class="arch role" viewBox="0 0 1060 440" role="img" aria-label="Схема агента на LangGraph">
+          <rect class="bx" x="18" y="176" width="150" height="76" rx="10"/>
+          <text class="bt" x="32" y="206">answer_question</text>
+          <text class="bs" x="32" y="228">text · doc_ids</text>
+
+          <rect class="bx" x="200" y="86" width="130" height="52" rx="9"/>
+          <text class="bt" x="214" y="112">HyDE</text>
+          <text class="bs" x="214" y="130">гипотет. ответ</text>
+
+          <rect class="bx nd" x="200" y="180" width="130" height="66" rx="9"/>
+          <text class="btc" x="214" y="210">intent</text>
+          <text class="bs" x="214" y="230">отрасль → акты</text>
+
+          <rect class="bx nd" x="360" y="180" width="130" height="66" rx="9"/>
+          <text class="btc" x="374" y="210">retrieve</text>
+          <text class="bs" x="374" y="230">bge-m3 · top-K</text>
+
+          <rect class="bx nd" x="520" y="180" width="130" height="66" rx="9"/>
+          <text class="btc" x="534" y="210">verify</text>
+          <text class="bs" x="534" y="230">есть + действует</text>
+
+          <rect class="bx" x="680" y="180" width="120" height="66" rx="9"/>
+          <text class="bt" x="694" y="210">маршрут</text>
+          <text class="bs" x="694" y="230">ветвление</text>
+
+          <rect class="bx nd" x="838" y="86" width="204" height="46" rx="9"/>
+          <text class="btc" x="852" y="114">compose · ответ+цитаты</text>
+          <rect class="bx" x="838" y="146" width="204" height="42" rx="9"/>
+          <text class="bt" x="852" y="172">clarify · уточнение</text>
+          <rect class="bx" x="838" y="202" width="204" height="42" rx="9"/>
+          <text class="bt" x="852" y="228">refuse · честный отказ</text>
+          <rect class="bx" x="838" y="258" width="204" height="42" rx="9"/>
+          <text class="bt" x="852" y="284">offtopic · не право</text>
+
+          <rect class="bx st" x="200" y="330" width="190" height="80" rx="10"/>
+          <text class="bt" x="214" y="362">Qdrant</text>
+          <text class="bs" x="214" y="384">search_law(acts, doc_ids)</text>
+          <text class="bs" x="214" y="402">law_articles · user_docs</text>
+
+          <rect class="bx st" x="430" y="330" width="210" height="80" rx="10"/>
+          <text class="bt" x="444" y="362">Polza.ai · Gemini 2.5</text>
+          <text class="bs" x="444" y="384">LLM (compose/intent)</text>
+          <text class="bs" x="444" y="402">Whisper &#8212; речь→текст</text>
+
+          <rect class="bx" x="18" y="330" width="160" height="80" rx="10"/>
+          <text class="bt" x="32" y="360">ingest · STT</text>
+          <text class="bs" x="32" y="382">PDF/OCR разбор</text>
+          <text class="bs" x="32" y="400">transcribe_voice</text>
+
+          <path class="ln" d="M168,214 H198" marker-end="url(#ah)"/>
+          <path class="ln" d="M330,213 H358" marker-end="url(#ah)"/>
+          <path class="ln" d="M490,213 H518" marker-end="url(#ah)"/>
+          <path class="ln" d="M650,213 H678" marker-end="url(#ah)"/>
+          <path class="lnr" d="M265,138 V178" marker-end="url(#ahb)"/>
+          <text class="cl" x="270" y="164">параллельно</text>
+          <path class="ln" d="M800,205 C820,150 824,112 836,110" marker-end="url(#ah)"/>
+          <path class="ln" d="M800,210 C820,190 824,170 836,167" marker-end="url(#ah)"/>
+          <path class="ln" d="M800,216 C820,222 824,224 836,223" marker-end="url(#ah)"/>
+          <path class="ln" d="M800,222 C820,262 824,278 836,279" marker-end="url(#ah)"/>
+          <path class="ln" d="M425,246 V328" marker-end="url(#ah)"/>
+          <text class="cl" x="432" y="300">search_law</text>
+          <path class="lnr" d="M535,328 V248" marker-end="url(#ahb)"/>
+          <path class="ln" d="M98,330 C98,300 120,258 198,220" marker-end="url(#ah)"/>
+          <path class="lnr" d="M940,132 C960,150 980,300 660,375 " marker-end="url(#ahb)"/>
+          <text class="cl" x="905" y="330">LLM</text>
+
+          <path class="lnr" d="M838,109 C700,60 300,40 92,176" marker-end="url(#ahb)"/>
+          <text class="cl" x="470" y="52">&#8594; Answer к боту (Роль 1)</text>
+        </svg>
+      </div>
+      <div class="chips" style="margin-top:.7rem">
+        <span class="tag k">LangGraph</span><span class="tag k">HyDE-фьюжн</span><span class="tag k">verify → anti-hallucination</span>
+        <span class="tag k">роутинг по актам</span><span class="tag k">doc-разбор по чанкам</span>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">05</span> · цитата · уточнение · честный отказ — ветка выбирается сама</div>
+  </section>
+
+  <section class="slide" data-title="Роль 3 · Данные">
+    <div class="slide-inner">
+      <div class="topbar">
+        <div class="eyebrow">Роль 3 · Data Pipeline · <span class="mono">pipeline/</span></div>
+        <span class="speaker">Роль <b>3</b></span>
+      </div>
+      <h2 class="serif" style="margin-bottom:.5rem">Как закон попадает в векторный индекс</h2>
+      <div class="diagram">
+        <svg class="arch role" viewBox="0 0 1060 340" role="img" aria-label="Схема конвейера данных">
+          <rect class="bx" x="18" y="110" width="150" height="86" rx="10"/>
+          <text class="bt" x="32" y="142">ИПС</text>
+          <text class="bt" x="32" y="160">pravo.gov.ru</text>
+          <text class="bs" x="32" y="182">действ. редакция</text>
+
+          <rect class="bx" x="196" y="110" width="132" height="86" rx="10"/>
+          <text class="bt" x="210" y="142">fetch</text>
+          <text class="bs" x="210" y="164">скачать НПА</text>
+          <text class="bs" x="210" y="182">макс. дата</text>
+
+          <rect class="bx" x="356" y="110" width="132" height="86" rx="10"/>
+          <text class="bt" x="370" y="142">parse</text>
+          <text class="bs" x="370" y="164">разбор статей</text>
+          <text class="bs" x="370" y="182">HTML/PDF</text>
+
+          <rect class="bx" x="516" y="110" width="132" height="86" rx="10"/>
+          <text class="bt" x="530" y="142">chunk</text>
+          <text class="bs" x="530" y="164">чанк = статья</text>
+          <text class="bs" x="530" y="182">заголовок в чанк</text>
+
+          <rect class="bx nd" x="676" y="110" width="132" height="86" rx="10"/>
+          <text class="btc" x="690" y="142">embed</text>
+          <text class="bs" x="690" y="164">bge-m3 · 1024d</text>
+          <text class="bs" x="690" y="182">passage</text>
+
+          <rect class="bx" x="836" y="110" width="132" height="86" rx="10"/>
+          <text class="bt" x="850" y="142">upsert</text>
+          <text class="bs" x="850" y="164">версии по hash</text>
+          <text class="bs" x="850" y="182">идемпотентно</text>
+
+          <rect class="bx st" x="836" y="234" width="180" height="70" rx="10"/>
+          <text class="bt" x="850" y="264">Qdrant</text>
+          <text class="bs" x="850" y="286">law_articles · 53 акта</text>
+
+          <rect class="bx" x="196" y="234" width="452" height="70" rx="10"/>
+          <text class="bt" x="210" y="264">watch · cron 04:00</text>
+          <text class="bs" x="210" y="286">новая редакция закона &#8594; переупсерт сам (Airflow DAG готов)</text>
+
+          <path class="ln" d="M168,153 H194" marker-end="url(#ah)"/>
+          <path class="ln" d="M328,153 H354" marker-end="url(#ah)"/>
+          <path class="ln" d="M488,153 H514" marker-end="url(#ah)"/>
+          <path class="ln" d="M648,153 H674" marker-end="url(#ah)"/>
+          <path class="ln" d="M808,153 H834" marker-end="url(#ah)"/>
+          <path class="ln" d="M902,196 V232" marker-end="url(#ah)"/>
+          <text class="cl" x="910" y="222">в индекс</text>
+          <path class="lnr" d="M640,262 C700,262 780,240 830,200" marker-end="url(#ahb)"/>
+          <text class="cl" x="470" y="228">петля авто-обновления</text>
+        </svg>
+      </div>
+      <div class="chips" style="margin-top:.7rem">
+        <span class="tag k">ИПС pravo.gov.ru</span><span class="tag k">bge-m3</span><span class="tag k">Qdrant</span>
+        <span class="tag k">delete-by-filter + upsert</span><span class="tag k">53 акта · ~15,8 тыс. чанков</span>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">06</span> · CLI <span class="mono">python -m pipeline.run --act &lt;code&gt;</span></div>
+  </section>
+
+  <section class="slide" data-title="Роль 4 · Инфра">
+    <div class="slide-inner">
+      <div class="topbar">
+        <div class="eyebrow">Роль 4 · Infra + Shared · <span class="mono">infra/ shared/</span></div>
+        <span class="speaker">Роль <b>4</b></span>
+      </div>
+      <h2 class="serif" style="margin-bottom:.5rem">Docker, контракты и обход блокировки</h2>
+      <div class="diagram">
+        <svg class="arch role" viewBox="0 0 1060 400" role="img" aria-label="Схема инфраструктуры">
+          <rect class="zone" x="18" y="66" width="770" height="308" rx="12"/>
+          <text class="zl" x="30" y="88">DOCKER COMPOSE · СЕРВЕР (Selectel VPS)</text>
+
+          <rect class="bx nd" x="46" y="112" width="200" height="86" rx="10"/>
+          <text class="btc" x="60" y="144">bot</text>
+          <text class="bs" x="60" y="166">aiogram + агент</text>
+          <text class="bs" x="60" y="184">один процесс</text>
+
+          <rect class="bx" x="286" y="112" width="200" height="86" rx="10"/>
+          <text class="bt" x="300" y="144">xray-proxy</text>
+          <text class="bs" x="300" y="166">egress до Telegram</text>
+          <text class="bs" x="300" y="184">хостер режет TG</text>
+
+          <rect class="bx st" x="46" y="240" width="200" height="86" rx="10"/>
+          <text class="bt" x="60" y="272">qdrant</text>
+          <text class="bs" x="60" y="294">векторная БД</text>
+
+          <rect class="bx st" x="286" y="240" width="200" height="86" rx="10"/>
+          <text class="bt" x="300" y="272">postgres:16</text>
+          <text class="bs" x="300" y="294">согласие · история</text>
+
+          <rect class="bx" x="536" y="112" width="228" height="86" rx="10"/>
+          <text class="bt" x="550" y="144">shared/ · contracts</text>
+          <text class="bs" x="550" y="166">Pydantic-границы</text>
+          <text class="bs" x="550" y="184">PR всех четверых</text>
+
+          <rect class="bx" x="536" y="240" width="228" height="86" rx="10"/>
+          <text class="bt" x="550" y="272">search_law()</text>
+          <text class="bs" x="550" y="294">серверные Qdrant-фильтры</text>
+          <text class="bs" x="550" y="312">MatchAny: акт · документ</text>
+
+          <rect class="bx" x="836" y="112" width="200" height="86" rx="10"/>
+          <text class="bt" x="850" y="144">api.telegram.org</text>
+          <text class="bs" x="850" y="166">пользователи</text>
+
+          <rect class="bx" x="836" y="240" width="200" height="86" rx="10"/>
+          <text class="bt" x="850" y="272">Polza.ai</text>
+          <text class="bs" x="850" y="294">LLM · Whisper</text>
+
+          <path class="ln" d="M246,150 H284" marker-end="url(#ah)"/>
+          <path class="lnr" d="M386,112 V90 H936 V110" marker-end="url(#ahb)"/>
+          <text class="cl" x="548" y="84">обход блокировки &#8594; Telegram</text>
+          <path class="ln" d="M146,198 V238" marker-end="url(#ah)"/>
+          <path class="ln" d="M246,180 C300,210 300,220 300,238" marker-end="url(#ah)"/>
+          <path class="ln" d="M246,155 C400,90 420,155 534,200" marker-end="url(#ah)"/>
+          <path class="ln" d="M246,170 C420,270 480,282 534,282" marker-end="url(#ah)"/>
+          <path class="ln" d="M764,282 H834" marker-end="url(#ah)"/>
+          <text class="cl" x="60" y="360">верифицированный деплой: маркеры фичи в собранном образе до передеплоя</text>
+        </svg>
+      </div>
+      <div class="chips" style="margin-top:.7rem">
+        <span class="tag k">Docker Compose</span><span class="tag k">Selectel VPS</span><span class="tag k">миграции</span>
+        <span class="tag k">xray-proxy</span><span class="tag k">shared/contracts</span><span class="tag k">0 рестартов в проде</span>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">07</span> · четыре зоны, чёткие границы по контрактам</div>
+  </section>
+
   <section class="slide" data-title="Метрики">
     <div class="slide-inner">
       <div class="topbar">
@@ -908,79 +902,70 @@
     <div class="foot"><span class="mono">08</span> · боевой стек · валидация на проде</div>
   </section>
 
-  <!-- 10 · SPEECH MEMO -->
-  <section class="slide" data-title="Памятка речи">
+  <section class="slide" data-title="Развитие">
     <div class="slide-inner">
       <div class="topbar">
-        <div class="eyebrow">Памятка · кто говорит на каком слайде</div>
-        <span class="speaker">ведущий · <b>Роль 1</b></span>
+        <div class="eyebrow">Дальнейшее развитие</div>
+        <span class="speaker">Роль <b>3</b> · планы</span>
       </div>
-      <h2 class="serif" style="margin-bottom:.3rem">Регламент выступления</h2>
-      <div class="memo">
-        <div class="row head"><span>№</span><span>Слайд</span><span>Спикер</span><span>Опорная мысль</span></div>
-        <div class="row"><span class="sn">01</span><span class="st">Титул</span><span class="sp">Роль 1</span><span class="cue">«бот, который не выдумывает» — крючок и представление команды</span></div>
-        <div class="row"><span class="sn">02</span><span class="st">Проблема → Решение</span><span class="sp">Роль 1</span><span class="cue">обычный ИИ галлюцинирует статьи — мы даём проверяемый источник</span></div>
-        <div class="row"><span class="sn">03</span><span class="st">Общая схема</span><span class="sp">Роль 4</span><span class="cue">как связаны 4 слоя при ответе; передаёт слово по ролям</span></div>
-        <div class="row"><span class="sn">04</span><span class="st">Роль 1 · Бот</span><span class="sp">Роль 1</span><span class="cue">путь сообщения; «бот не думает — оркеструет», 152-ФЗ, голос</span></div>
-        <div class="row"><span class="sn">05</span><span class="st">Роль 2 · Агент</span><span class="sp">Роль 2</span><span class="cue">граф intent→retrieve→verify→compose; verify = анти-галлюцинация</span></div>
-        <div class="row"><span class="sn">06</span><span class="st">Роль 3 · Данные</span><span class="sp">Роль 3</span><span class="cue">fetch→…→upsert; 53 акта, авто-обновление по cron</span></div>
-        <div class="row"><span class="sn">07</span><span class="st">Роль 4 · Инфра</span><span class="sp">Роль 4</span><span class="cue">Docker, обход блокировки Telegram, контракты shared/</span></div>
-        <div class="row"><span class="sn">08</span><span class="st">Стек</span><span class="sp">Роль 4</span><span class="cue">быстрый проход по инструментам (10–15 сек, без деталей)</span></div>
-        <div class="row"><span class="sn">09</span><span class="st">Метрики</span><span class="sp">Роль 2</span><span class="cue">«измерено, а не заявлено»; 98% / 100% / живой eval 4.4→6.1</span></div>
-        <div class="row"><span class="sn">10</span><span class="st">Команда</span><span class="sp">Роль 1 → все</span><span class="cue">каждый в одной фразе называет свою зону ответственности</span></div>
-        <div class="row"><span class="sn">11</span><span class="st">Эта памятка</span><span class="sp">—</span><span class="cue">служебный слайд для репетиции; на защите можно пропустить</span></div>
-        <div class="row"><span class="sn">12</span><span class="st">Итог + QR</span><span class="sp">Роль 1</span><span class="cue">MVP живой в проде; QR на экране → живое демо бота, если разрешат</span></div>
+      <h2 class="serif" style="margin-bottom:.2rem">Что хотим прикрутить дальше</h2>
+      <p class="sub" style="margin-bottom:1.2rem; max-width:72ch">Доверенное ядро — анти-выдумка и измеримость качества — уже работает. Дальше: глубже по праву, сильнее ядро, ближе к продукту.</p>
+      <div class="grid g4">
+        <div class="card"><span class="ic">&#127919;</span><h3>Качество ответа</h3><p>precision цитат на бытовых ФЗ · проверка договора на противоречия закону · вывод confidence пользователю</p></div>
+        <div class="card"><span class="ic">&#128218;</span><h3>Больше права</h3><p>судебная практика и подзаконка · тезаурус и граф связей статей · постатейное версионирование</p></div>
+        <div class="card"><span class="ic">&#129504;</span><h3>Сильнее ядро</h3><p>более мощная модель (сейчас quality-bound на flash-lite) · фокус на 2&#8211;3 вертикали: ЗоЗПП, трудовое</p></div>
+        <div class="card"><span class="ic">&#128640;</span><h3>Ближе к продукту</h3><p>пуши при изменении нормы · desktop-версия офлайн · полное соответствие 152-ФЗ</p></div>
       </div>
-      <p class="sub" style="margin-top:.9rem; font-size:.84rem">Ориентир: ~40–60 сек на слайд, вопросы держим на конец.</p>
+      <div class="guard">
+        <b>Честно про зрелость:</b> до полноценного продукта нужна юр-валидация на масштабе живыми юристами и рамка ответственности &#8212; путь понятен, ядро готово.
+      </div>
     </div>
-    <div class="foot"><span class="mono">10</span> · регламент · служебный слайд</div>
+    <div class="foot"><span class="mono">09</span> · дорожная карта</div>
   </section>
 
-  <!-- 11 · TEAM -->
   <section class="slide" data-title="Команда">
     <div class="topbar" style="max-width:1120px;margin:0 auto;width:100%">
       <div class="eyebrow">Команда проекта</div>
-      <span class="speaker">представляет · <b>Роль 1</b></span>
+      <span class="speaker">представляет · <b>Роль 3</b></span>
     </div>
     <div class="slide-inner">
       <h2 class="serif" style="margin-bottom:.2rem">Кто над чем работал</h2>
       <div class="team">
         <div class="member">
           <div class="ava"><span class="ini">ДГ</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
-          <div class="nm">Дордж Годаев</div>
+          <div class="nm">Дорджи Годаев</div>
           <div class="rl">Роль 1 · Bot Layer</div>
           <div class="ct">aiogram-бот, FSM, приём документов и голоса, форматирование ответа, 152-ФЗ</div>
         </div>
         <div class="member">
-          <div class="ava"><span class="ini">Р</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
-          <div class="nm">Роман</div>
+          <div class="ava"><span class="ini">РК</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
+          <div class="nm">Роман Кузнецов</div>
           <div class="rl">Роль 2 · Agent</div>
           <div class="ct">LangGraph-граф, промпты против галлюцинаций, роутинг по кодексам, HyDE</div>
         </div>
         <div class="member">
-          <div class="ava"><span class="ini">?</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
-          <div class="nm">Имя Фамилия</div>
+          <div class="ava"><span class="ini">РР</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
+          <div class="nm">Роман Рахматулин</div>
           <div class="rl">Роль 3 · Data Pipeline</div>
           <div class="ct">сбор и парсинг НПА, чанкинг, эмбеддинги, версионирование базы законов</div>
         </div>
         <div class="member">
-          <div class="ava"><span class="ini">В</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
-          <div class="nm">Виталий</div>
+          <div class="ava"><span class="ini">ВК</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
+          <div class="nm">Виталий Коновалов</div>
           <div class="rl">Роль 4 · Infra</div>
           <div class="ct">docker-compose, БД, деплой, egress-прокси, общие контракты shared/</div>
         </div>
       </div>
       <p class="sub" style="margin-top:1rem; font-size:.82rem">Карта владения строгая: каждый правит только свою папку, общий контракт — только PR всех четверых, <span class="mono">main</span> всегда рабочий.</p>
     </div>
-    <div class="foot"><span class="mono">09</span> · четыре роли · чёткие границы</div>
+    <div class="foot"><span class="mono">10</span> · четыре роли · чёткие границы</div>
   </section>
 
-  <!-- 12 · CLOSING + QR -->
   <section class="slide" data-title="Итог">
     <div class="slide-inner">
       <div class="topbar">
         <div class="eyebrow">Итог · живое демо</div>
-        <span class="speaker">Роль <b>1</b> · финал</span>
+        <span class="speaker">Роль <b>3</b> · финал</span>
       </div>
       <h2 class="serif" style="margin-bottom:.2rem">MVP собран и живёт в Telegram</h2>
       <div class="closegrid">
@@ -1006,6 +991,10 @@
     </div>
     <div class="foot"><span class="mono">11</span> · спасибо за внимание</div>
   </section>
+
+
+
+
 
 </main>
 
