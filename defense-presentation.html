@@ -1322,43 +1322,35 @@
       <text x="328" y="104" font-size="13" font-weight="800" fill="#0F172A">контейнер bot · один образ</text>
 
       <rect x="328" y="120" width="268" height="74" rx="11" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.6"/>
-      <text x="344" y="146" font-size="14.5" font-weight="800" fill="#0F172A">① Бот · Роль 1</text>
-      <text x="580" y="146" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">bot/</text>
-      <text x="344" y="166" font-size="11.5" fill="#64748B">приём · диалог (FSM) · валидация файлов</text>
-      <text x="344" y="184" font-size="11.5" fill="#64748B">форматтер ответа · дисклеймер · PDF</text>
-
-      <text x="470" y="205" font-size="11.5" font-weight="700" fill="#6D5CFF" text-anchor="middle">↕ контракт shared/</text>
+      <text x="344" y="150" font-size="14.5" font-weight="800" fill="#0F172A">① Бот · Роль 1</text>
+      <text x="580" y="150" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">bot/</text>
+      <text x="344" y="174" font-size="12" fill="#64748B">диалог · голос · файлы → ответ</text>
 
       <rect x="328" y="206" width="268" height="74" rx="11" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
-      <text x="344" y="232" font-size="14.5" font-weight="800" fill="#0F172A">② Агент · Роль 2</text>
-      <text x="580" y="232" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">agent/</text>
-      <text x="344" y="252" font-size="11.5" fill="#64748B">граф LangGraph: intent·retrieve·verify·compose</text>
-      <text x="344" y="270" font-size="11.5" fill="#64748B">ответ словами + citations[] · → LLM через xray</text>
+      <text x="344" y="236" font-size="14.5" font-weight="800" fill="#0F172A">② Агент · Роль 2</text>
+      <text x="580" y="236" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">agent/</text>
+      <text x="344" y="260" font-size="12" fill="#64748B">граф LangGraph → ответ + citations[]</text>
 
       <rect x="328" y="292" width="268" height="74" rx="11" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.6"/>
-      <text x="344" y="318" font-size="14.5" font-weight="800" fill="#0F172A">③ Пайплайн · Роль 3</text>
-      <text x="580" y="318" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">pipeline/</text>
-      <text x="344" y="338" font-size="11.5" fill="#64748B">fetch·parse·chunk·embed·upsert</text>
-      <text x="344" y="356" font-size="11.5" fill="#64748B">ночной watch редакций · cron 04:00</text>
+      <text x="344" y="322" font-size="14.5" font-weight="800" fill="#0F172A">③ Пайплайн · Роль 3</text>
+      <text x="580" y="322" font-size="11" font-weight="600" fill="#8A93A8" text-anchor="end">pipeline/</text>
+      <text x="344" y="346" font-size="12" fill="#64748B">закон → векторы · ночной watch</text>
 
       <path d="M292 244 H310" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
       <path d="M304 238l6 6-6 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 
       <!-- хранилища (Роль 4) -->
       <rect x="636" y="118" width="286" height="104" rx="14" fill="#FFF5F7" stroke="#F4B9C6" stroke-width="1.6"/>
-      <text x="654" y="146" font-size="15" font-weight="800" fill="#0F172A">Qdrant · контейнер</text>
-      <text x="654" y="170" font-size="12" fill="#64748B">векторная база · 15 809 статей-векторов</text>
-      <text x="654" y="190" font-size="12" fill="#64748B">поиск по смыслу + payload-фильтр</text>
+      <text x="654" y="162" font-size="15" font-weight="800" fill="#0F172A">Qdrant · контейнер</text>
+      <text x="654" y="186" font-size="12" fill="#64748B">15 809 статей-векторов</text>
 
       <rect x="636" y="250" width="286" height="104" rx="14" fill="#EEF3FE" stroke="#BCD0F7" stroke-width="1.6"/>
-      <text x="654" y="278" font-size="15" font-weight="800" fill="#0F172A">PostgreSQL · контейнер</text>
-      <text x="654" y="302" font-size="12" fill="#64748B">история диалога · согласия (152-ФЗ)</text>
-      <text x="654" y="322" font-size="12" fill="#64748B">лимиты запросов · переживает рестарт</text>
+      <text x="654" y="294" font-size="15" font-weight="800" fill="#0F172A">PostgreSQL · контейнер</text>
+      <text x="654" y="318" font-size="12" fill="#64748B">история · согласия (152-ФЗ)</text>
 
       <!-- Агент → Qdrant (поиск) -->
       <path d="M596 236 C 616 212, 624 174, 634 166" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" fill="none"/>
       <path d="M628 160l7 6-9 4" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <text x="600" y="200" font-size="11" font-weight="700" fill="#64748B">поиск</text>
 
       <!-- Пайплайн → Qdrant (upsert, ночью) -->
       <path d="M596 322 C 620 322, 628 236, 634 208" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6" fill="none"/>
@@ -1371,7 +1363,7 @@
       <!-- возврат ответа пользователю -->
       <path d="M312 122 C 210 58, 118 66, 88 126" stroke="#B9C6E4" stroke-width="2" stroke-dasharray="6 6" stroke-linecap="round" fill="none"/>
       <path d="M82 120l6 6 7-5" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <text x="150" y="78" font-size="11.5" font-weight="700" fill="#64748B">ответ + citations</text>
+      <text x="150" y="76" font-size="11.5" font-weight="700" fill="#64748B">ответ</text>
 
       <!-- легенда: цвет = роль -->
       <rect x="250" y="437" width="13" height="13" rx="3" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.3"/>
