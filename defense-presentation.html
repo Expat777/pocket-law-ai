@@ -248,6 +248,36 @@
     box-shadow:0 14px 34px rgba(15,23,42,.18)}
   .nightscene svg{display:block; width:100%; height:auto}
 
+  /* ===== слайд валидации (Роль 2 · тесты) ===== */
+  .slide.val{padding:46px 84px}
+  .evgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:22px; flex:1}
+  .ev{background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:15px 20px;
+    display:flex; flex-direction:column; gap:6px; justify-content:center;
+    box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .ev .ic{width:44px; height:44px; border-radius:13px; background:var(--viosoft);
+    display:flex; align-items:center; justify-content:center; margin-bottom:2px}
+  .ev:nth-child(even) .ic{background:var(--cyansoft)}
+  .ev .ic svg{width:24px; height:24px; fill:none; stroke:var(--vio); stroke-width:2;
+    stroke-linecap:round; stroke-linejoin:round}
+  .ev:nth-child(even) .ic svg{stroke:var(--cyan)}
+  .ev .v{font-size:30px; font-weight:800; letter-spacing:-.02em; line-height:1;
+    background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .ev b{font-size:16.5px; display:block; line-height:1.2}
+  .ev span{font-size:13px; color:var(--mut); line-height:1.3}
+  .evduo{margin-top:12px; display:flex; gap:14px}
+  .evd{flex:1; display:flex; align-items:center; gap:16px; background:#fff; border:1.5px solid var(--line);
+    border-radius:18px; padding:14px 22px; box-shadow:0 10px 30px rgba(15,23,42,.05)}
+  .evd .bic{flex:none; width:50px; height:50px; border-radius:14px; background:var(--viosoft);
+    display:flex; align-items:center; justify-content:center}
+  .evd:nth-child(2) .bic{background:var(--cyansoft)}
+  .evd .bic svg{width:26px; height:26px; fill:none; stroke:var(--vio); stroke-width:2;
+    stroke-linecap:round; stroke-linejoin:round}
+  .evd:nth-child(2) .bic svg{stroke:var(--cyan)}
+  .evd b{font-size:17px; display:block}
+  .evd p{font-size:13.5px; color:var(--mut); margin-top:2px; line-height:1.3}
+  .evd .mini{color:var(--vio); font-weight:800}
+  .evd:nth-child(2) .mini{color:var(--cyan)}
+
   @media print{
     html,body{overflow:visible; background:#fff}
     #stage{position:static; display:block}
@@ -963,6 +993,68 @@
       <text x="838" y="416" font-size="12" fill="#64748B">4.4 → 6.1 из 8 · гейт для «улучшений»</text>
       <path d="M999 224v118" stroke="#CDC6FF" stroke-width="2" stroke-dasharray="5 5"/>
     </svg>
+  </div>
+</section>
+
+<!-- ═══ 6b3 · Роль 2: валидация / тесты ═══ -->
+<section class="slide val">
+  <div class="kicker">Роль 2 · валидация — Роман Кузнецов</div>
+  <h1>Как мы это <span class="hl">доказали</span>: тесты на каждом уровне</h1>
+
+  <div class="evgrid">
+    <div class="ev">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+      <div class="v">~80</div>
+      <b>автотестов графа</b>
+      <span>узлы, ветки отказа и уточнения, формат ответа</span>
+    </div>
+    <div class="ev">
+      <div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6" fill="var(--cyan)" stroke="none"/></svg></div>
+      <div class="v">63</div>
+      <b>контрольных кейса</b>
+      <span>маршрутизация в нужный кодекс — <b style="color:var(--vio)">100%</b> точность</span>
+    </div>
+    <div class="ev">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
+      <div class="v">57</div>
+      <b>мультикодексных</b>
+      <span>вопросы на стыке отраслей — профильный кодекс не теряется</span>
+    </div>
+    <div class="ev">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg></div>
+      <div class="v">40</div>
+      <b>реальных вопросов</b>
+      <span>сами парсили с юрфорумов — как спрашивают живые люди</span>
+    </div>
+    <div class="ev">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v18M7 21h10"/><path d="M5 7h14"/><path d="M5 7l-2 5h4zM19 7l-2 5h4z"/></svg></div>
+      <div class="v">4.4&nbsp;→&nbsp;6.1</div>
+      <b>ИИ-судья · из 8</b>
+      <span>независимая оценка качества на реальных данных</span>
+    </div>
+    <div class="ev">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M7 4v13"/><path d="M17 20V7"/><path d="M4 7l3-3 3 3M20 17l-3 3-3-3"/></svg></div>
+      <div class="v">A/B</div>
+      <b>на каждое улучшение</b>
+      <span>якоря, промпты, температуры — baseline vs изменение</span>
+    </div>
+  </div>
+
+  <div class="evduo">
+    <div class="evd">
+      <div class="bic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4M9 21h6"/></svg></div>
+      <div>
+        <b>Голос → текст</b>
+        <p><span class="mini">эхо-подтверждение</span> · лимит <span class="mini">25 МБ</span> · автотесты STT</p>
+      </div>
+    </div>
+    <div class="evd">
+      <div class="bic"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg></div>
+      <div>
+        <b>Документы</b>
+        <p>OCR-гейт <span class="mini">≥ 4 слов</span> отсекает мусорный скан · тест на garbage-OCR</p>
+      </div>
+    </div>
   </div>
 </section>
 
