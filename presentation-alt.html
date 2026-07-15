@@ -206,6 +206,50 @@
   .hint{margin-top:2rem; color:var(--ink-2); font-size:.82rem; display:flex; align-items:center; gap:.5rem}
   .hint .k{border:1px solid var(--line); border-radius:5px; padding:.05rem .4rem; font-size:.72rem}
 
+  /* title hero: text + animated scales */
+  .titlegrid{display:grid; grid-template-columns:1.35fr 1fr; gap:2rem; align-items:center; margin-top:.5rem}
+  @media (max-width:820px){.titlegrid{grid-template-columns:1fr; gap:1.4rem}}
+  .scales-wrap{display:flex; flex-direction:column; align-items:center; gap:.7rem}
+  .scales-cap{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.8rem;
+    letter-spacing:.1em; color:var(--ink-2)}
+  .scales{width:min(320px,86%); height:auto; overflow:visible}
+  .scales .st{fill:none; stroke:var(--ink); stroke-width:5; stroke-linecap:round; stroke-linejoin:round}
+  .scales .pivot{fill:var(--crit)}
+  .scales .beam{transform-box:view-box; transform-origin:200px 74px;
+    animation:weigh 7s cubic-bezier(.4,.05,.2,1) infinite}
+  @keyframes weigh{
+    0%{rotate:0deg} 10%{rotate:-6.5deg} 27%{rotate:4.5deg} 44%{rotate:-2.6deg}
+    60%{rotate:1.3deg} 72%{rotate:-.5deg} 80%{rotate:0deg} 100%{rotate:0deg}
+  }
+  @media (prefers-reduced-motion:reduce){.scales .beam{animation:none}}
+
+  /* team members */
+  .team{display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-top:1.3rem}
+  @media (max-width:820px){.team{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:460px){.team{grid-template-columns:1fr}}
+  .member{background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:1.2rem 1rem 1.1rem; text-align:center;
+    box-shadow:0 1px 1px var(--shadow), 0 12px 24px -14px var(--shadow)}
+  .member .ava{width:94px; height:94px; border-radius:50%; margin:0 auto .8rem; display:grid;
+    place-items:center; background:var(--chip); border:2px solid var(--line); overflow:hidden; position:relative}
+  .member .ava img{width:100%; height:100%; object-fit:cover; display:block}
+  .member .ava .ini{font-family:"Iowan Old Style",Palatino,Georgia,serif; font-size:1.9rem;
+    font-weight:700; color:var(--brass)}
+  .member .nm{font-weight:600; font-size:1.02rem; line-height:1.2}
+  .member .rl{color:var(--accent); font-size:.8rem; font-weight:600; margin:.2rem 0 .55rem}
+  .member .ct{color:var(--ink-2); font-size:.84rem; line-height:1.45}
+
+  /* closing: live demo QR */
+  .closegrid{display:grid; grid-template-columns:1.3fr .85fr; gap:2.2rem; align-items:center; margin-top:1rem}
+  @media (max-width:760px){.closegrid{grid-template-columns:1fr; gap:1.5rem}}
+  .demo{display:flex; flex-direction:column; align-items:center; gap:.7rem; text-align:center}
+  .qrcard{background:#fff; border:1px solid var(--line); border-radius:18px; padding:.9rem;
+    box-shadow:0 1px 1px var(--shadow), 0 16px 32px -18px var(--shadow)}
+  .qrcard svg{width:190px; height:190px; display:block}
+  .demo .dl{font-weight:600; font-size:1rem}
+  .demo .dl b{color:var(--brass)}
+  .demo .ds{color:var(--ink-2); font-size:.84rem; max-width:24ch}
+
   .brand{display:flex; align-items:center; gap:.7rem; font-weight:600; letter-spacing:-.01em}
   .brand .seal{width:34px; height:34px; border-radius:9px; display:grid; place-items:center;
     background:var(--accent); color:#fff; font-family:Georgia,serif; font-weight:700; box-shadow:0 2px 6px var(--shadow)}
@@ -217,7 +261,7 @@
 <div id="bar"></div>
 <nav id="dots" aria-label="Навигация по слайдам"></nav>
 <div id="ctl">
-  <span class="count mono"><span id="cur">01</span> / <span id="tot">11</span></span>
+  <span class="count mono"><span id="cur">01</span> / <span id="tot">12</span></span>
   <button id="theme" type="button" aria-label="Сменить тему">◐ тема</button>
 </div>
 
@@ -241,13 +285,32 @@
       </div>
       <div class="eyebrow" style="margin-top:1.6rem">Дипломный проект · команда из 4 ролей · 2026 · визуальная версия</div>
       <h1 class="title serif">Карманный юрист,<br>который не выдумывает</h1>
-      <p class="lead">Telegram-бот отвечает по законам&nbsp;РФ — и <b>всегда</b> со ссылкой на конкретную статью. Нет нормы&nbsp;— честно откажется.</p>
-      <div class="chips" style="margin-top:1.3rem">
-        <span class="cite"><b>ст. 81</b>&nbsp;· ТК РФ</span>
-        <span class="cite"><b>ст. 158</b>&nbsp;· УК РФ</span>
-        <span class="cite"><b>ст. 18</b>&nbsp;· ЗоЗПП</span>
+      <div class="titlegrid">
+        <div>
+          <p class="lead">Telegram-бот отвечает по законам&nbsp;РФ — и <b>всегда</b> со ссылкой на конкретную статью. Нет нормы&nbsp;— честно откажется.</p>
+          <div class="chips" style="margin-top:1.3rem">
+            <span class="cite"><b>ст. 81</b>&nbsp;· ТК РФ</span>
+            <span class="cite"><b>ст. 158</b>&nbsp;· УК РФ</span>
+            <span class="cite"><b>ст. 18</b>&nbsp;· ЗоЗПП</span>
+          </div>
+          <div class="hint"><span class="k">↓</span> листайте · <span class="k">←</span> <span class="k">→</span> между слайдами · <span class="k">🎤</span> в углу — кто говорит</div>
+        </div>
+        <div class="scales-wrap" aria-hidden="true">
+          <div class="scales-cap">закон · факт · цитата</div>
+          <svg class="scales" viewBox="0 0 400 372" role="img" aria-label="весы правосудия">
+            <!-- static frame -->
+            <path class="st" d="M200 74 V330"/>
+            <path class="st" d="M132 330 H268"/>
+            <!-- swinging assembly -->
+            <g class="beam">
+              <path class="st" d="M58 74 H342"/>
+              <path class="st" d="M58 74 L30 150 M58 74 L86 150 M26 150 Q58 196 90 150"/>
+              <path class="st" d="M342 74 L314 150 M342 74 L370 150 M310 150 Q342 196 374 150"/>
+            </g>
+            <circle class="pivot" cx="200" cy="74" r="7.5"/>
+          </svg>
+        </div>
       </div>
-      <div class="hint"><span class="k">↓</span> листайте · <span class="k">←</span> <span class="k">→</span> между слайдами · <span class="k">🎤</span> в углу — кто говорит</div>
     </div>
     <div class="foot"><span class="mono">@pocket_law_ai_bot</span> · живой в Telegram</div>
   </section>
@@ -864,35 +927,84 @@
         <div class="row"><span class="sn">07</span><span class="st">Роль 4 · Инфра</span><span class="sp">Роль 4</span><span class="cue">Docker, обход блокировки Telegram, контракты shared/</span></div>
         <div class="row"><span class="sn">08</span><span class="st">Стек</span><span class="sp">Роль 4</span><span class="cue">быстрый проход по инструментам (10–15 сек, без деталей)</span></div>
         <div class="row"><span class="sn">09</span><span class="st">Метрики</span><span class="sp">Роль 2</span><span class="cue">«измерено, а не заявлено»; 98% / 100% / живой eval 4.4→6.1</span></div>
-        <div class="row"><span class="sn">10</span><span class="st">Эта памятка</span><span class="sp">—</span><span class="cue">служебный слайд для репетиции; на защите можно пропустить</span></div>
-        <div class="row"><span class="sn">11</span><span class="st">Итог</span><span class="sp">Роль 1</span><span class="cue">MVP живой в проде; демонстрация бота вживую, если разрешат</span></div>
+        <div class="row"><span class="sn">10</span><span class="st">Команда</span><span class="sp">Роль 1 → все</span><span class="cue">каждый в одной фразе называет свою зону ответственности</span></div>
+        <div class="row"><span class="sn">11</span><span class="st">Эта памятка</span><span class="sp">—</span><span class="cue">служебный слайд для репетиции; на защите можно пропустить</span></div>
+        <div class="row"><span class="sn">12</span><span class="st">Итог + QR</span><span class="sp">Роль 1</span><span class="cue">MVP живой в проде; QR на экране → живое демо бота, если разрешат</span></div>
       </div>
-      <p class="sub" style="margin-top:.9rem; font-size:.84rem">Ориентир: ~40–60 сек на слайд, вопросы держим на конец. Имена подставьте под роли при репетиции.</p>
+      <p class="sub" style="margin-top:.9rem; font-size:.84rem">Ориентир: ~40–60 сек на слайд, вопросы держим на конец.</p>
     </div>
-    <div class="foot"><span class="mono">09</span> · регламент · служебный слайд</div>
+    <div class="foot"><span class="mono">10</span> · регламент · служебный слайд</div>
   </section>
 
-  <!-- 11 · CLOSING -->
+  <!-- 11 · TEAM -->
+  <section class="slide" data-title="Команда">
+    <div class="topbar" style="max-width:1120px;margin:0 auto;width:100%">
+      <div class="eyebrow">Команда проекта</div>
+      <span class="speaker">представляет · <b>Роль 1</b></span>
+    </div>
+    <div class="slide-inner">
+      <h2 class="serif" style="margin-bottom:.2rem">Кто над чем работал</h2>
+      <div class="team">
+        <div class="member">
+          <div class="ava"><span class="ini">ДГ</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
+          <div class="nm">Дордж Годаев</div>
+          <div class="rl">Роль 1 · Bot Layer</div>
+          <div class="ct">aiogram-бот, FSM, приём документов и голоса, форматирование ответа, 152-ФЗ</div>
+        </div>
+        <div class="member">
+          <div class="ava"><span class="ini">Р</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
+          <div class="nm">Роман</div>
+          <div class="rl">Роль 2 · Agent</div>
+          <div class="ct">LangGraph-граф, промпты против галлюцинаций, роутинг по кодексам, HyDE</div>
+        </div>
+        <div class="member">
+          <div class="ava"><span class="ini">?</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
+          <div class="nm">Имя Фамилия</div>
+          <div class="rl">Роль 3 · Data Pipeline</div>
+          <div class="ct">сбор и парсинг НПА, чанкинг, эмбеддинги, версионирование базы законов</div>
+        </div>
+        <div class="member">
+          <div class="ava"><span class="ini">В</span><!-- фото: замените этот span на <img src="data:image/jpeg;base64,…"> --></div>
+          <div class="nm">Виталий</div>
+          <div class="rl">Роль 4 · Infra</div>
+          <div class="ct">docker-compose, БД, деплой, egress-прокси, общие контракты shared/</div>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:1rem; font-size:.82rem">Карта владения строгая: каждый правит только свою папку, общий контракт — только PR всех четверых, <span class="mono">main</span> всегда рабочий.</p>
+    </div>
+    <div class="foot"><span class="mono">09</span> · четыре роли · чёткие границы</div>
+  </section>
+
+  <!-- 12 · CLOSING + QR -->
   <section class="slide" data-title="Итог">
     <div class="slide-inner">
       <div class="topbar">
-        <div class="eyebrow">Итог</div>
+        <div class="eyebrow">Итог · живое демо</div>
         <span class="speaker">Роль <b>1</b> · финал</span>
       </div>
-      <h2 class="serif">MVP собран и живёт в Telegram</h2>
-      <p class="lead">Реальный агент в Docker, боевой стек, метрики к защите закрыты. Проект отвечает на юридические вопросы гражданина — <b>всегда со ссылкой на статью</b>.</p>
-      <div class="grid g3" style="margin-top:1.4rem">
-        <div class="stat"><div class="v acc">MVP</div><div class="l">живой в проде, И0–И3 закрыты</div></div>
-        <div class="stat"><div class="v br">53 · 15,8k</div><div class="l">акта · фрагментов в индексе</div></div>
-        <div class="stat"><div class="v good">100%</div><div class="l">чистота цитирования</div></div>
-      </div>
-      <div class="chips" style="margin-top:1.5rem">
-        <span class="cite"><b>ст. 115</b>&nbsp;· ТК РФ</span>
-        <span class="cite"><b>ст. 333</b>&nbsp;· ГК РФ</span>
-        <span class="cite"><b>@pocket_law_ai_bot</b></span>
+      <h2 class="serif" style="margin-bottom:.2rem">MVP собран и живёт в Telegram</h2>
+      <div class="closegrid">
+        <div>
+          <p class="lead">Реальный агент в Docker, боевой стек, метрики к защите закрыты. Проект отвечает на юридические вопросы гражданина — <b>всегда со ссылкой на статью</b>.</p>
+          <div class="grid g3" style="margin-top:1.2rem">
+            <div class="stat"><div class="v acc">MVP</div><div class="l">живой в проде, И0–И3 закрыты</div></div>
+            <div class="stat"><div class="v br">53 · 15,8k</div><div class="l">акта · фрагментов</div></div>
+            <div class="stat"><div class="v good">100%</div><div class="l">чистота цитирования</div></div>
+          </div>
+        </div>
+        <div class="demo">
+          <div class="qrcard">
+            <svg viewBox="-4 -4 37 37" role="img" aria-label="QR-код на Telegram-бота t.me/pocket_law_ai_bot">
+              <rect x="-4" y="-4" width="37" height="37" fill="#ffffff"/>
+              <path fill="#1a1712" d="M0 0h7v1h-7zM12 0h2v1h-2zM16 0h3v1h-3zM22 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h6v1h-6zM16 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h2v1h-2zM12 2h2v1h-2zM15 2h1v1h-1zM17 2h4v1h-4zM22 2h1v1h-1zM24 2h3v1h-3zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM10 3h1v1h-1zM12 3h1v1h-1zM15 3h1v1h-1zM18 3h2v1h-2zM22 3h1v1h-1zM24 3h3v1h-3zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h2v1h-2zM12 4h2v1h-2zM15 4h2v1h-2zM18 4h1v1h-1zM22 4h1v1h-1zM24 4h3v1h-3zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h2v1h-2zM12 5h3v1h-3zM16 5h5v1h-5zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h7v1h-7zM9 7h1v1h-1zM11 7h4v1h-4zM17 7h1v1h-1zM19 7h2v1h-2zM1 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h2v1h-2zM21 8h1v1h-1zM23 8h2v1h-2zM26 8h1v1h-1zM2 9h4v1h-4zM7 9h1v1h-1zM10 9h2v1h-2zM13 9h1v1h-1zM16 9h1v1h-1zM18 9h2v1h-2zM21 9h4v1h-4zM26 9h3v1h-3zM1 10h3v1h-3zM6 10h3v1h-3zM10 10h2v1h-2zM13 10h2v1h-2zM17 10h2v1h-2zM20 10h2v1h-2zM25 10h1v1h-1zM28 10h1v1h-1zM0 11h1v1h-1zM2 11h4v1h-4zM7 11h1v1h-1zM9 11h1v1h-1zM13 11h1v1h-1zM16 11h3v1h-3zM21 11h1v1h-1zM23 11h1v1h-1zM25 11h1v1h-1zM27 11h2v1h-2zM0 12h1v1h-1zM6 12h1v1h-1zM8 12h3v1h-3zM12 12h2v1h-2zM17 12h2v1h-2zM20 12h1v1h-1zM23 12h1v1h-1zM28 12h1v1h-1zM1 13h2v1h-2zM4 13h2v1h-2zM7 13h1v1h-1zM9 13h3v1h-3zM14 13h1v1h-1zM17 13h2v1h-2zM20 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM26 13h1v1h-1zM28 13h1v1h-1zM0 14h1v1h-1zM4 14h1v1h-1zM6 14h2v1h-2zM9 14h1v1h-1zM11 14h1v1h-1zM13 14h2v1h-2zM16 14h1v1h-1zM18 14h1v1h-1zM22 14h1v1h-1zM24 14h1v1h-1zM28 14h1v1h-1zM1 15h1v1h-1zM3 15h3v1h-3zM8 15h5v1h-5zM15 15h1v1h-1zM17 15h2v1h-2zM20 15h1v1h-1zM23 15h1v1h-1zM25 15h1v1h-1zM0 16h1v1h-1zM4 16h1v1h-1zM6 16h6v1h-6zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h3v1h-3zM28 16h1v1h-1zM0 17h2v1h-2zM3 17h3v1h-3zM7 17h1v1h-1zM9 17h1v1h-1zM11 17h1v1h-1zM13 17h2v1h-2zM16 17h2v1h-2zM21 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h1v1h-1zM3 18h9v1h-9zM14 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM23 18h1v1h-1zM28 18h1v1h-1zM2 19h3v1h-3zM7 19h6v1h-6zM14 19h1v1h-1zM17 19h2v1h-2zM24 19h2v1h-2zM27 19h1v1h-1zM0 20h7v1h-7zM8 20h2v1h-2zM15 20h1v1h-1zM17 20h1v1h-1zM19 20h6v1h-6zM26 20h3v1h-3zM8 21h3v1h-3zM12 21h2v1h-2zM15 21h2v1h-2zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM28 21h1v1h-1zM0 22h7v1h-7zM9 22h3v1h-3zM13 22h1v1h-1zM15 22h1v1h-1zM17 22h4v1h-4zM22 22h1v1h-1zM24 22h1v1h-1zM28 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM10 23h3v1h-3zM14 23h1v1h-1zM17 23h1v1h-1zM19 23h2v1h-2zM24 23h2v1h-2zM0 24h1v1h-1zM2 24h3v1h-3zM6 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM13 24h1v1h-1zM15 24h1v1h-1zM18 24h7v1h-7zM0 25h1v1h-1zM2 25h3v1h-3zM6 25h1v1h-1zM9 25h1v1h-1zM18 25h1v1h-1zM23 25h1v1h-1zM27 25h1v1h-1zM0 26h1v1h-1zM2 26h3v1h-3zM6 26h1v1h-1zM9 26h9v1h-9zM19 26h3v1h-3zM25 26h4v1h-4zM0 27h1v1h-1zM6 27h1v1h-1zM8 27h1v1h-1zM10 27h3v1h-3zM14 27h4v1h-4zM20 27h1v1h-1zM23 27h1v1h-1zM25 27h1v1h-1zM27 27h2v1h-2zM0 28h7v1h-7zM17 28h1v1h-1zM20 28h3v1h-3zM24 28h2v1h-2zM27 28h1v1h-1z"/>
+            </svg>
+          </div>
+          <div class="dl">Наведите камеру → <b>живое демо</b></div>
+          <div class="ds">@pocket_law_ai_bot · t.me/pocket_law_ai_bot</div>
+        </div>
       </div>
     </div>
-    <div class="foot"><span class="mono">10</span> · спасибо за внимание</div>
+    <div class="foot"><span class="mono">11</span> · спасибо за внимание</div>
   </section>
 
 </main>
