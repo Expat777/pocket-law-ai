@@ -111,6 +111,16 @@
   .num{font-family:"Iowan Old Style",Palatino,Georgia,serif; color:var(--brass);
     font-size:.85rem; font-weight:700; letter-spacing:.05em}
 
+  /* tech tag under card text + guard callout (слайд «Скоуп ввода») */
+  .eng{display:inline-block; margin-top:.55rem; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:.74rem; color:var(--accent); background:var(--chip); border:1px solid var(--line);
+    border-radius:6px; padding:.18rem .5rem}
+  .guard{margin-top:1.3rem; background:var(--surface); border:1px solid var(--line);
+    border-left:3px solid var(--brass); border-radius:10px; padding:.9rem 1.1rem;
+    font-size:.92rem; color:var(--ink-2); line-height:1.55;
+    box-shadow:0 1px 1px var(--shadow), 0 10px 20px -13px var(--shadow)}
+  .guard b{color:var(--ink)}
+
   /* stat tiles */
   .stat{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:1.2rem;
     box-shadow:0 1px 1px var(--shadow), 0 12px 24px -14px var(--shadow)}
@@ -430,7 +440,7 @@
           <div class="step"><div class="s">шаг 4</div><h4>upsert</h4><p>в Qdrant, идемпотентно по хэшу текста</p></div>
         </div>
       </div>
-      <p class="sub" style="margin-top:1.3rem">Обновление акта — delete-by-filter + upsert; авто-обновление НПА (watch + Airflow DAG). Итог: <b>53 акта · ~15,8 тыс. фрагментов</b> в проде. Зона Роли 3 · CLI <span class="mono">python -m pipeline.run --act &lt;code&gt;</span>.</p>
+      <p class="sub" style="margin-top:1.3rem">Обновление акта — delete-by-filter + upsert; авто-обновление НПА — ночной watch по cron: новая редакция закона подтягивается сама (Airflow DAG готов). Итог: <b>53 акта · ~15,8 тыс. фрагментов</b> в проде. Зона Роли 3 · CLI <span class="mono">python -m pipeline.run --act &lt;code&gt;</span>.</p>
     </div>
     <div class="foot"><span class="mono">05</span> · офлайн-конвейер данных</div>
   </section>
