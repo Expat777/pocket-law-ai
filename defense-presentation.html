@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pocket-law-ai — защита проекта</title>
+<style>
+  /* ===== Палитра: 1 основной + 2 акцента (памятка) =====
+     основной — графит #0F172A; акцент 1 — фиолетовый #6D5CFF;
+     акцент 2 — циан #00B8D9; фон/серые — нейтраль                */
+  :root{
+    --ink:#0F172A; --vio:#6D5CFF; --cyan:#00B8D9;
+    --bg:#FBFBFE; --mut:#64748B; --line:#E7E8F2;
+    --viosoft:#F0EEFF; --cyansoft:#E3F7FB;
+    --grad:linear-gradient(115deg,#6D5CFF 10%,#00B8D9 90%);
+  }
+  *{margin:0; padding:0; box-sizing:border-box}
+  html,body{height:100%; background:#101223; overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink)}
+
+  #stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center}
+  #deck{width:1280px; height:720px; position:relative; flex:none}
+  .slide{position:absolute; inset:0; border-radius:6px;
+    background:var(--bg);
+    background-image:radial-gradient(720px 340px at 106% -12%, rgba(109,92,255,.10), transparent 62%),
+                     radial-gradient(560px 300px at -8% 112%, rgba(0,184,217,.09), transparent 62%);
+    padding:60px 84px; display:flex; flex-direction:column;
+    opacity:0; visibility:hidden; transition:opacity .35s ease}
+  .slide.active{opacity:1; visibility:visible}
+
+  .kicker{font-size:15px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--vio); margin-bottom:14px}
+  h1{font-size:50px; line-height:1.12; font-weight:800; letter-spacing:-.02em; max-width:1050px}
+  .hl{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .hl2{color:var(--vio)}
+
+  .card{background:#fff; border:1.5px solid var(--line); border-radius:18px;
+    box-shadow:0 10px 30px rgba(15,23,42,.05)}
+
+  #bar{position:absolute; left:0; bottom:0; height:5px; background:var(--grad);
+    width:0; transition:width .3s ease; border-radius:0 3px 3px 0; z-index:5}
+  #num{position:absolute; right:26px; bottom:16px; font-size:14px; color:#9aa3b5; z-index:5}
+
+  /* ===== 1 · Проблема ===== */
+  .bubbles{display:flex; flex-direction:column; gap:18px; margin-top:44px; max-width:660px}
+  .bub{align-self:flex-start; background:#fff; border:1.5px solid var(--line);
+    border-radius:20px 20px 20px 6px; padding:15px 24px; font-size:22px; font-weight:600;
+    box-shadow:0 6px 18px rgba(15,23,42,.06)}
+  .bub:nth-child(2){margin-left:64px}
+  .bub:nth-child(3){margin-left:20px}
+  .bub .q{color:var(--vio); font-weight:800}
+  .painrow{display:flex; gap:16px; margin-top:auto}
+  .pain{flex:1; background:#fff; border:1.5px solid var(--line); border-radius:16px;
+    padding:18px 20px; display:flex; gap:14px; align-items:center}
+  .pain b{font-size:18.5px; display:block; line-height:1.25}
+  .pain span{font-size:14.5px; color:var(--mut); display:block; margin-top:3px}
+  .pain .pic{flex:none; width:46px; height:46px; border-radius:13px; background:var(--viosoft);
+    display:flex; align-items:center; justify-content:center}
+  .pain:nth-child(2) .pic{background:var(--cyansoft)}
+
+  /* ===== 2 · Решение + чат ===== */
+  .split{display:flex; gap:56px; margin-top:30px; flex:1; min-height:0; align-items:flex-start}
+  .split .left{flex:1; display:flex; flex-direction:column; gap:26px; justify-content:center; align-self:stretch}
+  .feat{display:flex; gap:18px; align-items:flex-start}
+  .feat .ic{flex:none; width:52px; height:52px; border-radius:15px; background:var(--viosoft);
+    display:flex; align-items:center; justify-content:center}
+  .feat:nth-child(2) .ic{background:var(--cyansoft)}
+  .feat b{font-size:22px; display:block}
+  .feat span{font-size:17px; color:var(--mut)}
+
+  .phone{flex:none; width:400px; background:#fff; border:1.5px solid var(--line);
+    border-radius:26px; box-shadow:0 22px 50px rgba(15,23,42,.14);
+    display:flex; flex-direction:column; overflow:hidden}
+  .phone .top{background:var(--ink); color:#fff; padding:10px 18px; display:flex; gap:11px; align-items:center}
+  .phone .top .ava{width:36px; height:36px; border-radius:50%; background:var(--grad);
+    display:flex; align-items:center; justify-content:center}
+  .phone .top b{font-size:15px; display:block}
+  .phone .top span{font-size:12px; opacity:.75}
+  .chat{padding:11px 14px; display:flex; flex-direction:column; gap:8px; background:#F5F6FB}
+  .msg{max-width:86%; padding:9px 13px; border-radius:15px; font-size:14px; line-height:1.4}
+  .me{align-self:flex-end; background:var(--grad); color:#fff; border-radius:15px 15px 4px 15px}
+  .bot{align-self:flex-start; background:#fff; border:1px solid var(--line); border-radius:15px 15px 15px 4px}
+  .bot .law{margin-top:8px; border-left:3px solid var(--vio); background:var(--viosoft);
+    padding:7px 10px; border-radius:0 8px 8px 0; font-size:13px}
+  .bot .law b{color:var(--vio)}
+  .bot .disc{margin-top:7px; font-size:11.5px; color:var(--mut)}
+  .chips{display:flex; gap:8px; padding:9px 14px; background:#fff; border-top:1px solid var(--line)}
+  .chip{font-size:12.5px; font-weight:700; background:#F5F6FB;
+    border-radius:99px; padding:6px 12px; display:flex; gap:6px; align-items:center}
+
+  /* ===== 3 · Путь вопроса ===== */
+  .flow{display:flex; align-items:flex-start; justify-content:space-between; margin-top:96px}
+  .step{width:172px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px}
+  .step .disc2{width:92px; height:92px; border-radius:28px; background:#fff; border:1.5px solid var(--line);
+    box-shadow:0 10px 26px rgba(15,23,42,.07); display:flex; align-items:center; justify-content:center; position:relative}
+  .step .disc2 svg{width:44px; height:44px}
+  .step .disc2 svg.lgc{width:66px; height:28px}
+  .step .n{position:absolute; top:-10px; left:-10px; width:28px; height:28px; border-radius:50%;
+    background:var(--grad); color:#fff; font-size:13.5px; font-weight:800;
+    display:flex; align-items:center; justify-content:center}
+  .step b{font-size:20px}
+  .step span{font-size:14.5px; color:var(--mut); line-height:1.35}
+  .arr{flex:1; display:flex; align-items:center; margin-top:40px; min-width:24px}
+  .arr svg{width:100%; height:16px}
+  .night{margin-top:auto; display:flex; align-items:center; gap:20px;
+    background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:20px 26px;
+    box-shadow:0 10px 30px rgba(15,23,42,.05)}
+  .night .moon{flex:none; width:56px; height:56px; border-radius:16px; background:var(--viosoft);
+    display:flex; align-items:center; justify-content:center}
+  .night b{font-size:19.5px; display:block}
+  .night span{font-size:15.5px; color:var(--mut)}
+  .night .tag{margin-left:auto; flex:none; background:var(--grad); color:#fff; font-size:13.5px;
+    font-weight:800; border-radius:99px; padding:8px 16px}
+
+  /* ===== 4 · Стек ===== */
+  .stack{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-top:36px; flex:1}
+  .tile{background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:16px 17px;
+    display:flex; flex-direction:column; gap:9px; justify-content:center;
+    box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .tile .lg{height:44px; display:flex; align-items:center}
+  .tile .lg svg{width:auto; height:40px; max-width:56px}
+  .tile .lg svg.lgc{height:32px; max-width:110px}
+  .tile .lg img{width:auto}
+  .tile b{font-size:16.5px}
+  .tile span{font-size:13px; color:var(--mut); line-height:1.3}
+
+  /* ===== 5 · Сложности ===== */
+  .hard{display:flex; gap:22px; margin-top:40px; flex:1}
+  .hcard{flex:1; background:#fff; border:1.5px solid var(--line); border-radius:20px;
+    padding:28px; display:flex; flex-direction:column; box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .hcard .tag{font-size:13.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--cyan); margin-bottom:12px}
+  .hcard h3{font-size:22.5px; line-height:1.25; margin-bottom:10px}
+  .hcard p{font-size:16px; color:var(--mut); line-height:1.45}
+  .hcard .big{margin-top:auto; padding-top:18px}
+  .hcard .big b{font-size:46px; font-weight:800; letter-spacing:-.02em; display:block;
+    background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .hcard .big span{font-size:14.5px; color:var(--mut)}
+
+  /* ===== 6 · Команда ===== */
+  .team{display:grid; grid-template-columns:repeat(4,1fr); gap:22px; margin-top:44px; flex:1}
+  .person{background:#fff; border:1.5px solid var(--line); border-radius:20px; padding:26px 20px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:5px;
+    box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .person .ring{width:126px; height:126px; border-radius:50%; background:var(--grad);
+    padding:4px; margin-bottom:12px}
+  .person .photo{width:100%; height:100%; border-radius:50%; background:#F5F6FB; overflow:hidden;
+    display:flex; align-items:center; justify-content:center}
+  .person b{font-size:20px}
+  .person .role{font-size:15px; font-weight:800; color:var(--vio)}
+  .person:nth-child(even) .role{color:var(--cyan)}
+  .person span{font-size:14px; color:var(--mut); line-height:1.35}
+  .person .fun{font-style:italic; color:#94A0B8; font-size:13.5px; margin-top:4px}
+
+  /* ===== 7 · Развитие ===== */
+  .next{display:flex; gap:22px; margin-top:44px; flex:1}
+  .ncard{flex:1; background:#fff; border:1.5px solid var(--line); border-radius:20px;
+    padding:32px 30px; display:flex; flex-direction:column; justify-content:center; gap:14px;
+    box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .ncard .ic{width:58px; height:58px; border-radius:16px; background:var(--viosoft);
+    display:flex; align-items:center; justify-content:center}
+  .ncard:nth-child(2) .ic{background:var(--cyansoft)}
+  .ncard b{font-size:22.5px; line-height:1.25}
+  .ncard span{font-size:16px; color:var(--mut); line-height:1.45}
+
+  /* ===== 8 · Вопросы ===== */
+  .qslide{align-items:center; justify-content:center; text-align:center}
+  .qslide h1{font-size:104px; max-width:none}
+  .qrow{display:flex; align-items:center; gap:36px}
+  .stats{display:flex; gap:14px; margin-top:42px; justify-content:center}
+  .stat{background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:14px 24px}
+  .stat b{font-size:26px; display:block; background:var(--grad);
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  .stat span{font-size:13.5px; color:var(--mut)}
+
+  /* ===== 0 · Титул ===== */
+  .tslide{align-items:center; text-align:center; justify-content:flex-start; padding-top:56px; overflow:hidden}
+  .tname{font-size:70px; font-weight:800; letter-spacing:-.03em; line-height:1;
+    width:100%; white-space:nowrap; text-align:center;
+    background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .tslide .tsub{font-size:20px; color:var(--mut); margin-top:8px; font-weight:600}
+  .tslide .tsub b{color:var(--ink)}
+  .tframe{margin:20px auto 0; width:650px; height:374px; border-radius:26px; padding:5px;
+    background:var(--grad); box-shadow:0 26px 60px rgba(109,92,255,.28); position:relative; z-index:2}
+  .tframe .inner{width:100%; height:100%; border-radius:21px; background:#EEF0F8; overflow:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; position:relative}
+  .tframe img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+  .tframe .ph{color:#94A0B8; font-size:15px; font-weight:700}
+  .tframe .ph2{color:#B4BCCC; font-size:13px}
+  .met{position:absolute; pointer-events:none; z-index:1}
+
+  /* ===== доп. чаты (голос/документ) ===== */
+  .duo{display:flex; gap:30px; margin-top:26px; flex:1; min-height:0; align-items:flex-start; justify-content:center}
+  .phone.sm{width:332}
+  .wtag{align-self:flex-start; background:var(--viosoft); color:var(--vio); font-weight:800;
+    font-size:11.5px; border-radius:99px; padding:5px 10px}
+  .fileic{display:flex; gap:10px; align-items:center}
+  .fileic .sq{flex:none; width:34px; height:34px; border-radius:7px; background:rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; color:#fff}
+  .fileic b{font-size:13px; display:block} .fileic span{font-size:10.5px; opacity:.75; display:block}
+  .risk{margin-top:8px; border:1.5px solid #E23A56; background:#FFF1F0; border-radius:8px;
+    padding:7px 10px; font-size:12.5px; line-height:1.35; color:#B3122F}
+  .risk b{display:block}
+
+  /* ===== проблема: правая зарисовка ===== */
+  .probsplit{display:flex; gap:44px; align-items:flex-start; margin-top:40px}
+  .probsplit .bubbles{margin-top:4px; flex:1}
+  .stampart{flex:none}
+
+  /* ===== решение: круг тем слева ===== */
+  .leftart{flex:1; align-self:stretch; display:flex; flex-direction:column;
+    align-items:center; justify-content:flex-start; padding-top:2px}
+  .checks{display:flex; flex-direction:column; gap:11px; margin-top:20px}
+  .chk{display:flex; gap:12px; align-items:center; font-size:18.5px; font-weight:700}
+  .chk .ok{flex:none; width:28px; height:28px; border-radius:50%; background:var(--viosoft);
+    display:flex; align-items:center; justify-content:center}
+  .chk:nth-child(even) .ok{background:var(--cyansoft)}
+
+  /* ===== ролевые слайды ===== */
+  .rwrap{display:flex; gap:52px; margin-top:26px; flex:1; align-items:center}
+  .rleft{flex:1.4; display:flex; flex-direction:column; align-items:center; justify-content:center}
+  .rright{flex:1; display:flex; flex-direction:column; gap:16px; justify-content:center}
+  .rright .feat .ic{width:46px; height:46px; border-radius:13px}
+  .rright .feat b{font-size:18.5px}
+  .rright .feat span{font-size:14.5px}
+  .flow.mini{margin-top:0; width:100%}
+  .flow.mini .step{width:126px}
+  .flow.mini .disc2{width:72px; height:72px; border-radius:20px}
+  .flow.mini .disc2 svg{width:34px; height:34px}
+  .flow.mini .disc2 svg.lgc{width:54px; height:23px}
+  .flow.mini .step b{font-size:16px}
+  .flow.mini .step span{font-size:12.5px}
+  .flow.mini .arr{margin-top:26px; min-width:14px}
+  .flow.mini .n{width:24px; height:24px; font-size:12px; top:-8px; left:-8px}
+  .bigstat{background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:13px 22px;
+    display:flex; gap:16px; align-items:baseline; box-shadow:0 8px 22px rgba(15,23,42,.04)}
+  .bigstat b{font-size:36px; font-weight:800; letter-spacing:-.02em; flex:none;
+    background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .bigstat span{font-size:14.5px; color:var(--mut); line-height:1.3}
+
+  /* ===== детальная архитектура ролей ===== */
+  .arch{flex:1; display:flex; align-items:center; justify-content:center; margin-top:8px; min-height:0}
+  .arch svg{width:100%; height:auto; max-height:100%}
+
+  /* ===== ночная сцена ===== */
+  .nightscene{margin-top:auto; border-radius:20px; overflow:hidden;
+    box-shadow:0 14px 34px rgba(15,23,42,.18)}
+  .nightscene svg{display:block; width:100%; height:auto}
+
+  @media print{
+    html,body{overflow:visible; background:#fff}
+    #stage{position:static; display:block}
+    #deck{width:auto; height:auto; transform:none!important}
+    .slide{position:relative; inset:auto; opacity:1; visibility:visible;
+      width:1280px; height:720px; page-break-after:always; border-radius:0}
+    #bar,#num{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="deck">
+
+<!-- ═══ 0 · Титул: команда ═══ -->
+<section class="slide tslide active">
+  <svg class="met" style="top:40px; left:60px" width="240" height="130" fill="none">
+    <line x1="10" y1="120" x2="190" y2="26" stroke="url(#m1)" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="196" cy="23" r="11" fill="#6D5CFF"/>
+    <defs><linearGradient id="m1" x1="10" y1="120" x2="196" y2="23" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6D5CFF" stop-opacity="0"/><stop offset="1" stop-color="#6D5CFF"/></linearGradient></defs>
+  </svg>
+  <svg class="met" style="top:66px; right:44px" width="220" height="120" fill="none">
+    <line x1="200" y1="14" x2="40" y2="100" stroke="url(#m2)" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="34" cy="103" r="9" fill="#00B8D9"/>
+    <defs><linearGradient id="m2" x1="200" y1="14" x2="34" y2="103" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00B8D9" stop-opacity="0"/><stop offset="1" stop-color="#00B8D9"/></linearGradient></defs>
+  </svg>
+  <svg class="met" style="bottom:34px; left:64px" width="170" height="90" fill="none">
+    <line x1="10" y1="80" x2="140" y2="18" stroke="url(#m3)" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="146" cy="15" r="7" fill="#00B8D9"/>
+    <defs><linearGradient id="m3" x1="10" y1="80" x2="146" y2="15" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00B8D9" stop-opacity="0"/><stop offset="1" stop-color="#00B8D9"/></linearGradient></defs>
+  </svg>
+  <svg class="met" style="bottom:44px; right:64px" width="150" height="80" fill="none">
+    <line x1="140" y1="10" x2="30" y2="66" stroke="url(#m4)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="25" cy="69" r="6" fill="#6D5CFF"/>
+    <defs><linearGradient id="m4" x1="140" y1="10" x2="25" y2="69" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6D5CFF" stop-opacity="0"/><stop offset="1" stop-color="#6D5CFF"/></linearGradient></defs>
+  </svg>
+  <svg class="met" style="top:60px; left:420px" width="60" height="60"><circle cx="10" cy="40" r="3" fill="#CDC6FF"/><circle cx="44" cy="12" r="4" fill="#B5E9F2"/></svg>
+  <svg class="met" style="bottom:60px; right:420px" width="60" height="60"><circle cx="14" cy="14" r="4" fill="#CDC6FF"/><circle cx="48" cy="44" r="3" fill="#B5E9F2"/></svg>
+  <div class="kicker">Elbrus Bootcamp · защита проекта · 2026</div>
+  <div class="tname">meteors 2026</div>
+  <div class="tsub">представляют <b>pocket-law-ai</b> — юриста в кармане</div>
+  <div class="tframe"><div class="inner">
+    <div class="ph">сюда — общее фото команды</div>
+    <div class="ph2">файл team-photo.jpg рядом с презентацией подставится сам</div>
+    <img src="team-photo.jpg" alt="" onerror="this.remove()">
+  </div></div>
+</section>
+
+<!-- ═══ 1 · Проблематика ═══ -->
+<section class="slide">
+  <div class="kicker">pocket-law-ai · Elbrus Bootcamp</div>
+  <h1>Юридический вопрос — у каждого.<br>Точный ответ — <span class="hl">почти ни у кого</span>.</h1>
+  <div class="probsplit">
+    <div class="bubbles">
+      <div class="bub">Задерживают зарплату — что делать<span class="q">?</span></div>
+      <div class="bub">Соседи затопили квартиру. Кто платит за ремонт<span class="q">?</span></div>
+      <div class="bub">Магазин отказал в возврате товара<span class="q">?</span></div>
+    </div>
+    <svg class="stampart" width="400" height="226" viewBox="0 0 440 250" fill="none">
+      <rect x="40" y="6" width="360" height="238" rx="18" fill="#fff" stroke="#E7E8F2" stroke-width="2"/>
+      <rect x="40" y="6" width="360" height="42" rx="18" fill="#0F172A"/>
+      <rect x="40" y="30" width="360" height="18" fill="#0F172A"/>
+      <circle cx="68" cy="27" r="10" fill="#94A0B8"/>
+      <rect x="86" y="20" width="130" height="7" rx="3.5" fill="#fff" opacity=".85"/>
+      <rect x="86" y="31" width="76" height="5" rx="2.5" fill="#fff" opacity=".4"/>
+      <rect x="212" y="60" width="172" height="32" rx="12" fill="#E9EBF2"/>
+      <text x="226" y="81" font-size="14" font-weight="600" fill="#0F172A" font-family="sans-serif">Какой штраф за шум?</text>
+      <rect x="56" y="104" width="248" height="94" rx="12" fill="#F5F6FB" stroke="#E7E8F2"/>
+      <text x="70" y="130" font-size="14" fill="#334155" font-family="sans-serif">Конечно! Согласно</text>
+      <text x="70" y="152" font-size="14" font-weight="800" fill="#334155" font-family="sans-serif">ст. 404 ЖК РФ «О тишине»</text>
+      <text x="70" y="174" font-size="14" fill="#334155" font-family="sans-serif">штраф составит 100 000 ₽ …</text>
+      <g transform="rotate(-12 290 172)">
+        <rect x="180" y="142" width="222" height="60" rx="10" fill="#fff" opacity=".55"/>
+        <rect x="180" y="142" width="222" height="60" rx="10" fill="none" stroke="#E23A56" stroke-width="4.5"/>
+        <rect x="187" y="149" width="208" height="46" rx="7" fill="none" stroke="#E23A56" stroke-width="1.7"/>
+        <text x="291" y="180" font-size="20" font-weight="900" fill="#E23A56" text-anchor="middle" font-family="sans-serif">ТАКОЙ СТАТЬИ НЕТ</text>
+      </g>
+    </svg>
+  </div>
+  <div class="painrow">
+    <div class="pain">
+      <div class="pic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+      <div><b>Юрист</b><span>дорого и не сразу</span></div>
+    </div>
+    <div class="pain">
+      <div class="pic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M4 19l16-14" stroke="#6D5CFF"/></svg></div>
+      <div><b>LLM галлюцинирует</b><span>«согласно ст. 404 — закон не найден»</span></div>
+    </div>
+    <div class="pain">
+      <div class="pic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round"><path d="M4 4v6h6"/><path d="M4.5 10A8 8 0 1 1 4 15"/></svg></div>
+      <div><b>Законы меняются</b><span>вчерашний ответ уже неверен</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 2 · Решение + чат ═══ -->
+<section class="slide">
+  <div class="kicker">Наше решение</div>
+  <h1>Юрист в кармане — ответ <span class="hl">с цитатой закона</span></h1>
+  <div class="split">
+    <div class="leftart">
+      <svg width="590" height="313" viewBox="0 0 460 244" fill="none">
+        <g stroke="#D9DCEA" stroke-width="2">
+          <line x1="230" y1="134" x2="230" y2="50"/><line x1="230" y1="134" x2="330" y2="80"/>
+          <line x1="230" y1="134" x2="352" y2="154"/><line x1="230" y1="134" x2="300" y2="218"/>
+          <line x1="230" y1="134" x2="160" y2="218"/><line x1="230" y1="134" x2="108" y2="154"/>
+          <line x1="230" y1="134" x2="130" y2="80"/>
+        </g>
+        <circle cx="230" cy="134" r="40" fill="url(#gg9)"/>
+        <g stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M230 116v26M216 146h28"/>
+          <path d="M216 122l-9 14h18l-9-14zM244 122l-9 14h18l-9-14z"/>
+          <path d="M216 122h28" opacity=".9"/>
+        </g>
+        <g font-size="12" font-weight="800" fill="#0F172A" text-anchor="middle" font-family="sans-serif">
+          <circle cx="230" cy="50" r="26" fill="#fff" stroke="#E7E8F2" stroke-width="2"/><text x="230" y="54">работа</text>
+          <circle cx="330" cy="80" r="26" fill="#fff" stroke="#E7E8F2" stroke-width="2"/><text x="330" y="84">жильё</text>
+          <circle cx="352" cy="154" r="26" fill="#fff" stroke="#E7E8F2" stroke-width="2"/><text x="352" y="158">товары</text>
+          <circle cx="300" cy="218" r="26" fill="#fff" stroke="#E7E8F2" stroke-width="2"/><text x="300" y="222">семья</text>
+          <circle cx="160" cy="218" r="26" fill="#fff" stroke="#E7E8F2" stroke-width="2"/><text x="160" y="222">налоги</text>
+          <circle cx="108" cy="154" r="26" fill="#fff" stroke="#E7E8F2" stroke-width="2"/><text x="108" y="158">ДТП</text>
+          <circle cx="130" cy="80" r="26" fill="#fff" stroke="#E7E8F2" stroke-width="2"/><text x="130" y="84">служба</text>
+        </g>
+        <defs><linearGradient id="gg9" x1="190" y1="94" x2="270" y2="174" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/></linearGradient></defs>
+      </svg>
+      <div class="checks">
+        <div class="chk"><div class="ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 7"/></svg></div>ответы — только с реальными цитатами</div>
+        <div class="chk"><div class="ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 7"/></svg></div>со ссылкой на официальный источник</div>
+        <div class="chk"><div class="ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 7"/></svg></div>с честным отказом, а не выдумками</div>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="top">
+        <div class="ava"><svg width="22" height="22" viewBox="0 0 140 140" fill="none">
+  <line x1="70" y1="14" x2="70" y2="30" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="70" cy="11" r="8" fill="#fff"/>
+  <rect x="22" y="30" width="96" height="84" rx="24" fill="none" stroke="#fff" stroke-width="8"/>
+  <circle cx="51" cy="62" r="9" fill="#fff"/>
+  <circle cx="89" cy="62" r="9" fill="#fff"/>
+  <path d="M52 88c5 6 31 6 36 0" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+</svg></div>
+        <div><b>Pocket Law</b><span>бот · онлайн</span></div>
+      </div>
+      <div class="chat">
+        <div class="msg me">Соседи затопили квартиру. Кто платит за ремонт?</div>
+        <div class="msg bot">
+          Ремонт оплачивает виновник залива — обычно соседи сверху. Зафиксируйте ущерб актом управляющей компании.
+          <div class="law"><b>Основание — ст. 1064 ГК РФ:</b> «Вред, причинённый имуществу гражданина, подлежит возмещению в полном объёме…»</div>
+          <div class="disc">Не является юридической консультацией</div>
+        </div>
+      </div>
+      <div class="chips">
+        <div class="chip">💬 текст</div><div class="chip">🎤 голос</div><div class="chip">📄 документ</div><div class="chip">📑 PDF-памятка</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 2b · Голос и документы ═══ -->
+<section class="slide">
+  <div class="kicker">Проход по приложению</div>
+  <h1>Понимает <span class="hl">голос</span> и читает <span class="hl">договоры</span></h1>
+  <div class="duo">
+    <div class="phone sm">
+      <div class="top">
+        <div class="ava"><svg width="22" height="22" viewBox="0 0 140 140" fill="none">
+  <line x1="70" y1="14" x2="70" y2="30" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="70" cy="11" r="8" fill="#fff"/>
+  <rect x="22" y="30" width="96" height="84" rx="24" fill="none" stroke="#fff" stroke-width="8"/>
+  <circle cx="51" cy="62" r="9" fill="#fff"/>
+  <circle cx="89" cy="62" r="9" fill="#fff"/>
+  <path d="M52 88c5 6 31 6 36 0" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+</svg></div>
+        <div><b>Pocket Law</b><span>бот · онлайн</span></div>
+      </div>
+      <div class="chat">
+        <div class="msg me">
+          <svg width="180" height="30" viewBox="0 0 180 30" fill="none">
+            <circle cx="15" cy="15" r="12" fill="#fff" opacity=".25"/>
+            <path d="M11 9l12 6-12 6z" fill="#fff"/>
+            <g stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".9">
+              <line x1="36" y1="11" x2="36" y2="19"/><line x1="43" y1="5" x2="43" y2="25"/>
+              <line x1="50" y1="10" x2="50" y2="20"/><line x1="57" y1="2" x2="57" y2="28"/>
+              <line x1="64" y1="8" x2="64" y2="22"/><line x1="71" y1="5" x2="71" y2="25"/>
+              <line x1="78" y1="12" x2="78" y2="18"/><line x1="85" y1="7" x2="85" y2="23"/>
+              <line x1="92" y1="11" x2="92" y2="19"/><line x1="99" y1="6" x2="99" y2="24"/>
+              <line x1="106" y1="10" x2="106" y2="20"/><line x1="113" y1="4" x2="113" y2="26"/>
+              <line x1="120" y1="9" x2="120" y2="21"/><line x1="127" y1="5" x2="127" y2="25"/>
+              <line x1="134" y1="11" x2="134" y2="19"/><line x1="141" y1="8" x2="141" y2="22"/>
+              <line x1="148" y1="12" x2="148" y2="18"/><line x1="155" y1="6" x2="155" y2="24"/>
+            </g>
+            <text x="36" y="29" font-size="9" fill="#fff" opacity=".8" font-family="sans-serif">0:07</text>
+          </svg>
+        </div>
+        <div class="wtag">🎧 Распознал: Whisper</div>
+        <div class="msg bot">
+          «Уволили без предупреждения…» — это нарушение. Вам положены выплаты.
+          <div class="law"><b>Основание — ст. 178 ТК РФ:</b> «…выходное пособие в размере среднего месячного заработка…»</div>
+        </div>
+      </div>
+      <div class="chips"><div class="chip">🎤 голосовые — как юристу-другу</div></div>
+    </div>
+    <div class="phone sm">
+      <div class="top">
+        <div class="ava"><svg width="22" height="22" viewBox="0 0 140 140" fill="none">
+  <line x1="70" y1="14" x2="70" y2="30" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="70" cy="11" r="8" fill="#fff"/>
+  <rect x="22" y="30" width="96" height="84" rx="24" fill="none" stroke="#fff" stroke-width="8"/>
+  <circle cx="51" cy="62" r="9" fill="#fff"/>
+  <circle cx="89" cy="62" r="9" fill="#fff"/>
+  <path d="M52 88c5 6 31 6 36 0" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+</svg></div>
+        <div><b>Pocket Law</b><span>бот · онлайн</span></div>
+      </div>
+      <div class="chat">
+        <div class="msg me">
+          <div class="fileic">
+            <div class="sq">PDF</div>
+            <div><b>договор_аренды.pdf</b><span>2 стр · 148 КБ</span></div>
+          </div>
+        </div>
+        <div class="msg bot">
+          Прочитал договор. Нашёл рискованный пункт:
+          <div class="risk"><b>⚠ п. 4.2 «депозит не возвращается»</b>противоречит ст. 381.1 ГК РФ</div>
+        </div>
+      </div>
+      <div class="chips"><div class="chip">📄 проверка договора до подписи</div></div>
+    </div>
+    <svg width="300" height="420" viewBox="0 0 280 400" fill="none">
+      <rect x="6" y="4" width="268" height="172" rx="16" fill="#F1F2F8"/>
+      <text x="140" y="32" font-size="14" font-weight="800" fill="#64748B" text-anchor="middle" font-family="sans-serif">РАНЬШЕ</text>
+      <g stroke="#8A93A8" stroke-width="3.2" stroke-linecap="round" fill="none">
+        <circle cx="80" cy="76" r="11" fill="#fff"/><path d="M80 87v30M80 94l-11 11M80 94l11 5M80 117l-9 21M80 117l9 21"/>
+        <circle cx="140" cy="79" r="11" fill="#fff"/><path d="M140 90v29M140 97l-11 10M140 97l11 6M140 119l-8 20M140 119l8 20"/>
+        <circle cx="196" cy="82" r="11" fill="#fff"/><path d="M196 93v28M196 100l-10 10M196 100l10 7M196 121l-8 19M196 121l8 19"/>
+      </g>
+      <rect x="46" y="146" width="188" height="22" rx="11" fill="#fff" stroke="#D9DCEA"/>
+      <text x="140" y="161" font-size="11.5" font-weight="700" fill="#64748B" text-anchor="middle" font-family="sans-serif">очередь · юрист дорого</text>
+      <path d="M140 186v22" stroke="url(#ba1)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M132 202l8 10 8-10" stroke="#00B8D9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="6" y="224" width="268" height="172" rx="16" fill="#F0EEFF"/>
+      <text x="140" y="252" font-size="14" font-weight="800" fill="#6D5CFF" text-anchor="middle" font-family="sans-serif">ТЕПЕРЬ</text>
+      <g stroke="#0F172A" stroke-width="3.4" stroke-linecap="round" fill="none">
+        <circle cx="128" cy="296" r="12" fill="#fff"/>
+        <path d="M128 308v36M128 317l-14 9M128 317l14-2M128 344l-11 24M128 344l11 24"/>
+      </g>
+      <path d="M119 290q5 6 12 3" stroke="#0F172A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <rect x="138" y="306" width="19" height="30" rx="4.5" fill="url(#ba2)"/>
+      <circle cx="182" cy="296" r="13" fill="#F0FBF4" stroke="#28A745" stroke-width="2.5"/>
+      <path d="M176 296l4 4 8-8" stroke="#28A745" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="30" y="360" width="220" height="22" rx="11" fill="#fff" stroke="#CDC6FF"/>
+      <text x="140" y="375" font-size="11.5" font-weight="700" fill="#6D5CFF" text-anchor="middle" font-family="sans-serif">бесплатно · совет за 10 секунд</text>
+      <defs>
+        <linearGradient id="ba1" x1="140" y1="186" x2="140" y2="212" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/></linearGradient>
+        <linearGradient id="ba2" x1="138" y1="306" x2="157" y2="336" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/></linearGradient>
+      </defs>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══ 3 · Путь вопроса ═══ -->
+<section class="slide">
+  <div class="kicker">Как это работает</div>
+  <h1>Путь вопроса: <span class="hl">5 шагов</span> до ответа со статьёй</h1>
+  <div class="flow">
+    <div class="step">
+      <div class="disc2"><span class="n">1</span><svg fill="#26A5E4" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></div>
+      <b>Вопрос</b><span>текст, голос или документ в Telegram</span>
+    </div>
+    <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="url(#g1)" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><defs><linearGradient id="g1" x1="0" x2="100" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/></linearGradient></defs></svg></div>
+    <div class="step">
+      <div class="disc2"><span class="n">2</span><svg class="lgc" viewBox="0 0 58 24" fill="none"><g fill="#4CA154"><path d="M13.796 0a6.93 6.93 0 0 0-4.91 2.019L5.451 5.455l3.273 3.27 3.432-3.432a2.284 2.284 0 0 1 3.277 0 2.28 2.28 0 0 1 0 3.275L12 12.001l3.273 3.273 3.433-3.435c2.692-2.692 2.692-7.127 0-9.82A6.92 6.92 0 0 0 13.796 0m-5.07 8.728-3.433 3.434c-2.692 2.693-2.692 7.126 0 9.819A6.92 6.92 0 0 0 10.203 24a6.93 6.93 0 0 0 4.911-2.02l3.432-3.432-3.271-3.272-3.433 3.433a2.284 2.284 0 0 1-3.277 0 2.28 2.28 0 0 1 0-3.276L12 12z"/></g><g transform="translate(33,0)"><circle cx="4.5" cy="12" r="3.4" fill="#4CA154"/><circle cx="18" cy="4" r="3.4" fill="#4CA154"/><circle cx="18" cy="20" r="3.4" fill="#4CA154"/><path d="M7.4 10.6L15 5.3M7.4 13.4L15 18.7" stroke="#4CA154" stroke-width="2.2"/></g></svg></div>
+      <b>Понимание</b><span>агент определяет тему и план ответа</span>
+    </div>
+    <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="url(#g2)" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><defs><linearGradient id="g2" x1="0" x2="100" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/></linearGradient></defs></svg></div>
+    <div class="step">
+      <div class="disc2"><span class="n">3</span><svg fill="#DC244C" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12 16.5 3.897-2.25v-4.5L12 7.5 8.103 9.75v4.5zM1.607 18 12 24l3.897-2.25v-4.5L12 19.5l-6.495-3.75v-7.5L12 4.5l6.495 3.75v15L22.393 21V6L12 0 1.607 6Z"/></svg></div>
+      <b>Поиск</b><span>по смыслу среди 15 809 фрагментов статей</span>
+    </div>
+    <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="url(#g3)" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><defs><linearGradient id="g3" x1="0" x2="100" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/></linearGradient></defs></svg></div>
+    <div class="step">
+      <div class="disc2"><span class="n">4</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4" stroke="#00B8D9"/></svg></div>
+      <b>Проверка</b><span>каждая цитата сверяется с базой — никаких «ст. 404»</span>
+    </div>
+    <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="url(#g4)" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><defs><linearGradient id="g4" x1="0" x2="100" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/></linearGradient></defs></svg></div>
+    <div class="step">
+      <div class="disc2"><span class="n">5</span><svg viewBox="0 0 296 298" xmlns="http://www.w3.org/2000/svg" fill="none"><mask id="a_gemini1" width="296" height="298" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#3186FF" d="M141.201 4.886c2.282-6.17 11.042-6.071 13.184.148l5.985 17.37a184.004 184.004 0 0 0 111.257 113.049l19.304 6.997c6.143 2.227 6.156 10.91.02 13.155l-19.35 7.082a184.001 184.001 0 0 0-109.495 109.385l-7.573 20.629c-2.241 6.105-10.869 6.121-13.133.025l-7.908-21.296a184 184 0 0 0-109.02-108.658l-19.698-7.239c-6.102-2.243-6.118-10.867-.025-13.132l20.083-7.467A183.998 183.998 0 0 0 133.291 26.28l7.91-21.394Z"/></mask><g mask="url(#a_gemini1)"><g filter="url(#b_gemini1)"><ellipse cx="163" cy="149" fill="#3689FF" rx="196" ry="159"/></g><g filter="url(#c_gemini1)"><ellipse cx="33.5" cy="142.5" fill="#F6C013" rx="68.5" ry="72.5"/></g><g filter="url(#d_gemini1)"><ellipse cx="19.5" cy="148.5" fill="#F6C013" rx="68.5" ry="72.5"/></g><g filter="url(#e_gemini1)"><path fill="#FA4340" d="M194 10.5C172 82.5 65.5 134.333 22.5 135L144-66l50 76.5Z"/></g><g filter="url(#f_gemini1)"><path fill="#FA4340" d="M190.5-12.5C168.5 59.5 62 111.333 19 112L140.5-89l50 76.5Z"/></g><g filter="url(#g_gemini1)"><path fill="#14BB69" d="M194.5 279.5C172.5 207.5 66 155.667 23 155l121.5 201 50-76.5Z"/></g><g filter="url(#h_gemini1)"><path fill="#14BB69" d="M196.5 320.5C174.5 248.5 68 196.667 25 196l121.5 201 50-76.5Z"/></g></g><defs><filter id="b_gemini1" width="464" height="390" x="-69" y="-46" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="18"/></filter><filter id="c_gemini1" width="265" height="273" x="-99" y="6" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="d_gemini1" width="265" height="273" x="-113" y="12" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="e_gemini1" width="299.5" height="329" x="-41.5" y="-130" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="f_gemini1" width="299.5" height="329" x="-45" y="-153" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="g_gemini1" width="299.5" height="329" x="-41" y="91" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="h_gemini1" width="299.5" height="329" x="-39" y="132" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter></defs></svg></div>
+      <b>Ответ</b><span>простыми словами + «ст. N» с выдержкой</span>
+    </div>
+  </div>
+  <div class="nightscene">
+    <svg viewBox="0 0 1112 196" fill="none">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="196" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#0E1230"/><stop offset=".65" stop-color="#1B2148"/><stop offset="1" stop-color="#262D5A"/>
+        </linearGradient>
+        <linearGradient id="mtr" x1="120" y1="86" x2="292" y2="18" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#00B8D9" stop-opacity="0"/><stop offset="1" stop-color="#7DE3F4"/>
+        </linearGradient>
+        <linearGradient id="beam" x1="778" y1="118" x2="960" y2="168" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#FFE9A8" stop-opacity=".55"/><stop offset="1" stop-color="#FFE9A8" stop-opacity=".06"/>
+        </linearGradient>
+        <linearGradient id="nbadge" x1="920" y1="24" x2="1084" y2="54" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#6D5CFF"/><stop offset="1" stop-color="#00B8D9"/>
+        </linearGradient>
+      </defs>
+      <rect width="1112" height="196" fill="url(#sky)"/>
+      <g fill="#fff">
+        <circle cx="80" cy="30" r="1.8" opacity=".9"/><circle cx="180" cy="120" r="1.4" opacity=".5"/>
+        <circle cx="340" cy="26" r="2.2" opacity=".8"/><circle cx="420" cy="70" r="1.4" opacity=".5"/>
+        <circle cx="520" cy="30" r="1.8" opacity=".75"/><circle cx="600" cy="88" r="1.3" opacity=".45"/>
+        <circle cx="700" cy="24" r="2" opacity=".8"/><circle cx="812" cy="52" r="1.5" opacity=".6"/>
+        <circle cx="878" cy="20" r="1.7" opacity=".7"/><circle cx="1010" cy="96" r="1.5" opacity=".5"/>
+        <circle cx="248" cy="58" r="1.3" opacity=".5"/><circle cx="960" cy="140" r="1.3" opacity=".4"/>
+      </g>
+      <line x1="560" y1="62" x2="700" y2="16" stroke="url(#mtr2)" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="706" cy="14" r="6.5" fill="#7DE3F4"/>
+      <defs><linearGradient id="mtr2" x1="560" y1="62" x2="706" y2="14" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#00B8D9" stop-opacity="0"/><stop offset="1" stop-color="#7DE3F4"/></linearGradient></defs>
+      <circle cx="852" cy="44" r="22" fill="#F2E6C4"/>
+      <circle cx="845" cy="39" r="4" fill="#E2D3A8"/><circle cx="859" cy="52" r="2.8" fill="#E2D3A8"/><circle cx="856" cy="34" r="2" fill="#E2D3A8"/>
+      <g fill="#151A3C">
+        <rect x="30" y="96" width="66" height="100" rx="3"/>
+        <rect x="104" y="66" width="84" height="130" rx="3"/>
+        <rect x="196" y="112" width="58" height="84" rx="3"/>
+        <rect x="262" y="86" width="72" height="110" rx="3"/>
+        <rect x="342" y="126" width="52" height="70" rx="3"/>
+        <rect x="446" y="110" width="64" height="86" rx="3"/>
+        <rect x="518" y="138" width="48" height="58" rx="3"/>
+        <rect x="574" y="120" width="56" height="76" rx="3"/>
+      </g>
+      <g fill="#F2E6C4" opacity=".9">
+        <rect x="122" y="80" width="10" height="10" rx="1.5"/><rect x="150" y="106" width="10" height="10" rx="1.5"/>
+        <rect x="46" y="112" width="9" height="9" rx="1.5"/><rect x="282" y="100" width="9" height="9" rx="1.5"/>
+        <rect x="214" y="126" width="8" height="8" rx="1.5"/><rect x="464" y="124" width="9" height="9" rx="1.5"/>
+        <rect x="592" y="134" width="8" height="8" rx="1.5"/>
+      </g>
+      <g fill="#8A93B8" font-family="sans-serif" font-weight="800">
+        <text x="440" y="86" font-size="15">z</text>
+        <text x="458" y="68" font-size="21">Z</text>
+        <text x="480" y="46" font-size="27">Z</text>
+      </g>
+      <line x1="0" y1="196" x2="1112" y2="196" stroke="#0B0F26" stroke-width="2"/>
+      <polygon points="782,112 782,132 986,180 942,190" fill="url(#beam)"/>
+      <g>
+        <line x1="716" y1="60" x2="716" y2="74" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="716" cy="56" r="5.5" fill="#00B8D9"/>
+        <rect x="692" y="74" width="48" height="36" rx="12" fill="#fff"/>
+        <circle cx="708" cy="90" r="5.5" fill="#6D5CFF"/><circle cx="726" cy="90" r="5.5" fill="#6D5CFF"/>
+        <circle cx="710" cy="88" r="1.8" fill="#fff"/><circle cx="728" cy="88" r="1.8" fill="#fff"/>
+        <path d="M709 101c3 3 12 3 15 0" stroke="#0F172A" stroke-width="2.6" stroke-linecap="round"/>
+        <rect x="696" y="112" width="40" height="48" rx="12" fill="#fff"/>
+        <path d="M716 116l-7 7 7 6 7-6z" fill="#6D5CFF"/>
+        <path d="M696 126l-20 12" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+        <path d="M736 122l26-2" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+        <rect x="758" y="112" width="26" height="16" rx="5" fill="#3A4270"/>
+        <rect x="781" y="110" width="6" height="20" rx="2" fill="#FFE9A8"/>
+        <path d="M706 160v22M726 160v22" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+        <path d="M698 186h16M718 186h16" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+      </g>
+      <g>
+        <rect x="884" y="168" width="96" height="14" rx="3" fill="#4A529A"/>
+        <rect x="892" y="154" width="80" height="14" rx="3" fill="#5B64B5"/>
+        <rect x="900" y="140" width="64" height="14" rx="3" fill="#4A529A"/>
+        <path d="M902 140q30-16 60 0l-2-10q-28-14-56 0z" fill="#F0EEFF"/>
+        <text x="932" y="179" font-size="10" font-weight="800" fill="#fff" text-anchor="middle" font-family="sans-serif">152-ФЗ · новая редакция</text>
+      </g>
+      <rect x="912" y="22" width="176" height="32" rx="16" fill="url(#nbadge)"/>
+      <text x="1000" y="43" font-size="14" font-weight="800" fill="#fff" text-anchor="middle" font-family="sans-serif">04:00 · база обновилась</text>
+      <text x="30" y="40" font-size="17" font-weight="800" fill="#C9CFEE" font-family="sans-serif">Пока все спят — бот зубрит новые законы</text>
+      <text x="30" y="62" font-size="13.5" fill="#8A93B8" font-family="sans-serif">ночная проверка редакций на pravo.gov.ru — без участия человека</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══ 4 · Стек ═══ -->
+<section class="slide">
+  <div class="kicker">Стек технологий</div>
+  <h1>Каждый инструмент — под свою задачу</h1>
+  <div class="stack">
+    <div class="tile"><div class="lg"><svg fill="#26A5E4" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></div><b>Telegram · aiogram</b><span>интерфейс: диалог, голос, файлы</span></div>
+    <div class="tile"><div class="lg"><svg class="lgc" viewBox="0 0 58 24" fill="none"><g fill="#4CA154"><path d="M13.796 0a6.93 6.93 0 0 0-4.91 2.019L5.451 5.455l3.273 3.27 3.432-3.432a2.284 2.284 0 0 1 3.277 0 2.28 2.28 0 0 1 0 3.275L12 12.001l3.273 3.273 3.433-3.435c2.692-2.692 2.692-7.127 0-9.82A6.92 6.92 0 0 0 13.796 0m-5.07 8.728-3.433 3.434c-2.692 2.693-2.692 7.126 0 9.819A6.92 6.92 0 0 0 10.203 24a6.93 6.93 0 0 0 4.911-2.02l3.432-3.432-3.271-3.272-3.433 3.433a2.284 2.284 0 0 1-3.277 0 2.28 2.28 0 0 1 0-3.276L12 12z"/></g><g transform="translate(33,0)"><circle cx="4.5" cy="12" r="3.4" fill="#4CA154"/><circle cx="18" cy="4" r="3.4" fill="#4CA154"/><circle cx="18" cy="20" r="3.4" fill="#4CA154"/><path d="M7.4 10.6L15 5.3M7.4 13.4L15 18.7" stroke="#4CA154" stroke-width="2.2"/></g></svg></div><b>LangGraph</b><span>агент: маршрут вопроса по шагам</span></div>
+    <div class="tile"><div class="lg"><svg viewBox="0 0 296 298" xmlns="http://www.w3.org/2000/svg" fill="none"><mask id="a_gemini2" width="296" height="298" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#3186FF" d="M141.201 4.886c2.282-6.17 11.042-6.071 13.184.148l5.985 17.37a184.004 184.004 0 0 0 111.257 113.049l19.304 6.997c6.143 2.227 6.156 10.91.02 13.155l-19.35 7.082a184.001 184.001 0 0 0-109.495 109.385l-7.573 20.629c-2.241 6.105-10.869 6.121-13.133.025l-7.908-21.296a184 184 0 0 0-109.02-108.658l-19.698-7.239c-6.102-2.243-6.118-10.867-.025-13.132l20.083-7.467A183.998 183.998 0 0 0 133.291 26.28l7.91-21.394Z"/></mask><g mask="url(#a_gemini2)"><g filter="url(#b_gemini2)"><ellipse cx="163" cy="149" fill="#3689FF" rx="196" ry="159"/></g><g filter="url(#c_gemini2)"><ellipse cx="33.5" cy="142.5" fill="#F6C013" rx="68.5" ry="72.5"/></g><g filter="url(#d_gemini2)"><ellipse cx="19.5" cy="148.5" fill="#F6C013" rx="68.5" ry="72.5"/></g><g filter="url(#e_gemini2)"><path fill="#FA4340" d="M194 10.5C172 82.5 65.5 134.333 22.5 135L144-66l50 76.5Z"/></g><g filter="url(#f_gemini2)"><path fill="#FA4340" d="M190.5-12.5C168.5 59.5 62 111.333 19 112L140.5-89l50 76.5Z"/></g><g filter="url(#g_gemini2)"><path fill="#14BB69" d="M194.5 279.5C172.5 207.5 66 155.667 23 155l121.5 201 50-76.5Z"/></g><g filter="url(#h_gemini2)"><path fill="#14BB69" d="M196.5 320.5C174.5 248.5 68 196.667 25 196l121.5 201 50-76.5Z"/></g></g><defs><filter id="b_gemini2" width="464" height="390" x="-69" y="-46" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="18"/></filter><filter id="c_gemini2" width="265" height="273" x="-99" y="6" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="d_gemini2" width="265" height="273" x="-113" y="12" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="e_gemini2" width="299.5" height="329" x="-41.5" y="-130" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="f_gemini2" width="299.5" height="329" x="-45" y="-153" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="g_gemini2" width="299.5" height="329" x="-41" y="91" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="h_gemini2" width="299.5" height="329" x="-39" y="132" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter></defs></svg></div><b>gemini-2.5-flash-lite</b><span>LLM: собирает ответ из статей</span></div>
+    <div class="tile"><div class="lg"><svg fill="#0F172A" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid" viewBox="0 0 256 260"><path d="M239.184 106.203a64.716 64.716 0 0 0-5.576-53.103C219.452 28.459 191 15.784 163.213 21.74A65.586 65.586 0 0 0 52.096 45.22a64.716 64.716 0 0 0-43.23 31.36c-14.31 24.602-11.061 55.634 8.033 76.74a64.665 64.665 0 0 0 5.525 53.102c14.174 24.65 42.644 37.324 70.446 31.36a64.72 64.72 0 0 0 48.754 21.744c28.481.025 53.714-18.361 62.414-45.481a64.767 64.767 0 0 0 43.229-31.36c14.137-24.558 10.875-55.423-8.083-76.483Zm-97.56 136.338a48.397 48.397 0 0 1-31.105-11.255l1.535-.87 51.67-29.825a8.595 8.595 0 0 0 4.247-7.367v-72.85l21.845 12.636c.218.111.37.32.409.563v60.367c-.056 26.818-21.783 48.545-48.601 48.601Zm-104.466-44.61a48.345 48.345 0 0 1-5.781-32.589l1.534.921 51.722 29.826a8.339 8.339 0 0 0 8.441 0l63.181-36.425v25.221a.87.87 0 0 1-.358.665l-52.335 30.184c-23.257 13.398-52.97 5.431-66.404-17.803ZM23.549 85.38a48.499 48.499 0 0 1 25.58-21.333v61.39a8.288 8.288 0 0 0 4.195 7.316l62.874 36.272-21.845 12.636a.819.819 0 0 1-.767 0L41.353 151.53c-23.211-13.454-31.171-43.144-17.804-66.405v.256Zm179.466 41.695-63.08-36.63L161.73 77.86a.819.819 0 0 1 .768 0l52.233 30.184a48.6 48.6 0 0 1-7.316 87.635v-61.391a8.544 8.544 0 0 0-4.4-7.213Zm21.742-32.69-1.535-.922-51.619-30.081a8.39 8.39 0 0 0-8.492 0L99.98 99.808V74.587a.716.716 0 0 1 .307-.665l52.233-30.133a48.652 48.652 0 0 1 72.236 50.391v.205ZM88.061 139.097l-21.845-12.585a.87.87 0 0 1-.41-.614V65.685a48.652 48.652 0 0 1 79.757-37.346l-1.535.87-51.67 29.825a8.595 8.595 0 0 0-4.246 7.367l-.051 72.697Zm11.868-25.58 28.138-16.217 28.188 16.218v32.434l-28.086 16.218-28.188-16.218-.052-32.434Z"/></svg></div><b>Whisper large-v3</b><span>распознавание голоса · OpenAI</span></div>
+    <div class="tile"><div class="lg"><img src="data:image/png;base64,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" alt="PyMuPDF" style="height:42px"></div><b>PyMuPDF</b><span>извлекает текст из PDF-документов</span></div>
+    <div class="tile"><div class="lg"><img src="data:image/png;base64,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" alt="Tesseract OCR" style="height:36px"></div><b>Tesseract</b><span>OCR: читает сканы и фото документов</span></div>
+    <div class="tile"><div class="lg"><svg fill="#FFD21E" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.025 1.13c-5.77 0-10.449 4.647-10.449 10.378 0 1.112.178 2.181.503 3.185.064-.222.203-.444.416-.577a.96.96 0 0 1 .524-.15c.293 0 .584.124.84.284.278.173.48.408.71.694.226.282.458.611.684.951v-.014c.017-.324.106-.622.264-.874s.403-.487.762-.543c.3-.047.596.06.787.203s.31.313.4.467c.15.257.212.468.233.542.01.026.653 1.552 1.657 2.54.616.605 1.01 1.223 1.082 1.912.055.537-.096 1.059-.38 1.572.637.121 1.294.187 1.967.187.657 0 1.298-.063 1.921-.178-.287-.517-.44-1.041-.384-1.581.07-.69.465-1.307 1.081-1.913 1.004-.987 1.647-2.513 1.657-2.539.021-.074.083-.285.233-.542.09-.154.208-.323.4-.467a1.08 1.08 0 0 1 .787-.203c.359.056.604.29.762.543s.247.55.265.874v.015c.225-.34.457-.67.683-.952.23-.286.432-.52.71-.694.257-.16.547-.284.84-.285a.97.97 0 0 1 .524.151c.228.143.373.388.43.625l.006.04a10.3 10.3 0 0 0 .534-3.273c0-5.731-4.678-10.378-10.449-10.378M8.327 6.583a1.5 1.5 0 0 1 .713.174 1.487 1.487 0 0 1 .617 2.013c-.183.343-.762-.214-1.102-.094-.38.134-.532.914-.917.71a1.487 1.487 0 0 1 .69-2.803m7.486 0a1.487 1.487 0 0 1 .689 2.803c-.385.204-.536-.576-.916-.71-.34-.12-.92.437-1.103.094a1.487 1.487 0 0 1 .617-2.013 1.5 1.5 0 0 1 .713-.174m-10.68 1.55a.96.96 0 1 1 0 1.921.96.96 0 0 1 0-1.92m13.838 0a.96.96 0 1 1 0 1.92.96.96 0 0 1 0-1.92M8.489 11.458c.588.01 1.965 1.157 3.572 1.164 1.607-.007 2.984-1.155 3.572-1.164.196-.003.305.12.305.454 0 .886-.424 2.328-1.563 3.202-.22-.756-1.396-1.366-1.63-1.32q-.011.001-.02.006l-.044.026-.01.008-.03.024q-.018.017-.035.036l-.032.04a1 1 0 0 0-.058.09l-.014.025q-.049.088-.11.19a1 1 0 0 1-.083.116 1.2 1.2 0 0 1-.173.18q-.035.029-.075.058a1.3 1.3 0 0 1-.251-.243 1 1 0 0 1-.076-.107c-.124-.193-.177-.363-.337-.444-.034-.016-.104-.008-.2.022q-.094.03-.216.087-.06.028-.125.063l-.13.074q-.067.04-.136.086a3 3 0 0 0-.135.096 3 3 0 0 0-.26.219 2 2 0 0 0-.12.121 2 2 0 0 0-.106.128l-.002.002a2 2 0 0 0-.09.132l-.001.001a1.2 1.2 0 0 0-.105.212q-.013.036-.024.073c-1.139-.875-1.563-2.317-1.563-3.203 0-.334.109-.457.305-.454m.836 10.354c.824-1.19.766-2.082-.365-3.194-1.13-1.112-1.789-2.738-1.789-2.738s-.246-.945-.806-.858-.97 1.499.202 2.362c1.173.864-.233 1.45-.685.64-.45-.812-1.683-2.896-2.322-3.295s-1.089-.175-.938.647 2.822 2.813 2.562 3.244-1.176-.506-1.176-.506-2.866-2.567-3.49-1.898.473 1.23 2.037 2.16c1.564.932 1.686 1.178 1.464 1.53s-3.675-2.511-4-1.297c-.323 1.214 3.524 1.567 3.287 2.405-.238.839-2.71-1.587-3.216-.642-.506.946 3.49 2.056 3.522 2.064 1.29.33 4.568 1.028 5.713-.624m5.349 0c-.824-1.19-.766-2.082.365-3.194 1.13-1.112 1.789-2.738 1.789-2.738s.246-.945.806-.858.97 1.499-.202 2.362c-1.173.864.233 1.45.685.64.451-.812 1.683-2.896 2.322-3.295s1.089-.175.938.647-2.822 2.813-2.562 3.244 1.176-.506 1.176-.506 2.866-2.567 3.49-1.898-.473 1.23-2.037 2.16c-1.564.932-1.686 1.178-1.464 1.53s3.675-2.511 4-1.297c.323 1.214-3.524 1.567-3.287 2.405.238.839 2.71-1.587 3.216-.642.506.946-3.49 2.056-3.522 2.064-1.29.33-4.568 1.028-5.713-.624"/></svg></div><b>bge-m3</b><span>эмбеддинги: поиск по смыслу</span></div>
+    <div class="tile"><div class="lg"><svg fill="#DC244C" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12 16.5 3.897-2.25v-4.5L12 7.5 8.103 9.75v4.5zM1.607 18 12 24l3.897-2.25v-4.5L12 19.5l-6.495-3.75v-7.5L12 4.5l6.495 3.75v15L22.393 21V6L12 0 1.607 6Z"/></svg></div><b>Qdrant</b><span>векторная база статей законов</span></div>
+    <div class="tile"><div class="lg"><svg fill="#4169E1" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M23.5594 14.7228a.5269.5269 0 0 0-.0563-.1191c-.139-.2632-.4768-.3418-1.0074-.2321-1.6533.3411-2.2935.1312-2.5256-.0191 1.342-2.0482 2.445-4.522 3.0411-6.8297.2714-1.0507.7982-3.5237.1222-4.7316a1.5641 1.5641 0 0 0-.1509-.235C21.6931.9086 19.8007.0248 17.5099.0005c-1.4947-.0158-2.7705.3461-3.1161.4794a9.449 9.449 0 0 0-.5159-.0816 8.044 8.044 0 0 0-1.3114-.1278c-1.1822-.0184-2.2038.2642-3.0498.8406-.8573-.3211-4.7888-1.645-7.2219.0788C.9359 2.1526.3086 3.8733.4302 6.3043c.0409.818.5069 3.334 1.2423 5.7436.4598 1.5065.9387 2.7019 1.4334 3.582.553.9942 1.1259 1.5933 1.7143 1.7895.4474.1491 1.1327.1441 1.8581-.7279.8012-.9635 1.5903-1.8258 1.9446-2.2069.4351.2355.9064.3625 1.39.3772a.0569.0569 0 0 0 .0004.0041 11.0312 11.0312 0 0 0-.2472.3054c-.3389.4302-.4094.5197-1.5002.7443-.3102.064-1.1344.2339-1.1464.8115-.0025.1224.0329.2309.0919.3268.2269.4231.9216.6097 1.015.6331 1.3345.3335 2.5044.092 3.3714-.6787-.017 2.231.0775 4.4174.3454 5.0874.2212.5529.7618 1.9045 2.4692 1.9043.2505 0 .5263-.0291.8296-.0941 1.7819-.3821 2.5557-1.1696 2.855-2.9059.1503-.8707.4016-2.8753.5388-4.1012.0169-.0703.0357-.1207.057-.1362.0007-.0005.0697-.0471.4272.0307a.3673.3673 0 0 0 .0443.0068l.2539.0223.0149.001c.8468.0384 1.9114-.1426 2.5312-.4308.6438-.2988 1.8057-1.0323 1.5951-1.6698zM2.371 11.8765c-.7435-2.4358-1.1779-4.8851-1.2123-5.5719-.1086-2.1714.4171-3.6829 1.5623-4.4927 1.8367-1.2986 4.8398-.5408 6.108-.13-.0032.0032-.0066.0061-.0098.0094-2.0238 2.044-1.9758 5.536-1.9708 5.7495-.0002.0823.0066.1989.0162.3593.0348.5873.0996 1.6804-.0735 2.9184-.1609 1.1504.1937 2.2764.9728 3.0892.0806.0841.1648.1631.2518.2374-.3468.3714-1.1004 1.1926-1.9025 2.1576-.5677.6825-.9597.5517-1.0886.5087-.3919-.1307-.813-.5871-1.2381-1.3223-.4796-.839-.9635-2.0317-1.4155-3.5126zm6.0072 5.0871c-.1711-.0428-.3271-.1132-.4322-.1772.0889-.0394.2374-.0902.4833-.1409 1.2833-.2641 1.4815-.4506 1.9143-1.0002.0992-.126.2116-.2687.3673-.4426a.3549.3549 0 0 0 .0737-.1298c.1708-.1513.2724-.1099.4369-.0417.156.0646.3078.26.3695.4752.0291.1016.0619.2945-.0452.4444-.9043 1.2658-2.2216 1.2494-3.1676 1.0128zm2.094-3.988-.0525.141c-.133.3566-.2567.6881-.3334 1.003-.6674-.0021-1.3168-.2872-1.8105-.8024-.6279-.6551-.9131-1.5664-.7825-2.5004.1828-1.3079.1153-2.4468.079-3.0586-.005-.0857-.0095-.1607-.0122-.2199.2957-.2621 1.6659-.9962 2.6429-.7724.4459.1022.7176.4057.8305.928.5846 2.7038.0774 3.8307-.3302 4.7363-.084.1866-.1633.3629-.2311.5454zm7.3637 4.5725c-.0169.1768-.0358.376-.0618.5959l-.146.4383a.3547.3547 0 0 0-.0182.1077c-.0059.4747-.054.6489-.115.8693-.0634.2292-.1353.4891-.1794 1.0575-.11 1.4143-.8782 2.2267-2.4172 2.5565-1.5155.3251-1.7843-.4968-2.0212-1.2217a6.5824 6.5824 0 0 0-.0769-.2266c-.2154-.5858-.1911-1.4119-.1574-2.5551.0165-.5612-.0249-1.9013-.3302-2.6462.0044-.2932.0106-.5909.019-.8918a.3529.3529 0 0 0-.0153-.1126 1.4927 1.4927 0 0 0-.0439-.208c-.1226-.4283-.4213-.7866-.7797-.9351-.1424-.059-.4038-.1672-.7178-.0869.067-.276.1831-.5875.309-.9249l.0529-.142c.0595-.16.134-.3257.213-.5012.4265-.9476 1.0106-2.2453.3766-5.1772-.2374-1.0981-1.0304-1.6343-2.2324-1.5098-.7207.0746-1.3799.3654-1.7088.5321a5.6716 5.6716 0 0 0-.1958.1041c.0918-1.1064.4386-3.1741 1.7357-4.4823a4.0306 4.0306 0 0 1 .3033-.276.3532.3532 0 0 0 .1447-.0644c.7524-.5706 1.6945-.8506 2.802-.8325.4091.0067.8017.0339 1.1742.081 1.939.3544 3.2439 1.4468 4.0359 2.3827.8143.9623 1.2552 1.9315 1.4312 2.4543-1.3232-.1346-2.2234.1268-2.6797.779-.9926 1.4189.543 4.1729 1.2811 5.4964.1353.2426.2522.4522.2889.5413.2403.5825.5515.9713.7787 1.2552.0696.087.1372.1714.1885.245-.4008.1155-1.1208.3825-1.0552 1.717-.0123.1563-.0423.4469-.0834.8148-.0461.2077-.0702.4603-.0994.7662zm.8905-1.6211c-.0405-.8316.2691-.9185.5967-1.0105a2.8566 2.8566 0 0 0 .135-.0406 1.202 1.202 0 0 0 .1342.103c.5703.3765 1.5823.4213 3.0068.1344-.2016.1769-.5189.3994-.9533.6011-.4098.1903-1.0957.333-1.7473.3636-.7197.0336-1.0859-.0807-1.1721-.151zm.5695-9.2712c-.0059.3508-.0542.6692-.1054 1.0017-.055.3576-.112.7274-.1264 1.1762-.0142.4368.0404.8909.0932 1.3301.1066.887.216 1.8003-.2075 2.7014a3.5272 3.5272 0 0 1-.1876-.3856c-.0527-.1276-.1669-.3326-.3251-.6162-.6156-1.1041-2.0574-3.6896-1.3193-4.7446.3795-.5427 1.3408-.5661 2.1781-.463zm.2284 7.0137a12.3762 12.3762 0 0 0-.0853-.1074l-.0355-.0444c.7262-1.1995.5842-2.3862.4578-3.4385-.0519-.4318-.1009-.8396-.0885-1.2226.0129-.4061.0666-.7543.1185-1.0911.0639-.415.1288-.8443.1109-1.3505.0134-.0531.0188-.1158.0118-.1902-.0457-.4855-.5999-1.938-1.7294-3.253-.6076-.7073-1.4896-1.4972-2.6889-2.0395.5251-.1066 1.2328-.2035 2.0244-.1859 2.0515.0456 3.6746.8135 4.8242 2.2824a.908.908 0 0 1 .0667.1002c.7231 1.3556-.2762 6.2751-2.9867 10.5405zm-8.8166-6.1162c-.025.1794-.3089.4225-.6211.4225a.5821.5821 0 0 1-.0809-.0056c-.1873-.026-.3765-.144-.5059-.3156-.0458-.0605-.1203-.178-.1055-.2844.0055-.0401.0261-.0985.0925-.1488.1182-.0894.3518-.1226.6096-.0867.3163.0441.6426.1938.6113.4186zm7.9305-.4114c.0111.0792-.049.201-.1531.3102-.0683.0717-.212.1961-.4079.2232a.5456.5456 0 0 1-.075.0052c-.2935 0-.5414-.2344-.5607-.3717-.024-.1765.2641-.3106.5611-.352.297-.0414.6111.0088.6356.1851z"/></svg></div><b>PostgreSQL</b><span>история диалогов и сессии</span></div>
+    <div class="tile"><div class="lg"><svg fill="#2496ED" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></svg></div><b>Docker · Selectel</b><span>прод: всё в контейнерах на VPS</span></div>
+  </div>
+</section>
+
+<!-- ═══ 5 · Сложности ═══ -->
+<section class="slide">
+  <div class="kicker">Сложности → решения</div>
+  <h1>Три вызова, которые сделали проект <span class="hl">сильнее</span></h1>
+  <div class="hard">
+    <div class="hcard">
+      <div class="tag">01 · Данные</div>
+      <h3>Тексты законов — в форматах разных эпох</h3>
+      <p>Написали свой парсер pravo.gov.ru: от актов 1991 года до свежих редакций. Каждый найденный случай закрыт автотестом.</p>
+      <div class="big"><b>15 809</b><span>фрагментов статей: 12 полных кодексов + 41 федеральный закон</span></div>
+    </div>
+    <div class="hcard">
+      <div class="tag">02 · Актуальность</div>
+      <h3>Законы меняются — база не должна отставать</h3>
+      <p>Ночной мониторинг новых редакций: изменившийся закон переиндексируется автоматически, без участия человека.</p>
+      <div class="big"><b>04:00</b><span>ежедневная проверка всех 53 актов базы</span></div>
+    </div>
+    <div class="hcard">
+      <div class="tag">03 · Доверие</div>
+      <h3>LLM нельзя верить на слово</h3>
+      <p>Каждая цитата сверяется с базой перед отправкой, а качество ответов меряет отдельный LLM-судья на реальных вопросах с юрфорума.</p>
+      <div class="big"><b>93%</b><span>точность поиска нужной статьи</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6 · Команда ═══ -->
+<section class="slide">
+  <div class="kicker">Команда</div>
+  <h1>Четыре роли — <span class="hl">ноль конфликтов</span>: каждый в своей зоне</h1>
+  <div class="team">
+    <div class="person">
+      <div class="ring"><div class="photo"><svg width="118" height="118" viewBox="0 0 124 124"><circle cx="62" cy="46" r="22" fill="#CDC6FF"/><path d="M20 124c0-24 19-38 42-38s42 14 42 38" fill="#CDC6FF"/></svg></div></div>
+      <b>Дорджи Годаев</b>
+      <div class="role">Telegram-бот</div>
+      <span>диалог, голос, документы, PDF-памятки</span>
+      <div class="fun">учит бота манерам</div>
+    </div>
+    <div class="person">
+      <div class="ring"><div class="photo"><svg width="118" height="118" viewBox="0 0 124 124"><circle cx="62" cy="46" r="22" fill="#B5E9F2"/><path d="M20 124c0-24 19-38 42-38s42 14 42 38" fill="#B5E9F2"/></svg></div></div>
+      <b>Роман Кузнецов</b>
+      <div class="role">ИИ-агент</div>
+      <span>LangGraph, промпты, проверка цитат, LLM-судья</span>
+      <div class="fun">учит бота думать</div>
+    </div>
+    <div class="person">
+      <div class="ring"><div class="photo"><svg width="118" height="118" viewBox="0 0 124 124"><circle cx="62" cy="46" r="22" fill="#CDC6FF"/><path d="M20 124c0-24 19-38 42-38s42 14 42 38" fill="#CDC6FF"/></svg></div></div>
+      <b>Роман Рахматулин</b>
+      <div class="role">Данные</div>
+      <span>парсер законов, векторная база, автообновление</span>
+      <div class="fun">кормит бота законами</div>
+    </div>
+    <div class="person">
+      <div class="ring"><div class="photo"><svg width="118" height="118" viewBox="0 0 124 124"><circle cx="62" cy="46" r="22" fill="#B5E9F2"/><path d="M20 124c0-24 19-38 42-38s42 14 42 38" fill="#B5E9F2"/></svg></div></div>
+      <b>Виталий Коновалов</b>
+      <div class="role">Инфраструктура</div>
+      <span>сервер, Docker, базы данных, контракты команды</span>
+      <div class="fun">держит серверы в тонусе</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6a · Роль 1: бот ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 1 · Telegram-бот — Дорджи Годаев</div>
+  <h1>Лицо продукта: диалог, <span class="hl">голос и файлы</span></h1>
+  <div class="rwrap">
+    <div class="rleft">
+      <div class="flow mini">
+        <div class="step">
+          <div class="disc2"><span class="n">1</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></div>
+          <b>Пользователь</b><span>пишет или говорит</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">2</span><svg fill="#26A5E4" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></div>
+          <b>aiogram</b><span>сценарии диалога (FSM)</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">3</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></div>
+          <b>Фильтры</b><span>файл: тип и размер</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">4</span><svg viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 13l2 2 4-4"/></svg></div>
+          <b>Ответ</b><span>цитата + PDF-памятка</span>
+        </div>
+      </div>
+    </div>
+    <div class="rright">
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <div><b>Забота о данных с первого клика</b><span>согласие на обработку ПД — до первого вопроса</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h7"/></svg></div>
+        <div><b>Ответ можно забрать с собой</b><span>PDF-памятка по любой консультации</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <div><b>Держит нагрузку</b><span>rate-limit, валидация файлов, история диалога</span></div>
+      </div>
+      <div class="bigstat"><b>73</b><span>автотеста интерфейса — диалог не ломается</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6a2 · Роль 1: архитектура ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 1 · архитектура — Дорджи Годаев</div>
+  <h1>Как устроен бот: <span class="hl">от сообщения до ответа</span></h1>
+  <div class="arch">
+    <svg viewBox="0 0 1112 452" fill="none" font-family="sans-serif">
+      <path d="M980 112 C 720 -16, 230 16, 102 168" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <path d="M112 158l-10 12 15 2" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <text x="640" y="22" font-size="13" font-weight="700" fill="#64748B">ответ пользователю</text>
+
+      <rect x="10" y="176" width="176" height="100" rx="16" fill="#E8F4FD" stroke="#A9D8F5" stroke-width="1.6"/>
+      <path d="M64 212l40-16-13 34-8-11-14 8z" fill="#2AABEE" transform="translate(14,-6)"/>
+      <text x="98" y="248" font-size="16" font-weight="800" fill="#0F172A" text-anchor="middle">Telegram Bot API</text>
+      <text x="98" y="266" font-size="12" fill="#64748B" text-anchor="middle">polling · через прокси</text>
+      <path d="M186 226h38" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M218 220l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="232" y="28" width="330" height="412" rx="18" fill="#F7F6FF" stroke="#D9D3FA" stroke-width="1.6"/>
+      <text x="252" y="58" font-size="16" font-weight="800" fill="#0F172A">aiogram · Dispatcher</text>
+      <text x="480" y="58" font-size="12" font-weight="600" fill="#8A93A8">bot/</text>
+      <rect x="252" y="76" width="290" height="62" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="266" y="100" font-size="14" font-weight="800" fill="#0F172A">Middleware</text>
+      <text x="266" y="119" font-size="12" fill="#64748B">rate-limit · согласие на ПД (152-ФЗ)</text>
+      <rect x="252" y="152" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="266" y="175" font-size="14" font-weight="800" fill="#0F172A">Команды · /start</text>
+      <text x="266" y="193" font-size="12" fill="#64748B">онбординг, помощь, сброс диалога</text>
+      <rect x="252" y="218" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="266" y="241" font-size="14" font-weight="800" fill="#0F172A">Текст</text>
+      <text x="266" y="259" font-size="12" fill="#64748B">вопрос уходит агенту как есть</text>
+      <rect x="252" y="284" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="266" y="307" font-size="14" font-weight="800" fill="#0F172A">Голос</text>
+      <text x="266" y="325" font-size="12" fill="#64748B">OGG → Whisper large-v3 → текст</text>
+      <rect x="252" y="350" width="290" height="58" rx="10" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="266" y="373" font-size="14" font-weight="800" fill="#0F172A">Документ</text>
+      <text x="266" y="391" font-size="12" fill="#64748B">magic bytes · ≤ 25 МБ · PyMuPDF/OCR</text>
+
+      <path d="M562 234h44" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M600 228l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="614" y="164" width="196" height="140" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
+      <text x="632" y="192" font-size="15" font-weight="800" fill="#0F172A">Контракт shared/</text>
+      <text x="632" y="214" font-size="12.5" fill="#64748B">answer_question()</text>
+      <text x="632" y="232" font-size="12.5" fill="#64748B">ingest_document()</text>
+      <text x="632" y="254" font-size="12.5" fill="#64748B">возвращают Answer:</text>
+      <text x="632" y="272" font-size="12.5" fill="#64748B">text + citations[]</text>
+
+      <path d="M810 214h40" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M844 208l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="858" y="118" width="244" height="150" rx="14" fill="#fff" stroke="#E7E8F2" stroke-width="1.6"/>
+      <text x="876" y="146" font-size="15" font-weight="800" fill="#0F172A">Response Formatter</text>
+      <text x="876" y="170" font-size="12.5" fill="#64748B">MarkdownV2 + экранирование</text>
+      <text x="876" y="190" font-size="12.5" fill="#64748B">«Основание — ст. N» + выдержка</text>
+      <text x="876" y="210" font-size="12.5" fill="#64748B">дисклеймер в каждом ответе</text>
+      <text x="876" y="230" font-size="12.5" fill="#64748B">PDF-памятка по кнопке</text>
+      <text x="876" y="254" font-size="12" font-weight="700" fill="#6D5CFF">ответ выглядит как консультация</text>
+
+      <rect x="858" y="300" width="244" height="118" rx="14" fill="#E9F0FE" stroke="#BCD0F7" stroke-width="1.6"/>
+      <text x="876" y="328" font-size="15" font-weight="800" fill="#0F172A">Хранилище</text>
+      <text x="876" y="350" font-size="12.5" fill="#64748B">PostgreSQL: история диалога,</text>
+      <text x="876" y="368" font-size="12.5" fill="#64748B">согласия, лимиты запросов</text>
+      <text x="876" y="390" font-size="12.5" fill="#64748B">переживает рестарт бота</text>
+      <path d="M810 280 L 852 330" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6"/>
+      <path d="M842 320l10 10-14 1" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══ 6b · Роль 2: агент ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 2 · ИИ-агент — Роман Кузнецов</div>
+  <h1>Мозг продукта: агент <span class="hl">думает по шагам</span></h1>
+  <div class="rwrap">
+    <div class="rleft">
+      <div class="flow mini">
+        <div class="step">
+          <div class="disc2"><span class="n">1</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></div>
+          <b>Вопрос</b><span>простыми словами</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">2</span><svg class="lgc" viewBox="0 0 58 24" fill="none"><g fill="#4CA154"><path d="M13.796 0a6.93 6.93 0 0 0-4.91 2.019L5.451 5.455l3.273 3.27 3.432-3.432a2.284 2.284 0 0 1 3.277 0 2.28 2.28 0 0 1 0 3.275L12 12.001l3.273 3.273 3.433-3.435c2.692-2.692 2.692-7.127 0-9.82A6.92 6.92 0 0 0 13.796 0m-5.07 8.728-3.433 3.434c-2.692 2.693-2.692 7.126 0 9.819A6.92 6.92 0 0 0 10.203 24a6.93 6.93 0 0 0 4.911-2.02l3.432-3.432-3.271-3.272-3.433 3.433a2.284 2.284 0 0 1-3.277 0 2.28 2.28 0 0 1 0-3.276L12 12z"/></g><g transform="translate(33,0)"><circle cx="4.5" cy="12" r="3.4" fill="#4CA154"/><circle cx="18" cy="4" r="3.4" fill="#4CA154"/><circle cx="18" cy="20" r="3.4" fill="#4CA154"/><path d="M7.4 10.6L15 5.3M7.4 13.4L15 18.7" stroke="#4CA154" stroke-width="2.2"/></g></svg></div>
+          <b>intent · T=0</b><span>тема и план ответа</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">3</span><svg fill="#DC244C" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12 16.5 3.897-2.25v-4.5L12 7.5 8.103 9.75v4.5zM1.607 18 12 24l3.897-2.25v-4.5L12 19.5l-6.495-3.75v-7.5L12 4.5l6.495 3.75v15L22.393 21V6L12 0 1.607 6Z"/></svg></div>
+          <b>Поиск + HyDE</b><span>статьи по смыслу</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">4</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4" stroke="#00B8D9"/></svg></div>
+          <b>Верификация</b><span>цитаты сверяются с базой</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">5</span><svg viewBox="0 0 296 298" xmlns="http://www.w3.org/2000/svg" fill="none"><mask id="a_gemini3" width="296" height="298" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#3186FF" d="M141.201 4.886c2.282-6.17 11.042-6.071 13.184.148l5.985 17.37a184.004 184.004 0 0 0 111.257 113.049l19.304 6.997c6.143 2.227 6.156 10.91.02 13.155l-19.35 7.082a184.001 184.001 0 0 0-109.495 109.385l-7.573 20.629c-2.241 6.105-10.869 6.121-13.133.025l-7.908-21.296a184 184 0 0 0-109.02-108.658l-19.698-7.239c-6.102-2.243-6.118-10.867-.025-13.132l20.083-7.467A183.998 183.998 0 0 0 133.291 26.28l7.91-21.394Z"/></mask><g mask="url(#a_gemini3)"><g filter="url(#b_gemini3)"><ellipse cx="163" cy="149" fill="#3689FF" rx="196" ry="159"/></g><g filter="url(#c_gemini3)"><ellipse cx="33.5" cy="142.5" fill="#F6C013" rx="68.5" ry="72.5"/></g><g filter="url(#d_gemini3)"><ellipse cx="19.5" cy="148.5" fill="#F6C013" rx="68.5" ry="72.5"/></g><g filter="url(#e_gemini3)"><path fill="#FA4340" d="M194 10.5C172 82.5 65.5 134.333 22.5 135L144-66l50 76.5Z"/></g><g filter="url(#f_gemini3)"><path fill="#FA4340" d="M190.5-12.5C168.5 59.5 62 111.333 19 112L140.5-89l50 76.5Z"/></g><g filter="url(#g_gemini3)"><path fill="#14BB69" d="M194.5 279.5C172.5 207.5 66 155.667 23 155l121.5 201 50-76.5Z"/></g><g filter="url(#h_gemini3)"><path fill="#14BB69" d="M196.5 320.5C174.5 248.5 68 196.667 25 196l121.5 201 50-76.5Z"/></g></g><defs><filter id="b_gemini3" width="464" height="390" x="-69" y="-46" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="18"/></filter><filter id="c_gemini3" width="265" height="273" x="-99" y="6" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="d_gemini3" width="265" height="273" x="-113" y="12" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="e_gemini3" width="299.5" height="329" x="-41.5" y="-130" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="f_gemini3" width="299.5" height="329" x="-45" y="-153" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="g_gemini3" width="299.5" height="329" x="-41" y="91" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter><filter id="h_gemini3" width="299.5" height="329" x="-39" y="132" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_69_17998" stdDeviation="32"/></filter></defs></svg></div>
+          <b>compose · T=0.2</b><span>готовый ответ</span>
+        </div>
+      </div>
+      <div style="margin-top:22px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 0v11" stroke="#CDC6FF" stroke-width="2" stroke-dasharray="4 4"/><path d="M7 10l5 8 5-8" stroke="#6D5CFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="border:1.6px dashed #6D5CFF; background:#F0EEFF; border-radius:12px; padding:9px 18px; text-align:center;">
+          <b style="color:#6D5CFF; font-size:15px;">уточняющий вопрос</b>
+          <span style="display:block; color:#64748B; font-size:12.5px; margin-top:2px;">если данных мало — бот переспросит</span>
+        </div>
+      </div>
+    </div>
+    <div class="rright">
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></div>
+        <div><b>Маршрутизация тем</b><span>вопрос сразу попадает в нужные кодексы</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.9.7 1.5 1.3 1.5 2.1h4c0-.8.6-1.4 1.5-2.1A6 6 0 0 0 12 3z"/></svg></div>
+        <div><b>HyDE-поиск</b><span>агент пишет гипотезу ответа и ищет по ней</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8 20h8"/><path d="M12 6l-6 2 0 0c0 2.2 1.3 4 3 4s3-1.8 3-4zM12 6l6 2c0 2.2-1.3 4-3 4s-3-1.8-3-4z" stroke="#00B8D9"/></svg></div>
+        <div><b>LLM-судья</b><span>качество ответов: 4.4 → 6.1 из 8 на реальных вопросах с юрфорума</span></div>
+      </div>
+      <div class="bigstat"><b>100%</b><span>точность маршрутизации на 63 контрольных кейсах</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6b2 · Роль 2: архитектура ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 2 · архитектура — Роман Кузнецов</div>
+  <h1>Как устроен агент: <span class="hl">граф LangGraph</span></h1>
+  <div class="arch">
+    <svg viewBox="0 0 1112 452" fill="none" font-family="sans-serif">
+      <rect x="150" y="20" width="704" height="292" rx="18" fill="#F7F6FF" stroke="#D9D3FA" stroke-width="1.6"/>
+      <text x="170" y="50" font-size="16" font-weight="800" fill="#0F172A">Граф LangGraph</text>
+      <text x="790" y="50" font-size="12" font-weight="600" fill="#8A93A8">agent/</text>
+
+      <rect x="170" y="96" width="142" height="120" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="184" y="122" font-size="14.5" font-weight="800" fill="#0F172A">intent · T=0</text>
+      <text x="184" y="144" font-size="12" fill="#64748B">тема вопроса,</text>
+      <text x="184" y="161" font-size="12" fill="#64748B">план ответа,</text>
+      <text x="184" y="178" font-size="12" fill="#64748B">нужен ли</text>
+      <text x="184" y="195" font-size="12" fill="#64748B">уточняющий?</text>
+      <path d="M312 156h24" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M330 150l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="344" y="96" width="168" height="120" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="358" y="122" font-size="14.5" font-weight="800" fill="#0F172A">retrieve</text>
+      <text x="358" y="144" font-size="12" fill="#64748B">HyDE (T=0): гипотеза</text>
+      <text x="358" y="161" font-size="12" fill="#64748B">ответа + вектор вопроса</text>
+      <text x="358" y="178" font-size="12" fill="#64748B">фильтр по кодексам темы</text>
+      <text x="358" y="195" font-size="12" fill="#64748B">+ якоря фундамент-статей</text>
+      <path d="M512 156h24" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M530 150l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="544" y="96" width="142" height="120" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="558" y="122" font-size="14.5" font-weight="800" fill="#0F172A">verify</text>
+      <text x="558" y="144" font-size="12" fill="#64748B">цитата есть в базе?</text>
+      <text x="558" y="161" font-size="12" fill="#64748B">статья действует?</text>
+      <text x="558" y="178" font-size="12" fill="#64748B">хватает ли</text>
+      <text x="558" y="195" font-size="12" fill="#64748B">контекста?</text>
+      <path d="M686 156h24" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M704 150l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="718" y="96" width="116" height="120" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="732" y="122" font-size="14.5" font-weight="800" fill="#0F172A">compose</text>
+      <text x="732" y="141" font-size="12" font-weight="700" fill="#6D5CFF">T=0.2</text>
+      <text x="732" y="161" font-size="12" fill="#64748B">ответ простыми</text>
+      <text x="732" y="178" font-size="12" fill="#64748B">словами из</text>
+      <text x="732" y="195" font-size="12" fill="#64748B">найденных статей</text>
+
+      <rect x="344" y="240" width="200" height="56" rx="10" fill="#fff" stroke="#6D5CFF" stroke-width="1.6" stroke-dasharray="6 5"/>
+      <text x="360" y="263" font-size="13.5" font-weight="800" fill="#6D5CFF">уточняющий вопрос</text>
+      <text x="360" y="282" font-size="12" fill="#64748B">если данных недостаточно</text>
+      <path d="M241 216v30c0 12 30 22 95 22" stroke="#CDC6FF" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+      <path d="M330 262l10 6-10 6" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M615 216v30c0 12-20 22-63 22" stroke="#CDC6FF" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+      <path d="M560 262l-10 6 10 6" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <path d="M854 156h34" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M882 150l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="896" y="88" width="206" height="136" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
+      <text x="914" y="116" font-size="15" font-weight="800" fill="#0F172A">Answer</text>
+      <text x="914" y="140" font-size="12.5" fill="#64748B">текст простыми словами</text>
+      <text x="914" y="160" font-size="12.5" fill="#64748B">citations[]: ст. N, редакция,</text>
+      <text x="914" y="178" font-size="12.5" fill="#64748B">дословная выдержка</text>
+      <text x="914" y="202" font-size="12.5" fill="#64748B">или честный отказ</text>
+
+      <rect x="170" y="348" width="250" height="84" rx="14" fill="#fff" stroke="#E7E8F2" stroke-width="1.6"/>
+      <text x="188" y="376" font-size="14.5" font-weight="800" fill="#0F172A">LLM API · Polza.ai</text>
+      <text x="188" y="398" font-size="12" fill="#64748B">gemini-2.5-flash-lite</text>
+      <text x="188" y="416" font-size="12" fill="#64748B">температура своя у каждого узла</text>
+      <path d="M255 348v-36" stroke="#B9C6E4" stroke-width="2" stroke-dasharray="5 5"/>
+
+      <rect x="500" y="348" width="230" height="84" rx="14" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.6"/>
+      <text x="518" y="376" font-size="14.5" font-weight="800" fill="#0F172A">Qdrant</text>
+      <text x="518" y="398" font-size="12" fill="#64748B">law_articles · 15 809 векторов</text>
+      <text x="518" y="416" font-size="12" fill="#64748B">поиск по смыслу + payload-фильтр</text>
+      <path d="M590 348v-36" stroke="#B9C6E4" stroke-width="2" stroke-dasharray="5 5"/>
+
+      <rect x="820" y="348" width="282" height="84" rx="14" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.6"/>
+      <text x="838" y="376" font-size="14.5" font-weight="800" fill="#0F172A">LLM-судья · офлайн-контроль</text>
+      <text x="838" y="398" font-size="12" fill="#64748B">40 реальных вопросов с юрфорума</text>
+      <text x="838" y="416" font-size="12" fill="#64748B">4.4 → 6.1 из 8 · гейт для «улучшений»</text>
+      <path d="M999 224v118" stroke="#CDC6FF" stroke-width="2" stroke-dasharray="5 5"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══ 6c · Роль 3: данные ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 3 · Данные — Роман Рахматулин</div>
+  <h1>Топливо продукта: весь закон — <span class="hl">статья к статье</span></h1>
+  <div class="rwrap">
+    <div class="rleft">
+      <div class="flow mini">
+        <div class="step">
+          <div class="disc2"><span class="n">1</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V10h16v11M12 3L4 10h16z"/><path d="M8 21v-6M12 21v-6M16 21v-6"/></svg></div>
+          <b>pravo.gov.ru</b><span>официальные тексты</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">2</span><svg viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.2-1.6l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.8-1.6L13.5 2h-3l-.2 2.9a7 7 0 0 0-2.8 1.6l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .5.1 1.1.2 1.6l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.8 1.6l.2 2.9h3l.2-2.9a7 7 0 0 0 2.8-1.6l2.3 1 2-3.4-2-1.5c.1-.5.2-1.1.2-1.6z"/></svg></div>
+          <b>Парсер</b><span>статьи из HTML и RTF</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">3</span><svg viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="13" height="16" rx="2"/><path d="M7 21h13M8 7h5M8 11h5M8 15h3"/></svg></div>
+          <b>Чанки</b><span>1 чанк = 1 статья</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">4</span><svg fill="#FFD21E" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.025 1.13c-5.77 0-10.449 4.647-10.449 10.378 0 1.112.178 2.181.503 3.185.064-.222.203-.444.416-.577a.96.96 0 0 1 .524-.15c.293 0 .584.124.84.284.278.173.48.408.71.694.226.282.458.611.684.951v-.014c.017-.324.106-.622.264-.874s.403-.487.762-.543c.3-.047.596.06.787.203s.31.313.4.467c.15.257.212.468.233.542.01.026.653 1.552 1.657 2.54.616.605 1.01 1.223 1.082 1.912.055.537-.096 1.059-.38 1.572.637.121 1.294.187 1.967.187.657 0 1.298-.063 1.921-.178-.287-.517-.44-1.041-.384-1.581.07-.69.465-1.307 1.081-1.913 1.004-.987 1.647-2.513 1.657-2.539.021-.074.083-.285.233-.542.09-.154.208-.323.4-.467a1.08 1.08 0 0 1 .787-.203c.359.056.604.29.762.543s.247.55.265.874v.015c.225-.34.457-.67.683-.952.23-.286.432-.52.71-.694.257-.16.547-.284.84-.285a.97.97 0 0 1 .524.151c.228.143.373.388.43.625l.006.04a10.3 10.3 0 0 0 .534-3.273c0-5.731-4.678-10.378-10.449-10.378M8.327 6.583a1.5 1.5 0 0 1 .713.174 1.487 1.487 0 0 1 .617 2.013c-.183.343-.762-.214-1.102-.094-.38.134-.532.914-.917.71a1.487 1.487 0 0 1 .69-2.803m7.486 0a1.487 1.487 0 0 1 .689 2.803c-.385.204-.536-.576-.916-.71-.34-.12-.92.437-1.103.094a1.487 1.487 0 0 1 .617-2.013 1.5 1.5 0 0 1 .713-.174m-10.68 1.55a.96.96 0 1 1 0 1.921.96.96 0 0 1 0-1.92m13.838 0a.96.96 0 1 1 0 1.92.96.96 0 0 1 0-1.92M8.489 11.458c.588.01 1.965 1.157 3.572 1.164 1.607-.007 2.984-1.155 3.572-1.164.196-.003.305.12.305.454 0 .886-.424 2.328-1.563 3.202-.22-.756-1.396-1.366-1.63-1.32q-.011.001-.02.006l-.044.026-.01.008-.03.024q-.018.017-.035.036l-.032.04a1 1 0 0 0-.058.09l-.014.025q-.049.088-.11.19a1 1 0 0 1-.083.116 1.2 1.2 0 0 1-.173.18q-.035.029-.075.058a1.3 1.3 0 0 1-.251-.243 1 1 0 0 1-.076-.107c-.124-.193-.177-.363-.337-.444-.034-.016-.104-.008-.2.022q-.094.03-.216.087-.06.028-.125.063l-.13.074q-.067.04-.136.086a3 3 0 0 0-.135.096 3 3 0 0 0-.26.219 2 2 0 0 0-.12.121 2 2 0 0 0-.106.128l-.002.002a2 2 0 0 0-.09.132l-.001.001a1.2 1.2 0 0 0-.105.212q-.013.036-.024.073c-1.139-.875-1.563-2.317-1.563-3.203 0-.334.109-.457.305-.454m.836 10.354c.824-1.19.766-2.082-.365-3.194-1.13-1.112-1.789-2.738-1.789-2.738s-.246-.945-.806-.858-.97 1.499.202 2.362c1.173.864-.233 1.45-.685.64-.45-.812-1.683-2.896-2.322-3.295s-1.089-.175-.938.647 2.822 2.813 2.562 3.244-1.176-.506-1.176-.506-2.866-2.567-3.49-1.898.473 1.23 2.037 2.16c1.564.932 1.686 1.178 1.464 1.53s-3.675-2.511-4-1.297c-.323 1.214 3.524 1.567 3.287 2.405-.238.839-2.71-1.587-3.216-.642-.506.946 3.49 2.056 3.522 2.064 1.29.33 4.568 1.028 5.713-.624m5.349 0c-.824-1.19-.766-2.082.365-3.194 1.13-1.112 1.789-2.738 1.789-2.738s.246-.945.806-.858.97 1.499-.202 2.362c-1.173.864.233 1.45.685.64.451-.812 1.683-2.896 2.322-3.295s1.089-.175.938.647-2.822 2.813-2.562 3.244 1.176-.506 1.176-.506 2.866-2.567 3.49-1.898-.473 1.23-2.037 2.16c-1.564.932-1.686 1.178-1.464 1.53s3.675-2.511 4-1.297c.323 1.214-3.524 1.567-3.287 2.405.238.839 2.71-1.587 3.216-.642.506.946-3.49 2.056-3.522 2.064-1.29.33-4.568 1.028-5.713-.624"/></svg></div>
+          <b>bge-m3</b><span>текст → вектор</span>
+        </div>
+        <div class="arr"><svg viewBox="0 0 100 16" preserveAspectRatio="none" fill="none"><path d="M2 8h88" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/><path d="M90 3l7 5-7 5" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step">
+          <div class="disc2"><span class="n">5</span><svg fill="#DC244C" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12 16.5 3.897-2.25v-4.5L12 7.5 8.103 9.75v4.5zM1.607 18 12 24l3.897-2.25v-4.5L12 19.5l-6.495-3.75v-7.5L12 4.5l6.495 3.75v15L22.393 21V6L12 0 1.607 6Z"/></svg></div>
+          <b>Qdrant</b><span>поиск за миллисекунды</span>
+        </div>
+      </div>
+    </div>
+    <div class="rright">
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round"><path d="M4 4v6h6"/><path d="M4.5 10A8 8 0 1 1 4 15"/></svg></div>
+        <div><b>Форматы всех эпох</b><span>парсер понимает акты с 1991 года до вчерашних, 42 автотеста</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 19M8.5 16.5L20 5"/></svg></div>
+        <div><b>1 чанк = 1 статья</b><span>поэтому цитаты в ответах всегда дословные</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13A8 8 0 1 1 11 4a6.5 6.5 0 0 0 9 9z"/></svg></div>
+        <div><b>Автообновление в 04:00</b><span>изменившийся закон сам переезжает в базу</span></div>
+      </div>
+      <div class="bigstat"><b>15 809</b><span>фрагментов статей · 12 кодексов + 41 федзакон</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6c2 · Роль 3: архитектура ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 3 · архитектура — Роман Рахматулин</div>
+  <h1>Как устроен пайплайн: <span class="hl">закон → векторы</span></h1>
+  <div class="arch">
+    <svg viewBox="0 0 1112 452" fill="none" font-family="sans-serif">
+      <rect x="3" y="24" width="166" height="128" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="17" y="50" font-size="14.5" font-weight="800" fill="#0F172A">acts.py · реестр</text>
+      <text x="17" y="72" font-size="12" fill="#64748B">57 кодов актов</text>
+      <text x="17" y="89" font-size="12" fill="#64748B">nd-паспорт каждого</text>
+      <text x="17" y="106" font-size="12" fill="#64748B">min_articles — гейт</text>
+      <text x="17" y="123" font-size="12" fill="#64748B">от пустых заливок</text>
+      <path d="M169 88h18" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M181 82l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="191" y="24" width="166" height="128" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="205" y="50" font-size="14.5" font-weight="800" fill="#0F172A">fetch</text>
+      <text x="205" y="72" font-size="12" fill="#64748B">ИПС pravo.gov.ru</text>
+      <text x="205" y="89" font-size="12" fill="#64748B">редакция по max дате</text>
+      <text x="205" y="106" font-size="12" fill="#64748B">(rdk не монотонен!)</text>
+      <text x="205" y="123" font-size="12" fill="#64748B">ретраи троттлинга</text>
+      <path d="M357 88h18" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M369 82l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="379" y="24" width="166" height="128" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="393" y="50" font-size="14.5" font-weight="800" fill="#0F172A">parse</text>
+      <text x="393" y="72" font-size="12" fill="#64748B">HTML/RTF всех эпох:</text>
+      <text x="393" y="89" font-size="12" fill="#64748B">1991 → 2026</text>
+      <text x="393" y="106" font-size="12" fill="#64748B">утратившие силу — метка</text>
+      <text x="393" y="123" font-size="12" font-weight="700" fill="#6D5CFF">42 автотеста на кейсы</text>
+      <path d="M545 88h18" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M557 82l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="567" y="24" width="166" height="128" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="581" y="50" font-size="14.5" font-weight="800" fill="#0F172A">chunk</text>
+      <text x="581" y="72" font-size="12" fill="#64748B">1 статья = 1 чанк</text>
+      <text x="581" y="89" font-size="12" fill="#64748B">заголовок акта внутри</text>
+      <text x="581" y="106" font-size="12" fill="#64748B">id = uuid5(акт+статья)</text>
+      <text x="581" y="123" font-size="12" fill="#64748B">→ перезалив без дублей</text>
+      <path d="M733 88h18" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M745 82l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="755" y="24" width="160" height="128" rx="12" fill="#fff" stroke="#E7E8F2" stroke-width="1.4"/>
+      <text x="769" y="50" font-size="14.5" font-weight="800" fill="#0F172A">embed</text>
+      <text x="769" y="72" font-size="12" fill="#64748B">USER-bge-m3</text>
+      <text x="769" y="89" font-size="12" fill="#64748B">1024 измерения</text>
+      <text x="769" y="106" font-size="12" fill="#64748B">выбрана бенчмарком:</text>
+      <text x="769" y="123" font-size="12" font-weight="700" fill="#6D5CFF">R@5 = 0.97</text>
+      <path d="M915 88h18" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M927 82l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="937" y="24" width="166" height="128" rx="12" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.6"/>
+      <text x="951" y="50" font-size="14.5" font-weight="800" fill="#0F172A">Qdrant · upsert</text>
+      <text x="951" y="72" font-size="12" fill="#64748B">коллекция law_articles</text>
+      <text x="951" y="89" font-size="12" fill="#64748B">payload: акт, № статьи,</text>
+      <text x="951" y="106" font-size="12" fill="#64748B">глава, статус, дата ред.</text>
+      <text x="951" y="123" font-size="12" font-weight="700" fill="#DC244C">15 809 точек</text>
+
+      <rect x="379" y="180" width="354" height="46" rx="10" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.4"/>
+      <text x="556" y="202" font-size="12.5" font-weight="700" fill="#6D5CFF" text-anchor="middle">.state: хэши статей + redactions.json</text>
+      <text x="556" y="219" font-size="11.5" fill="#64748B" text-anchor="middle">меняем только то, что реально изменилось (Docker volume)</text>
+      <path d="M650 152v28" stroke="#CDC6FF" stroke-width="2" stroke-dasharray="4 5"/>
+
+      <rect x="60" y="256" width="992" height="180" rx="18" fill="#101223"/>
+      <text x="84" y="290" font-size="16" font-weight="800" fill="#C9CFEE">Ночной watch · cron 04:00</text>
+      <circle cx="1006" cy="288" r="14" fill="none" stroke="#8A93B8" stroke-width="2"/>
+      <path d="M1013 281a9 9 0 1 0 1 10" stroke="#8A93B8" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <rect x="84" y="310" width="250" height="100" rx="12" fill="#1B2148" stroke="#2E3766" stroke-width="1.4"/>
+      <text x="100" y="338" font-size="14" font-weight="800" fill="#fff">Ярус 1 · лёгкая проверка</text>
+      <text x="100" y="360" font-size="12" fill="#8A93B8">только карточка акта: номер</text>
+      <text x="100" y="377" font-size="12" fill="#8A93B8">редакции + дата — без текста</text>
+      <text x="100" y="397" font-size="12" fill="#8A93B8">57 актов за ~2 минуты</text>
+      <path d="M334 360h30" stroke="#4A529A" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M358 354l8 6-8 6" stroke="#7DE3F4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <g transform="rotate(45 428 360)">
+        <rect x="398" y="330" width="60" height="60" rx="10" fill="#1B2148" stroke="#4A529A" stroke-width="1.6"/>
+      </g>
+      <text x="428" y="356" font-size="12.5" font-weight="800" fill="#fff" text-anchor="middle">редакция</text>
+      <text x="428" y="372" font-size="12.5" font-weight="800" fill="#fff" text-anchor="middle">новая?</text>
+      <path d="M474 360h34" stroke="#4A529A" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M502 354l8 6-8 6" stroke="#7DE3F4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="484" y="348" font-size="11.5" font-weight="700" fill="#7DE3F4">да</text>
+      <rect x="516" y="310" width="256" height="100" rx="12" fill="#1B2148" stroke="#2E3766" stroke-width="1.4"/>
+      <text x="532" y="338" font-size="14" font-weight="800" fill="#fff">Ярус 2 · полный прогон</text>
+      <text x="532" y="360" font-size="12" fill="#8A93B8">fetch → parse → chunk →</text>
+      <text x="532" y="377" font-size="12" fill="#8A93B8">embed → upsert — но только</text>
+      <text x="532" y="397" font-size="12" fill="#8A93B8">для изменившихся актов</text>
+      <path d="M772 360h34" stroke="#4A529A" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M800 354l8 6-8 6" stroke="#7DE3F4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="814" y="310" width="238" height="100" rx="12" fill="#1B2148" stroke="#2E3766" stroke-width="1.4"/>
+      <text x="830" y="338" font-size="14" font-weight="800" fill="#fff">Отчёт</text>
+      <text x="830" y="360" font-size="12" fill="#8A93B8">law_watch.log:</text>
+      <text x="830" y="377" font-size="12" fill="#8A93B8">«актуальны 57 · изменились 0»</text>
+      <text x="830" y="397" font-size="12" fill="#8A93B8">упавший акт ≠ упавший запуск</text>
+      <path d="M644 310 C 640 270, 620 200, 600 156" stroke="#4A529A" stroke-width="2" stroke-dasharray="5 6" fill="none"/>
+      <path d="M596 170l4-16 12 10" stroke="#7DE3F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══ 6d · Роль 4: инфраструктура ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 4 · Инфраструктура — Виталий Коновалов</div>
+  <h1>Фундамент: весь прод — <span class="hl">одной командой</span></h1>
+  <div class="rwrap">
+    <div class="rleft">
+      <svg width="620" height="310" viewBox="0 0 640 320" fill="none">
+        <circle cx="52" cy="160" r="34" fill="#fff" stroke="#E7E8F2" stroke-width="2"/>
+        <path d="M67 148l-30 12 10 4 4 10 6-10z" fill="#2AABEE"/>
+        <text x="52" y="212" font-size="13" font-weight="700" fill="#64748B" text-anchor="middle" font-family="sans-serif">Telegram</text>
+        <path d="M90 160h44" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M128 154l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="150" y="16" width="474" height="292" rx="20" fill="#fff" stroke="#E7E8F2" stroke-width="2"/>
+        <text x="174" y="48" font-size="17" font-weight="800" fill="#0F172A" font-family="sans-serif">Selectel VPS</text>
+        <text x="174" y="68" font-size="13" font-weight="600" fill="#64748B" font-family="sans-serif">Docker Compose · make up</text>
+        <rect x="174" y="96" width="180" height="94" rx="14" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.6"/>
+        <rect x="196" y="114" width="40" height="30" rx="9" fill="#fff" stroke="#0F172A" stroke-width="2.4"/>
+        <circle cx="209" cy="127" r="4" fill="#6D5CFF"/><circle cx="223" cy="127" r="4" fill="#6D5CFF"/>
+        <path d="M206 137c3 2.5 11 2.5 14 0" stroke="#0F172A" stroke-width="2" stroke-linecap="round"/>
+        <text x="248" y="126" font-size="15" font-weight="800" fill="#0F172A" font-family="sans-serif">bot</text>
+        <text x="248" y="144" font-size="12" fill="#64748B" font-family="sans-serif">aiogram + агент</text>
+        <text x="196" y="176" font-size="12" font-weight="600" fill="#8A93A8" font-family="sans-serif">контейнер №1</text>
+        <rect x="404" y="86" width="196" height="76" rx="14" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.6"/>
+        <path d="M436 102l14 8v16l-14 8-14-8v-16z" fill="none" stroke="#DC244C" stroke-width="2.4"/>
+        <circle cx="436" cy="118" r="3.4" fill="#DC244C"/>
+        <text x="462" y="118" font-size="15" font-weight="800" fill="#0F172A" font-family="sans-serif">Qdrant</text>
+        <text x="462" y="136" font-size="12" fill="#64748B" font-family="sans-serif">векторы статей</text>
+        <rect x="404" y="180" width="196" height="76" rx="14" fill="#E9F0FE" stroke="#BCD0F7" stroke-width="1.6"/>
+        <g stroke="#4169E1" stroke-width="2.2" fill="none">
+          <ellipse cx="436" cy="204" rx="14" ry="5.5"/>
+          <path d="M422 204v18c0 3 6.3 5.5 14 5.5s14-2.5 14-5.5v-18"/>
+        </g>
+        <text x="462" y="212" font-size="15" font-weight="800" fill="#0F172A" font-family="sans-serif">PostgreSQL</text>
+        <text x="462" y="230" font-size="12" fill="#64748B" font-family="sans-serif">история · сессии</text>
+        <path d="M354 122h44" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M392 116l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M354 160l44 52" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M388 210l10 3-1-11" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="174" y="222" width="180" height="60" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
+        <path d="M206 244a10 10 0 1 1-11-10" stroke="#00B8D9" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M195 234l4-3M195 234l4 3" stroke="#00B8D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="220" y="248" font-size="14" font-weight="800" fill="#0F172A" font-family="sans-serif">cron 04:00</text>
+        <text x="220" y="266" font-size="12" fill="#64748B" font-family="sans-serif">watch законов</text>
+        <path d="M340 222c28-22 32-64 56-92" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 6" fill="none"/>
+        <path d="M390 132l8-6 1 10" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </div>
+    <div class="rright">
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="4.5" height="4"/><rect x="10" y="10" width="4.5" height="4"/><rect x="10" y="5" width="4.5" height="4"/><rect x="16" y="10" width="4.5" height="4"/><path d="M2 17.5c4 2 16 2 20-2"/></svg></div>
+        <div><b>make up — и всё живо</b><span>bot, Qdrant, Postgres поднимаются одной командой</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+        <div><b>Данные переживают рестарт</b><span>тома Docker: база законов и история на месте</span></div>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l3 3 5-6"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <div><b>Контракты команды</b><span>shared/contracts.py меняется только PR всех четверых</span></div>
+      </div>
+      <div class="bigstat"><b>24/7</b><span>бот в проде на Selectel — ноль падений за историю</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 6d2 · Роль 4: архитектура ═══ -->
+<section class="slide">
+  <div class="kicker">Роль 4 · архитектура — Виталий Коновалов</div>
+  <h1>Как устроен прод: <span class="hl">один сервер, всё в контейнерах</span></h1>
+  <div class="arch">
+    <svg viewBox="0 0 1112 452" fill="none" font-family="sans-serif">
+      <rect x="3" y="30" width="156" height="86" rx="14" fill="#E8F4FD" stroke="#A9D8F5" stroke-width="1.6"/>
+      <text x="81" y="66" font-size="14.5" font-weight="800" fill="#0F172A" text-anchor="middle">Telegram API</text>
+      <text x="81" y="88" font-size="12" fill="#64748B" text-anchor="middle">пользователи</text>
+      <rect x="3" y="140" width="156" height="86" rx="14" fill="#fff" stroke="#E7E8F2" stroke-width="1.6"/>
+      <text x="81" y="176" font-size="14.5" font-weight="800" fill="#0F172A" text-anchor="middle">Polza.ai · LLM</text>
+      <text x="81" y="198" font-size="12" fill="#64748B" text-anchor="middle">Gemini + Whisper</text>
+      <rect x="3" y="250" width="156" height="86" rx="14" fill="#fff" stroke="#E7E8F2" stroke-width="1.6"/>
+      <text x="81" y="286" font-size="14.5" font-weight="800" fill="#0F172A" text-anchor="middle">pravo.gov.ru</text>
+      <text x="81" y="308" font-size="12" fill="#64748B" text-anchor="middle">тексты законов</text>
+      <rect x="3" y="360" width="156" height="80" rx="14" fill="#fff" stroke="#E7E8F2" stroke-width="1.6"/>
+      <text x="81" y="393" font-size="14.5" font-weight="800" fill="#0F172A" text-anchor="middle">GitHub · main</text>
+      <text x="81" y="415" font-size="12" fill="#64748B" text-anchor="middle">деплой: git pull</text>
+
+      <rect x="200" y="128" width="132" height="110" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
+      <text x="266" y="164" font-size="14.5" font-weight="800" fill="#0F172A" text-anchor="middle">xray-прокси</text>
+      <text x="266" y="186" font-size="12" fill="#64748B" text-anchor="middle">egress из РФ:</text>
+      <text x="266" y="204" font-size="12" fill="#64748B" text-anchor="middle">Telegram + LLM</text>
+      <path d="M159 76c30 0 40 60 44 74" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <path d="M196 138l8 12-14-2" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M159 183h34" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M187 177l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M332 183h34" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M360 177l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <rect x="380" y="16" width="722" height="424" rx="20" fill="#fff" stroke="#E7E8F2" stroke-width="2"/>
+      <text x="404" y="48" font-size="17" font-weight="800" fill="#0F172A">Selectel VPS</text>
+      <text x="404" y="68" font-size="12.5" font-weight="600" fill="#64748B">docker compose · одна сеть · автозапуск</text>
+
+      <rect x="404" y="88" width="310" height="140" rx="14" fill="#F0EEFF" stroke="#CDC6FF" stroke-width="1.6"/>
+      <rect x="424" y="110" width="44" height="34" rx="10" fill="#fff" stroke="#0F172A" stroke-width="2.4"/>
+      <circle cx="438" cy="125" r="4.2" fill="#6D5CFF"/><circle cx="454" cy="125" r="4.2" fill="#6D5CFF"/>
+      <path d="M435 136c3 2.5 12 2.5 15 0" stroke="#0F172A" stroke-width="2" stroke-linecap="round"/>
+      <text x="482" y="122" font-size="15" font-weight="800" fill="#0F172A">контейнер bot</text>
+      <text x="482" y="142" font-size="12" fill="#64748B">aiogram + агент + пайплайн</text>
+      <text x="424" y="172" font-size="12" fill="#64748B">один образ — меньше движущихся</text>
+      <text x="424" y="189" font-size="12" fill="#64748B">частей и версии не разъезжаются</text>
+      <rect x="424" y="200" width="212" height="22" rx="11" fill="#fff" stroke="#CDC6FF" stroke-width="1.2"/>
+      <text x="530" y="215" font-size="11" font-weight="700" fill="#6D5CFF" text-anchor="middle">volume pipeline_state · память watch</text>
+
+      <rect x="760" y="88" width="316" height="96" rx="14" fill="#FDECEF" stroke="#F4B9C6" stroke-width="1.6"/>
+      <text x="778" y="116" font-size="15" font-weight="800" fill="#0F172A">контейнер qdrant</text>
+      <text x="778" y="138" font-size="12" fill="#64748B">векторная база · индексы: act, user_id</text>
+      <rect x="778" y="150" width="190" height="22" rx="11" fill="#fff" stroke="#F4B9C6" stroke-width="1.2"/>
+      <text x="873" y="165" font-size="11" font-weight="700" fill="#DC244C" text-anchor="middle">volume qdrant_storage</text>
+
+      <rect x="760" y="204" width="316" height="96" rx="14" fill="#E9F0FE" stroke="#BCD0F7" stroke-width="1.6"/>
+      <text x="778" y="232" font-size="15" font-weight="800" fill="#0F172A">контейнер postgres</text>
+      <text x="778" y="254" font-size="12" fill="#64748B">users · dialog_history · law_versions</text>
+      <rect x="778" y="266" width="190" height="22" rx="11" fill="#fff" stroke="#BCD0F7" stroke-width="1.2"/>
+      <text x="873" y="281" font-size="11" font-weight="700" fill="#4169E1" text-anchor="middle">volume pgdata</text>
+
+      <path d="M714 128h40" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M748 122l8 6-8 6" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M714 190l40 40" stroke="#B9C6E4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M744 228l10 3-2-11" stroke="#00B8D9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <rect x="404" y="252" width="310" height="80" rx="14" fill="#E3F7FB" stroke="#A8E4F0" stroke-width="1.6"/>
+      <text x="424" y="280" font-size="14.5" font-weight="800" fill="#0F172A">cron · 04:00</text>
+      <text x="424" y="302" font-size="12" fill="#64748B">docker exec → watch законов</text>
+      <text x="424" y="319" font-size="12" fill="#64748B">отчёт в law_watch.log</text>
+      <path d="M559 252v-18" stroke="#A8E4F0" stroke-width="2" stroke-dasharray="4 5"/>
+
+      <rect x="404" y="352" width="672" height="66" rx="14" fill="#F7F6FF" stroke="#D9D3FA" stroke-width="1.6"/>
+      <text x="424" y="379" font-size="14" font-weight="800" fill="#0F172A">make up · make migrate · shared/contracts.py</text>
+      <text x="424" y="400" font-size="12" fill="#64748B">весь прод одной командой · индексы Qdrant + 4 таблицы Postgres · контракты меняются только PR всех четверых</text>
+
+      <path d="M159 293c100 6 180 10 243 22" stroke="#B9C6E4" stroke-width="2" stroke-dasharray="5 6" fill="none"/>
+      <path d="M390 310l12 7-14 5" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <text x="196" y="330" font-size="11.5" font-weight="700" fill="#64748B">ночной fetch редакций</text>
+      <path d="M159 398c100 4 170 0 240-8" stroke="#B9C6E4" stroke-width="2" stroke-dasharray="5 6" fill="none"/>
+      <path d="M386 384l14 5-12 8" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══ 7 · Развитие ═══ -->
+<section class="slide">
+  <div class="kicker">Дальнейшее развитие</div>
+  <h1>Что прикрутим дальше</h1>
+  <div class="next">
+    <div class="ncard">
+      <div class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg></div>
+      <b>Пуши об изменениях</b>
+      <span>мониторинг редакций уже работает — осталось присылать уведомления тем, кого касается изменение</span>
+    </div>
+    <div class="ncard">
+      <div class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#00B8D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 3.5-8 3.5-8-3.5z"/><path d="M4 12l8 3.5 8-3.5M4 16.5L12 20l8-3.5"/></svg></div>
+      <b>Судебная практика</b>
+      <span>к статье закона добавим позиции судов по похожим делам — ответ становится аргументом</span>
+    </div>
+    <div class="ncard">
+      <div class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6D5CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></div>
+      <b>Метрика уверенности</b>
+      <span>бот сам понимает, когда контекста мало, — и честно предлагает живого юриста</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 8 · Вопросы ═══ -->
+<section class="slide qslide">
+  <div class="kicker">pocket-law-ai</div>
+  <div class="qrow">
+    <svg width="150" height="150" viewBox="0 0 140 140" fill="none">
+  <line x1="70" y1="14" x2="70" y2="30" stroke="#0F172A" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="70" cy="11" r="6" fill="#00B8D9"/>
+  <rect x="22" y="30" width="96" height="74" rx="22" fill="#fff" stroke="#0F172A" stroke-width="3.5"/>
+  <rect x="10" y="56" width="12" height="24" rx="6" fill="#CDC6FF"/>
+  <rect x="118" y="56" width="12" height="24" rx="6" fill="#CDC6FF"/>
+  <circle cx="51" cy="60" r="8" fill="#6D5CFF"/>
+  <circle cx="89" cy="60" r="8" fill="#6D5CFF"/>
+  <circle cx="54" cy="57" r="2.6" fill="#fff"/>
+  <circle cx="92" cy="57" r="2.6" fill="#fff"/>
+  <path d="M54 82c5 6 27 6 32 0" stroke="#0F172A" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M52 116h36M70 108v8M56 116l-6 12h12l-6-12zM84 116l-6 12h12l-6-12z"
+        stroke="#00B8D9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+    <h1>Вопросы<span class="hl">?</span></h1>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>15 809</b><span>фрагментов статей</span></div>
+    <div class="stat"><b>12 + 41</b><span>кодексов + федеральных законов</span></div>
+    <div class="stat"><b>93%</b><span>точность поиска</span></div>
+    <div class="stat"><b>100%</b><span>точность маршрутизации</span></div>
+  </div>
+</section>
+
+</div></div>
+<div id="bar"></div>
+<div id="num"></div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let cur=0;
+  const bar=document.getElementById('bar'), num=document.getElementById('num');
+  function show(i){
+    cur=Math.max(0,Math.min(slides.length-1,i));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===cur));
+    bar.style.width=((cur+1)/slides.length*100)+'%';
+    num.textContent=(cur+1)+' / '+slides.length;
+  }
+  function fit(){
+    const s=Math.min(innerWidth/1280,innerHeight/720)*0.97;
+    document.getElementById('deck').style.transform='scale('+s+')';
+  }
+  addEventListener('resize',fit);
+  addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();show(cur+1)}
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();show(cur-1)}
+    else if(e.key==='Home')show(0);
+    else if(e.key==='End')show(slides.length-1);
+    else if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}
+  });
+  addEventListener('click',e=>{ if(e.clientX>innerWidth*0.25)show(cur+1); else show(cur-1) });
+  fit(); show((parseInt(location.hash.slice(1),10)||1)-1);
+</script>
+</body>
+</html>
